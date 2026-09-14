@@ -688,6 +688,16 @@ class OrderRepositoryImpl(
                 if (!response.success) {
                     return@withContext Result.failure(Exception(response.message ?: "No se pudo reportar la ausencia del comprador."))
                 }
+                try {
+                    postgrest.from("order_incidents").insert(
+                        mapOf(
+                            "sub_order_id" to subOrderId,
+                            "incident_type" to "NO_SHOW_BUYER",
+                            "details" to (reason ?: "Comprador no se presentó al punto de entrega"),
+                            "status" to "PENDIENTE"
+                        )
+                    )
+                } catch (_: Exception) {}
             }
 
             var updated: SubOrder? = null

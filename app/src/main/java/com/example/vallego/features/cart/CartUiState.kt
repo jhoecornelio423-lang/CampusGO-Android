@@ -37,7 +37,7 @@ fun generateDeliverySchedule(): DeliveryScheduleInfo {
         return DeliveryScheduleInfo(
             slots = tomorrowSlots,
             isCampusClosedNow = true,
-            infoMessage = "🌙 Campus cerrado por hoy (atención hasta las 22:00). Tu pedido se programará para entrega mañana."
+            infoMessage = "Campus cerrado por hoy (atención hasta las 22:00). Tu pedido se programará para entrega mañana."
         )
     }
 
@@ -58,7 +58,7 @@ fun generateDeliverySchedule(): DeliveryScheduleInfo {
         return DeliveryScheduleInfo(
             slots = todaySlots,
             isCampusClosedNow = false,
-            infoMessage = "☀️ El campus inicia entregas a las 08:00 AM. Puedes programar para hoy desde la apertura."
+            infoMessage = "El campus inicia entregas a las 08:00 AM. Puedes programar para hoy desde la apertura."
         )
     }
 
@@ -99,25 +99,24 @@ fun generateDeliverySchedule(): DeliveryScheduleInfo {
         return DeliveryScheduleInfo(
             slots = tomorrowSlots,
             isCampusClosedNow = true,
-            infoMessage = "🌙 Entregas de hoy culminadas. Tu pedido se entregará mañana a primera hora."
+            infoMessage = "Entregas de hoy culminadas. Tu pedido se entregará mañana a primera hora."
         )
     }
 
     return DeliveryScheduleInfo(
         slots = todaySlots,
         isCampusClosedNow = false,
-        infoMessage = "⏱️ Horarios con buffer de preparación de 15 a 30 min."
+        infoMessage = "Horarios con margen de preparación de 15 a 30 min."
     )
 }
 
 fun generateAvailableTimeSlots(): List<String> = generateDeliverySchedule().slots
 
 val defaultMeetingPoints = listOf(
-    CampusMeetingPoint(id = "mp-1", name = "Biblioteca - Puerta Principal", pavilion = "Central"),
-    CampusMeetingPoint(id = "mp-2", name = "Pabellón A - Hall Principal", pavilion = "Pabellón A"),
-    CampusMeetingPoint(id = "mp-3", name = "Pabellón B - Explanada", pavilion = "Pabellón B"),
-    CampusMeetingPoint(id = "mp-4", name = "Cafetería Central", pavilion = "Comedor"),
-    CampusMeetingPoint(id = "mp-5", name = "Patio de Ingeniería", pavilion = "Pabellón C")
+    CampusMeetingPoint(id = "mp-1", name = "Biblioteca Central - Puerta Principal", pavilion = "Edificio Central", description = "Zona de torniquetes de acceso", campus = "Los Olivos", isActive = true),
+    CampusMeetingPoint(id = "mp-2", name = "Pabellón A - Zona de Bancas", pavilion = "Pabellón A", description = "Patio central frente al cafetín", campus = "Los Olivos", isActive = true),
+    CampusMeetingPoint(id = "mp-3", name = "Pabellón C - Explanada", pavilion = "Pabellón C", description = "Área techada de mesas de estudio", campus = "Los Olivos", isActive = true),
+    CampusMeetingPoint(id = "mp-4", name = "Cafetería Campus - Terraza", pavilion = "Pabellón D", description = "Mesas al aire libre", campus = "Los Olivos", isActive = true)
 )
 
 private val defaultSchedule = generateDeliverySchedule()

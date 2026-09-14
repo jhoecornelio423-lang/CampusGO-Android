@@ -34,7 +34,7 @@ fun MainNavigation(
     if (!isAuthenticated || currentProfile == null) {
         AuthRoute(
             onAuthSuccess = { /* State triggers automatic recomposition */ },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp)
+            modifier = Modifier.fillMaxSize().safeDrawingPadding()
         )
     } else {
         val profile = currentProfile!!
@@ -73,7 +73,7 @@ fun MainNavigation(
                     modifier = Modifier.fillMaxSize().padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Tu cuenta ha sido suspendida. Contacta a soporte institucional Valle-Go.")
+                    Text("Tu cuenta ha sido suspendida. Contacta a soporte institucional de Campus Go.")
                 }
             }
         }

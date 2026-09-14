@@ -13,6 +13,8 @@ data class CampusMeetingPoint(
     val description: String? = null,
     @SerialName("pavilion")
     val pavilion: String? = null,
+    @SerialName("campus")
+    val campus: String? = "Los Olivos",
     @SerialName("is_active")
     val isActive: Boolean = true,
     @SerialName("created_at")

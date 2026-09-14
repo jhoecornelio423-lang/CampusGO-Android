@@ -20,11 +20,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.UserProfile
@@ -40,6 +47,16 @@ fun CartScreen(
     viewModel: CartViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshMeetingPoints()
+    }
+
+    val isOrderConfirmed = uiState.placedOrder != null
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (isOrderConfirmed) 20.dp else 0.dp,
+        label = "cart_dialog_blur"
+    )
 
     // Dialogo de Éxito cuando se genera la orden y sus subpedidos
     if (uiState.placedOrder != null) {
@@ -59,7 +76,7 @@ fun CartScreen(
             },
             title = {
                 Text(
-                    text = "¡Pedido Valle-Go Confirmado!",
+                    text = "¡Pedido Campus Go Confirmado!",
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
@@ -71,16 +88,34 @@ fun CartScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     HorizontalDivider()
-                    Text(
-                        text = "📍 Punto: ${order.meetingPointName}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "⏰ Hora: ${order.scheduledTime}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_meeting_point),
+                            contentDescription = null,
+                            tint = Color(0xFF003366),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Punto: ${order.meetingPointName}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_clock_modern),
+                            contentDescription = null,
+                            tint = Color(0xFF003366),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Hora: ${order.scheduledTime}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Subpedidos independientes:",
@@ -157,28 +192,29 @@ fun CartScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Carrito Multi-Puesto",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver"
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Carrito Multi-Puesto",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF003366)
                         )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Volver"
+                            )
+                        }
                     }
-                }
-            )
-        },
-        modifier = modifier
-    ) { innerPadding ->
+                )
+            },
+            modifier = if (backgroundBlurRadius > 0.dp) Modifier.fillMaxSize().blur(backgroundBlurRadius) else Modifier.fillMaxSize()
+        ) { innerPadding ->
         if (uiState.isEmpty) {
             Box(
                 modifier = Modifier
@@ -244,12 +280,24 @@ fun CartScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "🏪 ${group.sellerName}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF003366)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_store_modern),
+                                        contentDescription = null,
+                                        tint = Color(0xFF003366),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = group.sellerName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF003366)
+                                    )
+                                }
                                 Text(
                                     text = "Subtotal: S/ %.2f".format(group.subtotal),
                                     style = MaterialTheme.typography.titleSmall,
@@ -357,8 +405,13 @@ fun CartScreen(
                             expanded = expanded,
                             onExpandedChange = { expanded = !expanded }
                         ) {
+                            val selectedText = uiState.selectedMeetingPoint?.let { pt ->
+                                val pavilionPart = if (!pt.pavilion.isNullOrBlank()) " (${pt.pavilion})" else ""
+                                "${pt.name}$pavilionPart"
+                            } ?: if (uiState.meetingPoints.isEmpty()) "Cargando puntos de entrega..." else "Selecciona un punto"
+
                             OutlinedTextField(
-                                value = uiState.selectedMeetingPoint?.name ?: "Selecciona un punto",
+                                value = selectedText,
                                 onValueChange = {},
                                 readOnly = true,
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -370,14 +423,38 @@ fun CartScreen(
                                 expanded = expanded,
                                 onDismissRequest = { expanded = false }
                             ) {
-                                uiState.meetingPoints.forEach { point ->
+                                if (uiState.meetingPoints.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text("${point.name} (${point.pavilion})") },
-                                        onClick = {
-                                            viewModel.selectMeetingPoint(point)
-                                            expanded = false
-                                        }
+                                        text = { Text("No hay puntos de entrega disponibles") },
+                                        onClick = { expanded = false },
+                                        enabled = false
                                     )
+                                } else {
+                                    uiState.meetingPoints.forEach { point ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Column {
+                                                    val pavilionPart = if (!point.pavilion.isNullOrBlank()) " (${point.pavilion})" else ""
+                                                    Text(
+                                                        text = "${point.name}$pavilionPart",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                    if (!point.description.isNullOrBlank()) {
+                                                        Text(
+                                                            text = point.description,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = Color(0xFF666666)
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                viewModel.selectMeetingPoint(point)
+                                                expanded = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -536,7 +613,7 @@ fun CartScreen(
                         Button(
                             onClick = { viewModel.confirmOrder(buyerProfile) },
                             enabled = uiState.canCheckout,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E)),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A085)),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -546,7 +623,7 @@ fun CartScreen(
                                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                             } else {
                                 Text(
-                                    text = "Confirmar Pedido Valle-Go",
+                                    text = "Confirmar Pedido Campus Go",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 )
@@ -557,4 +634,18 @@ fun CartScreen(
             }
         }
     }
+
+    // Overlay elegante desenfocado / scrim para el diálogo emergente
+    AnimatedVisibility(
+        visible = isOrderConfirmed,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF001A33).copy(alpha = 0.55f))
+        )
+    }
+}
 }

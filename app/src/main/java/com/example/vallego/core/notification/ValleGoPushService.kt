@@ -51,7 +51,7 @@ class ValleGoPushService : Service(), KoinComponent {
         ValleGoNotificationHelper.createNotificationChannels(this)
         val ongoingNotification = ValleGoNotificationHelper.getForegroundServiceNotification(
             context = this,
-            title = "Valle-Go",
+            title = "Campus Go",
             content = "Monitoreando pedidos y notificaciones en campus"
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -253,7 +253,7 @@ class ValleGoPushService : Service(), KoinComponent {
                 ValleGoNotificationHelper.showOrderNotification(
                     context = this@ValleGoPushService,
                     notificationId = sub.id.hashCode(),
-                    title = "🔔 ¡Nuevo pedido recibido!",
+                    title = "¡Nuevo pedido recibido!",
                     message = messageText,
                     orderId = sub.orderId
                 )
@@ -294,7 +294,7 @@ class ValleGoPushService : Service(), KoinComponent {
                             ValleGoNotificationHelper.showOrderNotification(
                                 context = this@ValleGoPushService,
                                 notificationId = order.id.hashCode(),
-                                title = "👨‍🍳 Pedido en preparación",
+                                title = "Pedido en preparación",
                                 message = "El vendedor comenzó a preparar tu pedido$summaryPart.",
                                 orderId = order.id
                             )
@@ -303,7 +303,7 @@ class ValleGoPushService : Service(), KoinComponent {
                             ValleGoNotificationHelper.showOrderNotification(
                                 context = this@ValleGoPushService,
                                 notificationId = order.id.hashCode(),
-                                title = "✅ ¡Tu pedido está listo!",
+                                title = "¡Tu pedido está listo!",
                                 message = "Acércate a recoger tu pedido$summaryPart al punto de encuentro.",
                                 orderId = order.id
                             )
@@ -312,7 +312,7 @@ class ValleGoPushService : Service(), KoinComponent {
                             ValleGoNotificationHelper.showOrderNotification(
                                 context = this@ValleGoPushService,
                                 notificationId = order.id.hashCode(),
-                                title = "🎉 ¡Pedido entregado!",
+                                title = "¡Pedido entregado!",
                                 message = "Tu pedido$summaryPart ha sido completado exitosamente. ¡Buen provecho!",
                                 orderId = order.id
                             )
@@ -321,7 +321,7 @@ class ValleGoPushService : Service(), KoinComponent {
                             ValleGoNotificationHelper.showOrderNotification(
                                 context = this@ValleGoPushService,
                                 notificationId = order.id.hashCode(),
-                                title = "❌ Pedido cancelado",
+                                title = "Pedido cancelado",
                                 message = "Tu pedido$summaryPart fue cancelado.",
                                 orderId = order.id
                             )

@@ -1,5 +1,9 @@
 package com.example.vallego.features.seller
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -31,11 +35,19 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import com.example.vallego.ui.components.compressImageUri
 import com.example.vallego.ui.components.isSubOrderExpired
@@ -74,6 +86,19 @@ fun SellerDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSellerProfileDialog by remember { mutableStateOf(false) }
+
+    val isAnyModalOpen = showSellerProfileDialog ||
+            uiState.selectedSubOrderForRejection != null ||
+            uiState.selectedSubOrderForDelivery != null ||
+            uiState.showAddProductDialog ||
+            uiState.selectedProductForEdit != null ||
+            uiState.selectedSubOrderForNoShow != null ||
+            uiState.selectedProductForStockEdit != null
+
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
+        label = "seller_dialog_blur"
+    )
 
     LaunchedEffect(profile.id) {
         viewModel.initialize(profile.id, profile.acceptingOrders, profile.businessLocation)
@@ -301,7 +326,7 @@ fun SellerDashboardScreen(
                             },
                             label = {
                                 Text(
-                                    text = if (isUploadingPhoto) "Subiendo foto..." else if (prodImageUrl.isBlank()) "Agregar foto desde celular" else "Cambiar foto",
+                                    text = if (isUploadingPhoto) "Subiendo foto..." else if (prodImageUrl.isBlank()) "Subir foto" else "Cambiar foto",
                                     fontSize = 12.sp
                                 )
                             }
@@ -365,7 +390,7 @@ fun SellerDashboardScreen(
                             ) {
                                 uiState.categories.forEach { cat ->
                                     DropdownMenuItem(
-                                        text = { Text("${cat.icon ?: "📦"} ${cat.name}") },
+                                        text = { Text(cat.name) },
                                         onClick = {
                                             selectedCatId = cat.id
                                             expandedCat = false
@@ -544,7 +569,7 @@ fun SellerDashboardScreen(
                             },
                             label = {
                                 Text(
-                                    text = if (isUploadingEditPhoto) "Subiendo foto..." else if (imageInput.isBlank()) "Subir foto desde celular" else "Cambiar foto",
+                                    text = if (isUploadingEditPhoto) "Subiendo foto..." else if (imageInput.isBlank()) "Subir foto" else "Cambiar foto",
                                     fontSize = 12.sp
                                 )
                             }
@@ -604,7 +629,7 @@ fun SellerDashboardScreen(
                             ) {
                                 uiState.categories.forEach { cat ->
                                     DropdownMenuItem(
-                                        text = { Text("${cat.icon ?: "📦"} ${cat.name}") },
+                                        text = { Text(cat.name) },
                                         onClick = {
                                             selectedCatId = cat.id
                                             expandedCat = false
@@ -815,8 +840,9 @@ fun SellerDashboardScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (uiState.selectedTab == SellerTab.PRODUCTOS) {
                 ExtendedFloatingActionButton(
@@ -858,7 +884,7 @@ fun SellerDashboardScreen(
                             val subtitle = listOfNotNull(
                                 curProf.fullName.takeIf { it.isNotBlank() && it != curProf.businessName },
                                 curProf.businessLocation?.takeIf { it.isNotBlank() } ?: "Campus ${curProf.campus}"
-                            ).joinToString(" • ").ifBlank { "Emprendedor UCV" }
+                            ).joinToString(" • ").ifBlank { "Emprendedor Universitario" }
                             Text(
                                 text = subtitle,
                                 style = MaterialTheme.typography.labelSmall,
@@ -879,7 +905,7 @@ fun SellerDashboardScreen(
                 }
             )
         },
-        modifier = modifier
+        modifier = if (backgroundBlurRadius > 0.dp) modifier.blur(backgroundBlurRadius) else modifier
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -943,13 +969,41 @@ fun SellerDashboardScreen(
 
             when (uiState.selectedTab) {
                 SellerTab.PEDIDOS -> {
+                    val todayFormattedDate = remember {
+                        val today = LocalDate.now(ZoneId.of("America/Lima"))
+                        val dayName = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"))
+                            .replaceFirstChar { it.uppercase() }
+                        val monthName = today.month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"))
+                        "$dayName, ${today.dayOfMonth} de $monthName"
+                    }
+
+                    // Indicador de Jornada de Hoy
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = Color(0xFF003366),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Jornada de Hoy • $todayFormattedDate",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF003366)
+                        )
+                    }
+
                     // Resumen de Métricas / KPIs del Día
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         MetricSummaryCard(
-                            title = "Ganancias",
+                            title = "Ganancias Hoy",
                             value = "S/ %.2f".format(uiState.earningsToday),
                             color = Color(0xFF003366),
                             modifier = Modifier.weight(1.3f)
@@ -985,11 +1039,11 @@ fun SellerDashboardScreen(
                         SellerOrderFilter.values().forEach { filter ->
                             val isSelected = uiState.selectedFilter == filter
                             val label = when (filter) {
-                                SellerOrderFilter.TODOS -> "Todos (${uiState.totalSubOrdersToday})"
+                                SellerOrderFilter.TODOS -> "Hoy (${uiState.totalSubOrdersToday})"
                                 SellerOrderFilter.PENDIENTES -> "Pendientes (${uiState.pendingCount})"
                                 SellerOrderFilter.EN_PREPARACION -> "En Prep. (${uiState.inPreparationCount})"
                                 SellerOrderFilter.LISTOS -> "Listos (${uiState.readyCount})"
-                                SellerOrderFilter.COMPLETADOS -> "Entregados (${uiState.completedCount})"
+                                SellerOrderFilter.COMPLETADOS -> "Entregados Hoy (${uiState.completedCount})"
                                 SellerOrderFilter.RECHAZADOS -> "Rechazados"
                             }
                             FilterChip(
@@ -1004,9 +1058,11 @@ fun SellerDashboardScreen(
                         }
                     }
 
-                    // Lista de Subpedidos
-                    val subOrders = uiState.filteredSubOrders
-                    if (subOrders.isEmpty()) {
+                    // Lista de Subpedidos de Hoy + Historial Acordeón de Días Anteriores
+                    val todayOrders = uiState.filteredTodayOrders
+                    val pastDayGroups = uiState.pastDayGroups
+
+                    if (todayOrders.isEmpty() && pastDayGroups.isEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -1025,7 +1081,7 @@ fun SellerDashboardScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "No hay subpedidos en esta sección",
+                                    text = "No hay subpedidos registrados aún",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1036,17 +1092,130 @@ fun SellerDashboardScreen(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(subOrders, key = { it.id }) { subOrder ->
-                                SellerSubOrderCard(
-                                    subOrder = subOrder,
-                                    onAccept = { viewModel.acceptSubOrder(subOrder.id) },
-                                    onStartPrep = { viewModel.startPreparation(subOrder.id) },
-                                    onMarkReady = { viewModel.markReady(subOrder.id) },
-                                    onOpenDelivery = { viewModel.openDeliveryDialog(subOrder) },
-                                    onOpenRejection = { viewModel.openRejectionDialog(subOrder) },
-                                    onOpenNoShow = { viewModel.openNoShowDialog(subOrder) },
-                                    onExpired = { viewModel.onSubOrderExpired(subOrder.id) }
-                                )
+                            // 1. Bloque: Pedidos de Hoy
+                            if (todayOrders.isNotEmpty()) {
+                                item(key = "header_today") {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 2.dp, bottom = 2.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .background(Color(0xFF2E7D32), CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Pedidos de Hoy",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF003366)
+                                        )
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Text(
+                                            text = "${todayOrders.size} pedidos",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                items(todayOrders, key = { it.id }) { subOrder ->
+                                    SellerSubOrderCard(
+                                        subOrder = subOrder,
+                                        onAccept = { viewModel.acceptSubOrder(subOrder.id) },
+                                        onStartPrep = { viewModel.startPreparation(subOrder.id) },
+                                        onMarkReady = { viewModel.markReady(subOrder.id) },
+                                        onOpenDelivery = { viewModel.openDeliveryDialog(subOrder) },
+                                        onOpenRejection = { viewModel.openRejectionDialog(subOrder) },
+                                        onOpenNoShow = { viewModel.openNoShowDialog(subOrder) },
+                                        onExpired = { viewModel.onSubOrderExpired(subOrder.id) }
+                                    )
+                                }
+                            } else {
+                                item(key = "empty_today") {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Store,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(
+                                                    text = "Sin pedidos para hoy en este filtro",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "Ganancias de hoy: S/ %.2f".format(uiState.earningsToday),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 2. Bloque: Historial de Días Anteriores (Acordeón)
+                            if (pastDayGroups.isNotEmpty()) {
+                                item(key = "header_past_days") {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 16.dp, bottom = 2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.History,
+                                            contentDescription = null,
+                                            tint = Color(0xFF003366),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Historial de Días Anteriores",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF003366)
+                                        )
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Text(
+                                            text = "${pastDayGroups.size} días registrados",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                pastDayGroups.forEach { group ->
+                                    item(key = "past_group_${group.date}") {
+                                        val isExpanded = uiState.expandedPastDates.contains(group.date)
+                                        SellerPastDayCard(
+                                            group = group,
+                                            isExpanded = isExpanded,
+                                            onToggleExpand = { viewModel.togglePastDayExpanded(group.date) },
+                                            onAccept = { viewModel.acceptSubOrder(it) },
+                                            onStartPrep = { viewModel.startPreparation(it) },
+                                            onMarkReady = { viewModel.markReady(it) },
+                                            onOpenDelivery = { viewModel.openDeliveryDialog(it) },
+                                            onOpenRejection = { viewModel.openRejectionDialog(it) },
+                                            onOpenNoShow = { viewModel.openNoShowDialog(it) },
+                                            onExpired = { viewModel.onSubOrderExpired(it) }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1132,6 +1301,117 @@ fun SellerDashboardScreen(
                     }
                 }
                 else -> {}
+            }
+        }
+    }
+
+    // Overlay elegante desenfocado / scrim para los diálogos emergentes
+    AnimatedVisibility(
+        visible = isAnyModalOpen,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF001A33).copy(alpha = 0.55f))
+        )
+    }
+}
+}
+
+@Composable
+fun SellerPastDayCard(
+    group: DailyOrderGroup,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onAccept: (String) -> Unit,
+    onStartPrep: (String) -> Unit,
+    onMarkReady: (String) -> Unit,
+    onOpenDelivery: (SubOrder) -> Unit,
+    onOpenRejection: (SubOrder) -> Unit,
+    onOpenNoShow: (SubOrder) -> Unit,
+    onExpired: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = group.displayTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF003366)
+                    )
+                    Text(
+                        text = "${group.completedCount} entregados • ${group.orders.size} pedidos totales" +
+                                if (group.cancelledCount > 0) " • ${group.cancelledCount} cancelados" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF003366).copy(alpha = 0.08f),
+                    modifier = Modifier.padding(end = 6.dp)
+                ) {
+                    Text(
+                        text = "S/ %.2f".format(group.totalEarnings),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF003366),
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onToggleExpand,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Colapsar" else "Expandir",
+                        tint = Color(0xFF003366)
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    group.orders.forEach { subOrder ->
+                        SellerSubOrderCard(
+                            subOrder = subOrder,
+                            onAccept = { onAccept(subOrder.id) },
+                            onStartPrep = { onStartPrep(subOrder.id) },
+                            onMarkReady = { onMarkReady(subOrder.id) },
+                            onOpenDelivery = { onOpenDelivery(subOrder) },
+                            onOpenRejection = { onOpenRejection(subOrder) },
+                            onOpenNoShow = { onOpenNoShow(subOrder) },
+                            onExpired = { onExpired(subOrder.id) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -1321,7 +1601,7 @@ fun SellerSubOrderCard(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "⏰ Cancelado automáticamente por tiempo agotado (15 min)",
+                                    text = "Cancelado automáticamente por tiempo agotado (15 min)",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFC8102E)
@@ -1394,7 +1674,7 @@ fun SellerSubOrderCard(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Entregado y Cobrado ✓",
+                                text = "Entregado y Cobrado",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF2E7D32)
@@ -1857,7 +2137,7 @@ fun SellerStoreProfileDialog(
                             color = Color(0xFF003366)
                         )
                         Text(
-                            text = "👨‍🍳 Responsable: ${activeProfile.fullName}",
+                            text = "Responsable: ${activeProfile.fullName}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1872,7 +2152,7 @@ fun SellerStoreProfileDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "⚠️ Modo Saturado activo: Tus clientes ven un aviso de alta demanda.",
+                                text = "Modo Saturado activo: Tus clientes ven un aviso de alta demanda.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFB45309),
                                 modifier = Modifier.padding(10.dp)
@@ -1884,7 +2164,7 @@ fun SellerStoreProfileDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "⏸️ Modo Pausado: Las compras están deshabilitadas temporalmente.",
+                                text = "Modo Pausado: Las compras están deshabilitadas temporalmente.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFD97706),
                                 modifier = Modifier.padding(10.dp)
@@ -1896,7 +2176,7 @@ fun SellerStoreProfileDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "🚫 Puesto Cerrado: No visible para pedidos en catálogo.",
+                                text = "Puesto Cerrado: No visible para pedidos en catálogo.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFC8102E),
                                 modifier = Modifier.padding(10.dp)
@@ -1930,7 +2210,7 @@ fun SellerStoreProfileDialog(
                         SellerProfileDetailRow(
                             icon = Icons.Default.Store,
                             label = "Recepción de pedidos",
-                            value = if (acceptingOrders) "🟢 Aceptando pedidos activamente" else "🔴 Pedidos desactivados"
+                            value = if (acceptingOrders) "Aceptando pedidos activamente" else "Pedidos desactivados"
                         )
                     }
                 } else {
@@ -1946,10 +2226,10 @@ fun SellerStoreProfileDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         val states = listOf(
-                            "ABIERTO" to "🟢 Abierto",
-                            "SATURADO" to "🟠 Saturado",
-                            "PAUSADO" to "🟡 Pausado",
-                            "CERRADO" to "⚪ Cerrado"
+                            "ABIERTO" to "Abierto",
+                            "SATURADO" to "Saturado",
+                            "PAUSADO" to "Pausado",
+                            "CERRADO" to "Cerrado"
                         )
                         states.forEach { (statusKey, label) ->
                             val isSelected = businessStatus.equals(statusKey, ignoreCase = true)
@@ -1977,7 +2257,7 @@ fun SellerStoreProfileDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "⚠️ Modo Saturado: Los compradores verán un aviso de alta demanda indicando que su pedido puede tardar un poco más.",
+                                text = "Modo Saturado: Los compradores verán un aviso de alta demanda indicando que su pedido puede tardar un poco más.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFB45309),
                                 modifier = Modifier.padding(10.dp)
@@ -1989,7 +2269,7 @@ fun SellerStoreProfileDialog(
                         value = businessName,
                         onValueChange = { businessName = it },
                         label = { Text("Nombre Comercial del Puesto *") },
-                        placeholder = { Text("Ej. El Rincón del Sabor UCV") },
+                        placeholder = { Text("Ej. El Rincón del Sabor Universitario") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -2059,7 +2339,7 @@ fun SellerStoreProfileDialog(
                         ) {
                             Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = Color(0xFF003366), modifier = Modifier.size(20.dp))
                             Text(
-                                text = "💡 Toca la portada o el logo arriba para cambiarlos desde tu celular.",
+                                text = "Consejo: Toca la portada o el logo arriba para cambiarlos.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

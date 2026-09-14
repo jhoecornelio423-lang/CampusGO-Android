@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import com.example.vallego.domain.model.Product
 import com.example.vallego.ui.components.ValleGoProductImage
 
@@ -100,12 +102,24 @@ fun ProductDetailBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "🏪 $storeName",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_store_modern),
+                            contentDescription = null,
+                            tint = Color(0xFF16324F),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = storeName,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16324F)
+                        )
+                    }
                     if (!categoryName.isNullOrBlank()) {
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -136,8 +150,8 @@ fun ProductDetailBottomSheet(
                         Text(
                             text = "S/ %.2f".format(product.price),
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366)
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF00A884)
                         )
                         Surface(
                             color = if (product.stock <= 3) Color(0xFFFFEBEE) else Color(0xFFE8F5E9),
@@ -185,9 +199,9 @@ fun ProductDetailBottomSheet(
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = if (storeStatus.equals("PAUSADO", ignoreCase = true))
-                                    "⚠️ Este puesto se encuentra en pausa temporal y no está aceptando pedidos por el momento."
+                                    "Este puesto se encuentra en pausa temporal y no está aceptando pedidos por el momento."
                                 else
-                                    "🔒 Este puesto se encuentra cerrado actualmente.",
+                                    "Este puesto se encuentra cerrado actualmente.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFE65100),
                                 fontWeight = FontWeight.SemiBold
@@ -202,7 +216,7 @@ fun ProductDetailBottomSheet(
                         text = "Instrucciones especiales para el puesto",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
+                        color = Color(0xFF16324F)
                     )
                     Text(
                         text = "¿Deseas sin cremas, calentito, con cubiertos descartables? Indícaselo al emprendedor.",
@@ -230,7 +244,8 @@ fun ProductDetailBottomSheet(
                     Text(
                         text = "Cantidad",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF16324F)
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -248,7 +263,7 @@ fun ProductDetailBottomSheet(
                             text = "$quantity",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366)
+                            color = Color(0xFF00A884)
                         )
 
                         FilledTonalIconButton(
@@ -287,7 +302,7 @@ fun ProductDetailBottomSheet(
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF003366),
+                    containerColor = Color(0xFF00A884),
                     disabledContainerColor = Color(0xFFEEEEEE),
                     disabledContentColor = Color(0xFF9E9E9E)
                 )

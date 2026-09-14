@@ -5,25 +5,38 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val ValleGOLightColorScheme = lightColorScheme(
-    primary = Color(0xFF003366),          // Azul Marino Institucional UCV
+private val CampusGoLightColorScheme = lightColorScheme(
+    primary = Color(0xFF16A085),          // Verde Turquesa (Principal)
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE0EDFF),
-    onPrimaryContainer = Color(0xFF001E3D),
-    secondary = Color(0xFFCC0000),        // Rojo UCV
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFFDAD6),
-    onSecondaryContainer = Color(0xFF410002),
-    tertiary = Color(0xFF0284C7),         // Celeste acento
+    primaryContainer = Color(0xFFE6F6F3),
+    onPrimaryContainer = Color(0xFF0D5C4C),
+    secondary = Color(0xFFF4B942),        // Amarillo Cálido (Acentos & Promos)
+    onSecondary = Color(0xFF16324F),
+    secondaryContainer = Color(0xFFFEF3C7),
+    onSecondaryContainer = Color(0xFF78350F),
+    tertiary = Color(0xFF16324F),         // Azul Oscuro (Contraste & Encabezados)
     onTertiary = Color.White,
-    background = Color(0xFFF8F9FA),       // Fondo blanco suave
-    onBackground = Color(0xFF1E293B),     // Texto oscuro nítido
-    surface = Color(0xFFFFFFFF),          // Superficie blanca pura
-    onSurface = Color(0xFF1E293B),        // Texto oscuro legible
-    surfaceVariant = Color(0xFFF1F5F9),   // Contenedores claros
-    onSurfaceVariant = Color(0xFF475569), // Texto secundario
-    outline = Color(0xFFCBD5E1)
+    background = Color(0xFFFFFFFF),       // Blanco puro (Fondo principal)
+    onBackground = Color(0xFF16324F),
+    surface = Color(0xFFFFFFFF),          // Superficie blanca
+    onSurface = Color(0xFF16324F),
+    surfaceVariant = Color(0xFFF4F6F8),   // Gris claro secundario
+    onSurfaceVariant = Color(0xFF4B5563), // Texto gris
+    outline = Color(0xFFE5E7EB)
 )
+
+@Composable
+fun CampusGoTheme(
+    darkTheme: Boolean = false,
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    MaterialTheme(
+        colorScheme = CampusGoLightColorScheme,
+        typography = Typography,
+        content = content
+    )
+}
 
 @Composable
 fun ValleGOTheme(
@@ -31,11 +44,5 @@ fun ValleGOTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    // Forzamos la paleta institucional limpia de ValleGO para que el modo oscuro
-    // del sistema del celular no rompa el diseño ni altere los contrastes
-    MaterialTheme(
-        colorScheme = ValleGOLightColorScheme,
-        typography = Typography,
-        content = content
-    )
+    CampusGoTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, content = content)
 }

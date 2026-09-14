@@ -44,7 +44,7 @@ class AuthRepositoryImpl(
                                 _currentProfile.value = fetchProfile(user.id)
                             } catch (_: Exception) {
                                 val meta = user.userMetadata
-                                val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Estudiante UCV"
+                                val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Estudiante Universitario"
                                 val metaRoleStr = meta?.get("role")?.jsonPrimitive?.contentOrNull ?: "comprador"
                                 val role = when (metaRoleStr.lowercase()) {
                                     "admin" -> UserRole.ADMIN
@@ -101,7 +101,7 @@ class AuthRepositoryImpl(
                 fetchProfile(user.id)
             } catch (_: Exception) {
                 val meta = user.userMetadata
-                val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Usuario Valle-Go"
+                val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Usuario Campus Go"
                 val metaRoleStr = meta?.get("role")?.jsonPrimitive?.contentOrNull ?: "comprador"
                 val role = when (metaRoleStr.lowercase()) {
                     "admin" -> UserRole.ADMIN

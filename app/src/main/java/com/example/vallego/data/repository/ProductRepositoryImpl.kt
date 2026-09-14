@@ -252,7 +252,11 @@ class ProductRepositoryImpl(
     override suspend fun getSellerProfiles(): Result<List<UserProfile>> = withContext(Dispatchers.IO) {
         try {
             val profiles = postgrest.from("profiles")
-                .select()
+                .select {
+                    filter {
+                        eq("role", "emprendedor")
+                    }
+                }
                 .decodeList<UserProfile>()
             Result.success(profiles)
         } catch (e: Exception) {

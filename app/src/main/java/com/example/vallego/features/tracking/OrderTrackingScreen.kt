@@ -412,7 +412,7 @@ fun BuyerOrderCard(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "⏰ Cancelado automáticamente por tiempo de espera agotado (15 min).",
+                                text = "Cancelado automáticamente por tiempo de espera agotado (15 min).",
                                 color = Color(0xFFC8102E),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodySmall

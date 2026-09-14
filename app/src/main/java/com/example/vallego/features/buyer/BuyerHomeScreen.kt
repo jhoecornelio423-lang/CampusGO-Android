@@ -3,6 +3,13 @@ package com.example.vallego.features.buyer
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -13,13 +20,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -32,9 +42,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,7 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.domain.model.Category
 import com.example.vallego.domain.model.Product
+import com.example.vallego.R
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.domain.model.UserRole
 import com.example.vallego.domain.repository.CartRepository
 import com.example.vallego.domain.repository.ProductRepository
 import com.example.vallego.features.cart.CartScreen
@@ -87,9 +103,15 @@ fun BuyerHomeScreen(
     var showTracking by remember { mutableStateOf(false) }
     val cartCalculation by cartRepository.cartCalculation.collectAsState()
 
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (showProfileDialog) 20.dp else 0.dp,
+        label = "profile_dialog_blur"
+    )
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryFilter by remember { mutableStateOf("TODOS") }
     var onlyOpenStores by remember { mutableStateOf(false) }
+    var selectedStoreId by remember { mutableStateOf<String?>(null) }
 
     var selectedProductForDetail by remember { mutableStateOf<Pair<Product, StoreCatalogGroup>?>(null) }
 
@@ -114,30 +136,34 @@ fun BuyerHomeScreen(
             if (products.isNotEmpty()) {
                 val grouped = products.groupBy { it.sellerId }.mapNotNull { (sellerId, sellerProds) ->
                     val seller = sellers[sellerId]
-                    // Si el vendedor tiene el puesto cerrado físicamente y no acepta pedidos, se oculta
-                    if (seller != null && !seller.acceptingOrders && seller.businessStatus == "CERRADO") {
+                    // Validación estricta: Solo mostrar el puesto si existe y su rol es EMPRENDEDOR
+                    if (seller == null || seller.role != UserRole.EMPRENDEDOR) {
                         return@mapNotNull null
                     }
-                    val bName = seller?.businessName?.trim().orEmpty()
-                    val fName = seller?.fullName?.trim().orEmpty()
+                    // Si el vendedor tiene el puesto cerrado físicamente y no acepta pedidos, se oculta
+                    if (!seller.acceptingOrders && seller.businessStatus == "CERRADO") {
+                        return@mapNotNull null
+                    }
+                    val bName = seller.businessName?.trim().orEmpty()
+                    val fName = seller.fullName.trim()
                     val storeTitle = when {
                         bName.isNotBlank() && fName.isNotBlank() && !bName.equals(fName, ignoreCase = true) -> "$bName - $fName"
                         bName.isNotBlank() -> bName
                         fName.isNotBlank() -> fName
-                        else -> "Emprendimiento Valle-Go"
+                        else -> "Emprendimiento Campus Go"
                     }
-                    val loc = seller?.businessLocation?.trim()?.takeIf { it.isNotBlank() } ?: "Campus ${currentProfile.campus}"
+                    val loc = seller.businessLocation?.trim()?.takeIf { it.isNotBlank() } ?: "Campus ${currentProfile.campus}"
                     StoreCatalogGroup(
                         sellerId = sellerId,
                         sellerName = storeTitle,
                         location = loc,
-                        bannerUrl = seller?.bannerUrl,
-                        avatarUrl = seller?.avatarUrl,
-                        businessStatus = seller?.businessStatus ?: "ABIERTO",
-                        openTime = seller?.openTime,
-                        closeTime = seller?.closeTime,
-                        description = seller?.businessDescription,
-                        acceptingOrders = seller?.acceptingOrders ?: true,
+                        bannerUrl = seller.bannerUrl,
+                        avatarUrl = seller.avatarUrl,
+                        businessStatus = seller.businessStatus,
+                        openTime = seller.openTime,
+                        closeTime = seller.closeTime,
+                        description = seller.businessDescription,
+                        acceptingOrders = seller.acceptingOrders,
                         products = sellerProds
                     )
                 }
@@ -182,7 +208,7 @@ fun BuyerHomeScreen(
         return
     }
 
-    // Modal de Detalle de Producto al estilo PedidosYa
+    // Modal de Detalle de Producto al estilo Rappi
     if (selectedProductForDetail != null) {
         val (prod, store) = selectedProductForDetail!!
         val catName = categoriesList.find { it.id == prod.categoryId }?.name
@@ -234,457 +260,722 @@ fun BuyerHomeScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { showProfileDialog = true }
-                            .padding(vertical = 4.dp, horizontal = 2.dp)
-                    ) {
-                        ValleGoUserAvatar(
-                            avatarUrl = currentProfile.avatarUrl,
-                            name = currentProfile.fullName,
-                            size = 38.dp
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = currentProfile.fullName,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color(0xFF003366),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = Color(0xFFC8102E),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text(
-                                    text = "Campus ${currentProfile.campus}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { loadCatalog() }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Actualizar catálogo",
-                            tint = Color(0xFF003366)
-                        )
-                    }
-                    IconButton(onClick = { showTracking = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = "Mis Pedidos",
-                            tint = Color(0xFF003366)
-                        )
-                    }
-                    IconButton(onClick = { showCart = true }) {
-                        BadgedBox(
-                            badge = {
-                                if (cartCalculation.totalItemCount > 0) {
-                                    Badge(containerColor = Color(0xFFC8102E)) {
-                                        Text("${cartCalculation.totalItemCount}")
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = "Carrito",
-                                tint = Color(0xFF003366)
-                            )
-                        }
-                    }
-                    IconButton(onClick = onSignOut) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = "Cerrar sesión"
-                        )
-                    }
-                }
-            )
-        },
-        modifier = modifier
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Barra de Búsqueda reactiva
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Buscar hamburguesa, café, postres o puesto...") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Buscar",
-                        tint = Color(0xFF003366)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Borrar búsqueda")
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
-            )
-
-            // Carrusel horizontal de categorías por chips (Estilo PedidosYa)
-            val categoryChips = listOf(
-                "TODOS" to "🍽️ Todos",
-                "COMIDAS" to "🍔 Comidas",
-                "POSTRES" to "🧁 Postres",
-                "BEBIDAS" to "🥤 Bebidas",
-                "SNACKS" to "🍿 Snacks",
-                "PAPELERIA" to "📚 Papelería"
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Chip rápido de puestos abiertos
-                FilterChip(
-                    selected = onlyOpenStores,
-                    onClick = { onlyOpenStores = !onlyOpenStores },
-                    label = { Text("🟢 Abiertos ahora") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF2E7D32),
-                        selectedLabelColor = Color.White
-                    )
-                )
-
-                categoryChips.forEach { (key, label) ->
-                    val isSelected = selectedCategoryFilter == key
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedCategoryFilter = key },
-                        label = { Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF003366),
-                            selectedLabelColor = Color.White
-                        )
-                    )
-                }
-            }
-
-            // Banner informativo de entrega multicentro
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF003366)),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "¡Antojos en Campus ${profile.campus}! 🎒",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Pide de diferentes puestos en una sola compra. Valle-Go organizará tus subpedidos.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
-                    }
-                }
-            }
-
-            if (isLoadingCatalog) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFF003366))
-                        Text(
-                            text = "Cargando catálogo universitario...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else if (filteredStores.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    // Listado plano de productos coincidentes para cuadrícula directa de 2 columnas (Propuesta A)
+    val allMatchingProducts = remember(filteredStores, selectedStoreId) {
+        filteredStores
+            .filter { store -> selectedStoreId == null || store.sellerId == selectedStoreId }
+            .flatMap { store -> store.products.map { prod -> Pair(prod, store) } }
+    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = modifier.blur(backgroundBlurRadius),
+            topBar = {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Store,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = if (searchQuery.isNotBlank()) "No se encontraron resultados para \"$searchQuery\"" else "No hay productos disponibles por ahora",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Intenta buscando por otro término o selecciona otra categoría.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Button(
-                            onClick = {
-                                searchQuery = ""
-                                selectedCategoryFilter = "TODOS"
-                                onlyOpenStores = false
-                                loadCatalog()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                        // Fila 1: Selector de ubicación compacto y acciones principales limpias
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Restablecer Filtros")
-                        }
-                    }
-                }
-            } else {
-                // Listado de Puestos con Portada, Logo, Estado y Productos
-                filteredStores.forEach { group ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // Cabecera Visual del Puesto: Banner + Avatar Superpuesto
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                ValleGoBusinessBanner(
-                                    bannerUrl = group.bannerUrl,
-                                    storeName = group.sellerName,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(115.dp)
-                                )
-
+                            // Píldora de Entrega compacta (solo indicador de ubicación)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .padding(vertical = 4.dp, horizontal = 4.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
-                                        .padding(start = 14.dp, top = 75.dp)
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE6F7F3)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    ValleGoBusinessAvatar(
-                                        avatarUrl = group.avatarUrl,
-                                        storeName = group.sellerName,
-                                        size = 52.dp
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = Color(0xFF00A884),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "ENTREGAR EN",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF00A884),
+                                        letterSpacing = 0.8.sp
+                                    )
+                                    Text(
+                                        text = "Campus ${currentProfile.campus}",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF16324F),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            // Botones Superiores Descongestionados (Mis Pedidos, Carrito destacado, Mi Perfil directo)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // 1. Mis Pedidos (Tracking)
+                                IconButton(
+                                    onClick = { showTracking = true },
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Schedule,
+                                        contentDescription = "Mis Pedidos",
+                                        tint = Color(0xFF16324F),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
 
-                            // Información del Puesto y Badge de Estado
-                            Column(
+                                // 2. Carrito Destacado
+                                if (cartCalculation.totalItemCount > 0) {
+                                    Surface(
+                                        onClick = { showCart = true },
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = Color(0xFF00A884),
+                                        shadowElevation = 2.dp,
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ShoppingCart,
+                                                contentDescription = "Carrito",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "${cartCalculation.totalItemCount} • S/ %.2f".format(cartCalculation.grandTotal),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    IconButton(
+                                        onClick = { showCart = true },
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ShoppingCart,
+                                            contentDescription = "Carrito",
+                                            tint = Color(0xFF16324F),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // 3. Avatar de Usuario (Abre directamente Mi Perfil)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { showProfileDialog = true }
+                                ) {
+                                    ValleGoUserAvatar(
+                                        avatarUrl = currentProfile.avatarUrl,
+                                        name = currentProfile.fullName,
+                                        size = 36.dp
+                                    )
+                                }
+                            }
+                        }
+
+                        // Fila 2: Barra de búsqueda estilo Rappi
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text(
+                                    text = "¿Qué buscas hoy? (hamburguesa, café, postre...)",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Buscar",
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Borrar búsqueda",
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(25.dp),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF1F5F9),
+                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedBorderColor = Color(0xFF00A884),
+                                unfocusedBorderColor = Color(0xFFE2E8F0),
+                                focusedTextColor = Color(0xFF16324F),
+                                unfocusedTextColor = Color(0xFF16324F)
+                            )
+                        )
+                    }
+                }
+            },
+            containerColor = Color(0xFFF8FAFC)
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(bottom = if (cartCalculation.totalItemCount > 0) 70.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 1. Carrusel Horizontal de Puestos (Historias del Campus)
+                    if (realStoresWithProducts.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "PUESTOS DEL CAMPUS",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF64748B),
+                                    letterSpacing = 0.8.sp
+                                )
+                                if (selectedStoreId != null) {
+                                    Text(
+                                        text = "Ver todos",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF00A884),
+                                        modifier = Modifier.clickable { selectedStoreId = null }
+                                    )
+                                }
+                            }
+
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                // Burbuja "Todos"
+                                val isAllSelected = selectedStoreId == null
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { selectedStoreId = null }
+                                        .padding(2.dp)
                                 ) {
-                                    Text(
-                                        text = group.sellerName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF003366)
-                                    )
-                                    StoreStatusBadge(
-                                        status = group.businessStatus,
-                                        acceptingOrders = group.acceptingOrders
-                                    )
-                                }
-
-                                if (!group.description.isNullOrBlank()) {
-                                    Text(
-                                        text = group.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 2
-                                    )
-                                }
-
-                                val schedule = if (!group.openTime.isNullOrBlank() && !group.closeTime.isNullOrBlank()) {
-                                    "  •  🕒 ${group.openTime} - ${group.closeTime}"
-                                } else ""
-
-                                Text(
-                                    text = "📍 ${group.location ?: "Campus"}$schedule",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                // Aviso de puesto saturado
-                                if (group.businessStatus.equals("SATURADO", ignoreCase = true)) {
                                     Surface(
-                                        color = Color(0xFFFFF3E0),
-                                        shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 6.dp)
+                                        shape = CircleShape,
+                                        color = if (isAllSelected) Color(0xFF00A884) else Color.White,
+                                        border = BorderStroke(
+                                            width = if (isAllSelected) 2.5.dp else 1.5.dp,
+                                            color = if (isAllSelected) Color(0xFF00A884) else Color(0xFFCBD5E1)
+                                        ),
+                                        shadowElevation = if (isAllSelected) 3.dp else 1.dp,
+                                        modifier = Modifier.size(54.dp)
                                     ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Store,
+                                                contentDescription = "Todos",
+                                                tint = if (isAllSelected) Color.White else Color(0xFF64748B),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Todos",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isAllSelected) Color(0xFF00A884) else Color(0xFF475569),
+                                        maxLines = 1
+                                    )
+                                }
+
+                                // Cada puesto individual
+                                realStoresWithProducts.forEach { store ->
+                                    val isSelected = selectedStoreId == store.sellerId
+                                    val isOpen = store.acceptingOrders && !store.businessStatus.equals("CERRADO", ignoreCase = true)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .width(62.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .clickable {
+                                                selectedStoreId = if (selectedStoreId == store.sellerId) null else store.sellerId
+                                            }
+                                            .padding(2.dp)
+                                    ) {
+                                        Box {
+                                            Surface(
+                                                shape = CircleShape,
+                                                border = BorderStroke(
+                                                    width = if (isSelected) 2.5.dp else 1.5.dp,
+                                                    color = if (isSelected) Color(0xFF00A884) else if (isOpen) Color(0xFF34D399) else Color(0xFFCBD5E1)
+                                                ),
+                                                shadowElevation = if (isSelected) 3.dp else 1.dp,
+                                                modifier = Modifier.size(54.dp)
+                                            ) {
+                                                ValleGoBusinessAvatar(
+                                                    avatarUrl = store.avatarUrl,
+                                                    storeName = store.sellerName,
+                                                    size = 54.dp
+                                                )
+                                            }
+
+                                            // Punto indicador de disponibilidad
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(13.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White)
+                                                    .padding(1.5.dp)
+                                                    .align(Alignment.BottomEnd)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                            when {
+                                                                !isOpen -> Color(0xFF94A3B8)
+                                                                store.businessStatus.equals("SATURADO", ignoreCase = true) -> Color(0xFFF97316)
+                                                                else -> Color(0xFF22C55E)
+                                                            }
+                                                        )
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "⚠️ Alta demanda: Los pedidos de este puesto pueden tardar unos minutos más.",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFE65100),
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            text = store.sellerName.split(" ").take(2).joinToString(" "),
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color(0xFF00A884) else Color(0xFF334155),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
                             }
+                        }
+                    }
 
-                            Spacer(modifier = Modifier.height(10.dp))
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp))
+                    // 2. Carrusel de Categorías con Iconografía Vectorial Moderna (Lucide Vectors)
+                    data class CategoryChipData(val key: String, val iconRes: Int, val label: String)
+                    val categoryChips = listOf(
+                        CategoryChipData("TODOS", com.example.vallego.R.drawable.ic_cat_all, "Todos"),
+                        CategoryChipData("COMIDAS", com.example.vallego.R.drawable.ic_cat_food, "Comidas"),
+                        CategoryChipData("POSTRES", com.example.vallego.R.drawable.ic_cat_desserts, "Postres"),
+                        CategoryChipData("BEBIDAS", com.example.vallego.R.drawable.ic_cat_drinks, "Bebidas"),
+                        CategoryChipData("SNACKS", com.example.vallego.R.drawable.ic_cat_snacks, "Snacks"),
+                        CategoryChipData("PAPELERIA", com.example.vallego.R.drawable.ic_cat_stationery, "Papelería")
+                    )
 
-                            // Lista de Productos del Puesto con Miniatura y Fallback Inteligente
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        categoryChips.forEach { item ->
+                            val isSelected = selectedCategoryFilter == item.key
+                            Surface(
+                                onClick = { selectedCategoryFilter = item.key },
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (isSelected) Color(0xFF00A884) else Color.White,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isSelected) Color(0xFF00A884) else Color(0xFFE2E8F0)
+                                ),
+                                shadowElevation = if (isSelected) 2.dp else 1.dp,
+                                modifier = Modifier.height(38.dp)
                             ) {
-                                group.products.forEach { product ->
-                                    val catName = categoriesList.find { it.id == product.categoryId }?.name
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .clickable {
-                                                selectedProductForDetail = Pair(product, group)
-                                            }
-                                            .padding(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        // Miniatura con degradado pastel y emoji por categoría si imageUrl es null
-                                        ValleGoProductImage(
-                                            imageUrl = product.imageUrl,
-                                            categoryName = catName,
-                                            productName = product.name,
-                                            modifier = Modifier.size(64.dp)
-                                        )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 13.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = item.iconRes),
+                                        contentDescription = item.label,
+                                        tint = if (isSelected) Color.White else Color(0xFF00A884),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = item.label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color(0xFF334155)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
-                                        Column(modifier = Modifier.weight(1f)) {
+                    // 3. Tarjeta informativa de puesto seleccionado (si hay filtro activo)
+                    if (selectedStoreId != null) {
+                        val currentSelectedStore = realStoresWithProducts.find { it.sellerId == selectedStoreId }
+                        if (currentSelectedStore != null) {
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFE6F7F3),
+                                border = BorderStroke(1.dp, Color(0xFFB2E7DC)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        ValleGoBusinessAvatar(
+                                            avatarUrl = currentSelectedStore.avatarUrl,
+                                            storeName = currentSelectedStore.sellerName,
+                                            size = 36.dp
+                                        )
+                                        Column {
                                             Text(
-                                                text = product.name,
+                                                text = currentSelectedStore.sellerName,
                                                 fontWeight = FontWeight.Bold,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                maxLines = 1
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF16324F),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
-                                            if (!product.description.isNullOrBlank()) {
-                                                Text(
-                                                    text = product.description,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(2.dp))
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                Text(
-                                                    text = "S/ %.2f".format(product.price),
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = Color(0xFF003366),
-                                                    style = MaterialTheme.typography.bodyMedium
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_meeting_point),
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF00A884),
+                                                    modifier = Modifier.size(12.dp)
                                                 )
-                                                if (product.stock in 1..3) {
+                                                Text(
+                                                    text = currentSelectedStore.location ?: "Campus",
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF00A884),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                if (!currentSelectedStore.openTime.isNullOrBlank()) {
+                                                    Text(text = "•", fontSize = 11.sp, color = Color(0xFF00A884))
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_clock_modern),
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF00A884),
+                                                        modifier = Modifier.size(12.dp)
+                                                    )
                                                     Text(
-                                                        text = "¡Solo ${product.stock}!",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = Color(0xFFC8102E),
-                                                        fontWeight = FontWeight.Bold
+                                                        text = "${currentSelectedStore.openTime}-${currentSelectedStore.closeTime}",
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFF00A884),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
                                                     )
                                                 }
                                             }
                                         }
-
-                                        val isStoreAvail = group.acceptingOrders &&
-                                                !group.businessStatus.equals("PAUSADO", ignoreCase = true) &&
-                                                !group.businessStatus.equals("CERRADO", ignoreCase = true)
-                                        val canOrder = isStoreAvail && product.stock > 0
-                                        val btnLabel = when {
-                                            !isStoreAvail && group.businessStatus.equals("PAUSADO", ignoreCase = true) -> "En pausa"
-                                            !isStoreAvail -> "Cerrado"
-                                            product.stock <= 0 -> "Agotado"
-                                            else -> "Pedir"
-                                        }
-
-                                        FilledTonalButton(
-                                            onClick = {
-                                                selectedProductForDetail = Pair(product, group)
-                                            },
-                                            enabled = canOrder,
-                                            colors = ButtonDefaults.filledTonalButtonColors(
-                                                disabledContainerColor = Color(0xFFEEEEEE),
-                                                disabledContentColor = Color(0xFF9E9E9E)
-                                            ),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                            shape = RoundedCornerShape(10.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = if (canOrder) Icons.Default.AddShoppingCart else Icons.Default.Block,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(btnLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { selectedStoreId = null },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Quitar filtro",
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // 4. Estado de carga o Lista Vacía o Cuadrícula de Productos (Propuesta A)
+                    if (isLoadingCatalog) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CircularProgressIndicator(color = Color(0xFF00A884), strokeWidth = 3.dp)
+                                Text(
+                                    text = "Cargando delicias universitarias...",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF64748B),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    } else if (allMatchingProducts.isEmpty()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            shadowElevation = 1.dp
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF1F5F9)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Store,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(30.dp),
+                                        tint = Color(0xFF94A3B8)
+                                    )
+                                }
+                                Text(
+                                    text = if (searchQuery.isNotBlank()) "Sin resultados para \"$searchQuery\"" else "No hay productos disponibles por ahora",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF16324F)
+                                )
+                                Text(
+                                    text = "Intenta buscando por otro término o selecciona otra categoría o puesto.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                                Button(
+                                    onClick = {
+                                        searchQuery = ""
+                                        selectedCategoryFilter = "TODOS"
+                                        selectedStoreId = null
+                                        onlyOpenStores = false
+                                        loadCatalog()
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884))
+                                ) {
+                                    Text("Restablecer Filtros", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    } else {
+                        // 5. Encabezado de Productos y Cuadrícula Directa de 2 Columnas (Propuesta A)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (selectedStoreId != null) "PRODUCTOS DEL PUESTO" else "TODOS LOS PRODUCTOS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.8.sp
+                            )
+                            Text(
+                                text = "${allMatchingProducts.size} disponibles",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+
+                        val productPairs = allMatchingProducts.chunked(2)
+                        productPairs.forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val (prod1, store1) = pair[0]
+                                val catName1 = categoriesList.find { it.id == prod1.categoryId }?.name
+                                BuyerProductGridCard(
+                                    product = prod1,
+                                    store = store1,
+                                    categoryName = catName1,
+                                    onClick = { selectedProductForDetail = Pair(prod1, store1) },
+                                    onQuickAdd = {
+                                        cartRepository.setStoreName(store1.sellerId, store1.sellerName)
+                                        cartRepository.addToCart(prod1, 1)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (pair.size > 1) {
+                                    val (prod2, store2) = pair[1]
+                                    val catName2 = categoriesList.find { it.id == prod2.categoryId }?.name
+                                    BuyerProductGridCard(
+                                        product = prod2,
+                                        store = store2,
+                                        categoryName = catName2,
+                                        onClick = { selectedProductForDetail = Pair(prod2, store2) },
+                                        onQuickAdd = {
+                                            cartRepository.setStoreName(store2.sellerId, store2.sellerName)
+                                            cartRepository.addToCart(prod2, 1)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 5. Barra Flotante de Carrito Adhesiva Inferior (Rappi Sticky Cart Bar)
+            AnimatedVisibility(
+                visible = cartCalculation.totalItemCount > 0,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Surface(
+                    onClick = { showCart = true },
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF00A884),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${cartCalculation.totalItemCount}",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 13.sp,
+                                    color = Color.White
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Ver Carrito",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = Color.White
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "S/ %.2f".format(cartCalculation.grandTotal),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
             }
         }
     }
+
+    // Overlay elegante desenfocado / scrim para diálogo de perfil
+    AnimatedVisibility(
+        visible = showProfileDialog,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF03333D).copy(alpha = 0.55f))
+                .clickable { showProfileDialog = false }
+        )
+    }
+}
 
     if (showProfileDialog) {
         BuyerProfileDialog(
@@ -706,7 +997,8 @@ fun BuyerHomeScreen(
                         onUploaded(url)
                     }
                 }
-            }
+            },
+            onSignOut = onSignOut
         )
     }
 }
@@ -716,7 +1008,8 @@ private fun BuyerProfileDialog(
     profile: UserProfile,
     onDismiss: () -> Unit,
     onSaveProfile: (UserProfile) -> Unit,
-    onUploadAvatar: (ByteArray, (String) -> Unit) -> Unit
+    onUploadAvatar: (ByteArray, (String) -> Unit) -> Unit,
+    onSignOut: () -> Unit
 ) {
     var isEditMode by remember { mutableStateOf(false) }
     var fullName by remember(profile) { mutableStateOf(profile.fullName) }
@@ -744,6 +1037,14 @@ private fun BuyerProfileDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        ),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = Color.White,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
         confirmButton = {
             if (isEditMode) {
                 Button(
@@ -758,14 +1059,14 @@ private fun BuyerProfileDialog(
                         onSaveProfile(updated)
                         isEditMode = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884))
                 ) {
                     Text("Guardar Cambios")
                 }
             } else {
                 Button(
                     onClick = { isEditMode = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884))
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -778,7 +1079,7 @@ private fun BuyerProfileDialog(
                 onClick = {
                     if (isEditMode) {
                         fullName = profile.fullName
-                        phone = profile.phone
+                        phone = phone.trim()
                         studentCode = profile.studentCode.orEmpty()
                         campus = profile.campus
                         avatarUrl = profile.avatarUrl
@@ -800,17 +1101,17 @@ private fun BuyerProfileDialog(
                 Text(
                     text = if (isEditMode) "Editar Mi Perfil" else "Mi Perfil de Estudiante",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003366),
+                    color = Color(0xFF16324F),
                     style = MaterialTheme.typography.titleLarge
                 )
                 if (isEditMode) {
                     Surface(
-                        color = Color(0xFFE3F2FD),
+                        color = Color(0xFFE6F7F3),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = "Modo Edición",
-                            color = Color(0xFF0284C7),
+                            color = Color(0xFF00A884),
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -840,7 +1141,7 @@ private fun BuyerProfileDialog(
                     if (isEditMode) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFF003366),
+                            color = Color(0xFF00A884),
                             shadowElevation = 4.dp,
                             modifier = Modifier
                                 .size(32.dp)
@@ -881,19 +1182,30 @@ private fun BuyerProfileDialog(
                         text = fullName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
+                        color = Color(0xFF16324F)
                     )
                     Surface(
                         color = Color(0xFFE8F5E9),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            text = "🎓 Estudiante / Comprador",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF2E7D32),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_school_cap),
+                                contentDescription = null,
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Estudiante / Comprador",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
                     }
 
                     HorizontalDivider()
@@ -902,9 +1214,33 @@ private fun BuyerProfileDialog(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        ProfileDetailRow(icon = Icons.Default.Badge, label = "Código UCV", value = studentCode.ifBlank { "No registrado" })
+                        ProfileDetailRow(icon = Icons.Default.Badge, label = "Código Universitario", value = studentCode.ifBlank { "No registrado" })
                         ProfileDetailRow(icon = Icons.Default.Phone, label = "Teléfono", value = phone.ifBlank { "No registrado" })
                         ProfileDetailRow(icon = Icons.Default.LocationOn, label = "Campus", value = "Campus $campus")
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            onDismiss()
+                            onSignOut()
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 } else {
                     // MODO EDICIÓN
@@ -959,7 +1295,7 @@ private fun ProfileDetailRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF003366),
+            tint = Color(0xFF00A884),
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
@@ -969,3 +1305,144 @@ private fun ProfileDetailRow(
         }
     }
 }
+
+@Composable
+private fun BuyerProductGridCard(
+    product: Product,
+    store: StoreCatalogGroup,
+    categoryName: String?,
+    onClick: () -> Unit,
+    onQuickAdd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isStoreAvail = store.acceptingOrders &&
+            !store.businessStatus.equals("PAUSADO", ignoreCase = true) &&
+            !store.businessStatus.equals("CERRADO", ignoreCase = true)
+    val isAvailable = isStoreAvail && product.stock > 0
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+        shadowElevation = 1.5.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Imagen del producto
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(125.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
+                ValleGoProductImage(
+                    imageUrl = product.imageUrl,
+                    categoryName = categoryName,
+                    productName = product.name,
+                    emojiSize = 42,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Overlay si no está disponible
+                if (!isAvailable) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0x88000000)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            color = Color(0xDD000000),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (product.stock <= 0) "Agotado" else "Puesto Cerrado",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Información del Producto
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Etiqueta del puesto
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Store,
+                        contentDescription = null,
+                        tint = Color(0xFF00A884),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = store.sellerName,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF00A884),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Nombre del producto
+                Text(
+                    text = product.name,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF16324F),
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Fila de Precio y Botón rápido
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "S/ %.2f".format(product.price),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF0F172A)
+                    )
+
+                    Surface(
+                        onClick = {
+                            if (isAvailable) onQuickAdd() else onClick()
+                        },
+                        shape = CircleShape,
+                        color = if (isAvailable) Color(0xFF00A884) else Color(0xFFE2E8F0),
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isAvailable) Icons.Default.Add else Icons.Default.Block,
+                                contentDescription = "Agregar",
+                                tint = if (isAvailable) Color.White else Color(0xFF94A3B8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

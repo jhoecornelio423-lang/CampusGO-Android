@@ -4,6 +4,8 @@ import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.SubOrderStatus
 
+import java.time.LocalDate
+
 enum class SellerOrderFilter {
     TODOS,
     PENDIENTES,
@@ -19,6 +21,16 @@ enum class SellerTab {
     MI_PUESTO
 }
 
+data class DailyOrderGroup(
+    val date: LocalDate,
+    val displayTitle: String,
+    val isToday: Boolean,
+    val totalEarnings: Double,
+    val completedCount: Int,
+    val cancelledCount: Int,
+    val orders: List<SubOrder>
+)
+
 data class SellerDashboardUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
@@ -27,6 +39,9 @@ data class SellerDashboardUiState(
     val selectedTab: SellerTab = SellerTab.PEDIDOS,
     val sellerProfile: com.example.vallego.domain.model.UserProfile? = null,
     val subOrders: List<SubOrder> = emptyList(),
+    val todayOrders: List<SubOrder> = emptyList(),
+    val pastDayGroups: List<DailyOrderGroup> = emptyList(),
+    val expandedPastDates: Set<LocalDate> = emptySet(),
     val products: List<com.example.vallego.domain.model.Product> = emptyList(),
     val categories: List<com.example.vallego.domain.model.Category> = emptyList(),
     val showAddProductDialog: Boolean = false,
@@ -46,6 +61,16 @@ data class SellerDashboardUiState(
     val completedCount: Int = 0,
     val earningsToday: Double = 0.0
 ) {
+    val filteredTodayOrders: List<SubOrder>
+        get() = when (selectedFilter) {
+            SellerOrderFilter.TODOS -> todayOrders
+            SellerOrderFilter.PENDIENTES -> todayOrders.filter { it.status == SubOrderStatus.PENDIENTE }
+            SellerOrderFilter.EN_PREPARACION -> todayOrders.filter { it.status == SubOrderStatus.ACEPTADO || it.status == SubOrderStatus.EN_PREPARACION }
+            SellerOrderFilter.LISTOS -> todayOrders.filter { it.status == SubOrderStatus.LISTO || it.status == SubOrderStatus.ESPERANDO_ENTREGA }
+            SellerOrderFilter.COMPLETADOS -> todayOrders.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
+            SellerOrderFilter.RECHAZADOS -> todayOrders.filter { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO }
+        }
+
     val filteredSubOrders: List<SubOrder>
         get() = when (selectedFilter) {
             SellerOrderFilter.TODOS -> subOrders

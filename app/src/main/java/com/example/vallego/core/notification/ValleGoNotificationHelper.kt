@@ -25,7 +25,7 @@ object ValleGoNotificationHelper {
             // Canal para notificaciones inmediatas de pedidos (Alta prioridad, sonido y vibración)
             val orderChannel = NotificationChannel(
                 CHANNEL_ORDERS,
-                "Pedidos y Actualizaciones Valle-Go",
+                "Pedidos y Actualizaciones Campus Go",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notificaciones de nuevos pedidos, cambios de estado y entregas"
@@ -39,7 +39,7 @@ object ValleGoNotificationHelper {
             // Canal para el servicio en segundo plano (Baja prioridad, silencioso)
             val serviceChannel = NotificationChannel(
                 CHANNEL_SERVICE,
-                "Servicio en Segundo Plano Valle-Go",
+                "Servicio en Segundo Plano Campus Go",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Mantiene activa la escucha de pedidos en tiempo real"
@@ -94,7 +94,7 @@ object ValleGoNotificationHelper {
 
     fun getForegroundServiceNotification(
         context: Context,
-        title: String = "Valle-Go Activo",
+        title: String = "Campus Go Activo",
         content: String = "Escuchando actualizaciones de pedidos en campus"
     ): Notification {
         val intent = Intent(context, MainActivity::class.java).apply {

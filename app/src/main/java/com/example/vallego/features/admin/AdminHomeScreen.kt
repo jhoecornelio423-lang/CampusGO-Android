@@ -1,6 +1,7 @@
 package com.example.vallego.features.admin
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,13 +16,18 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PersonOff
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,8 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.domain.model.ApplicationStatus
 import com.example.vallego.domain.model.CampusMeetingPoint
+import com.example.vallego.domain.model.CampusMetrics
+import com.example.vallego.domain.model.OrderIncident
 import com.example.vallego.domain.model.SellerApplication
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.domain.model.UserRole
+import com.example.vallego.ui.components.ValleGoBusinessAvatar
+import java.util.UUID
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +53,21 @@ fun AdminHomeScreen(
     viewModel: AdminViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
 
     // Modal Crear Punto de Encuentro
     if (uiState.showCreateMeetingPointDialog) {
@@ -52,10 +78,15 @@ fun AdminHomeScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissCreateMeetingPointDialog() },
             title = {
-                Text("Nuevo Punto de Encuentro", fontWeight = FontWeight.Bold)
+                Text("Nuevo Punto de Encuentro Oficial", fontWeight = FontWeight.Bold, color = Color(0xFF003366))
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Este punto se guardará en Supabase y estará disponible para los alumnos en el campus.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     OutlinedTextField(
                         value = pointName,
                         onValueChange = { pointName = it },
@@ -103,13 +134,14 @@ fun AdminHomeScreen(
             "Falta permiso de bienestar universitario",
             "Ubicación propuesta no autorizada",
             "Giro comercial saturado en este turno",
-            "Información del estudiante incompleta"
+            "Información del estudiante incompleta",
+            "Productos no autorizados para venta en campus"
         )
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissRejectionDialog() },
             title = {
-                Text("Rechazar Solicitud", fontWeight = FontWeight.Bold)
+                Text("Rechazar Solicitud", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -120,7 +152,9 @@ fun AdminHomeScreen(
                     commonReasons.forEach { reason ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { reasonSelected = reason }
                         ) {
                             RadioButton(
                                 selected = reasonSelected == reason,
@@ -147,7 +181,62 @@ fun AdminHomeScreen(
         )
     }
 
+    // Modal Suspender Puesto de Venta
+    if (uiState.selectedSellerForSuspension != null) {
+        val seller = uiState.selectedSellerForSuspension!!
+        var suspensionReason by remember { mutableStateOf("Incumplimiento reiterado de entregas / horario") }
+        val commonReasons = listOf(
+            "Incumplimiento reiterado de entregas / horario",
+            "Quejas de calidad o higiene de alimentos",
+            "Venta de productos no autorizados por el campus",
+            "Reclamos reiterados de cobro o precios indebidos"
+        )
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSuspensionDialog() },
+            title = {
+                Text("Suspender Puesto de Venta", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Se pausarán las ventas de '${seller.displayStoreName}'. El puesto cambiará a 'SUSPENDIDO' y no recibirá pedidos hasta su reactivación.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    commonReasons.forEach { reason ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { suspensionReason = reason }
+                        ) {
+                            RadioButton(
+                                selected = suspensionReason == reason,
+                                onClick = { suspensionReason = reason }
+                            )
+                            Text(text = reason, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmSellerSuspension(seller.id, suspensionReason) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                ) {
+                    Text("Confirmar Suspensión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissSuspensionDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -202,6 +291,12 @@ fun AdminHomeScreen(
                     icon = { Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
                 Tab(
+                    selected = uiState.selectedTab == AdminTab.SELLERS_DIRECTORY,
+                    onClick = { viewModel.setTab(AdminTab.SELLERS_DIRECTORY) },
+                    text = { Text("Puestos (${uiState.sellers.size})") },
+                    icon = { Icon(Icons.Default.Store, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+                Tab(
                     selected = uiState.selectedTab == AdminTab.CAMPUS_METRICS,
                     onClick = { viewModel.setTab(AdminTab.CAMPUS_METRICS) },
                     text = { Text("Métricas") },
@@ -225,12 +320,22 @@ fun AdminHomeScreen(
                     AdminTab.SELLER_APPLICATIONS -> {
                         SellerApplicationsTabContent(
                             applications = uiState.sellerApplications,
-                            onApprove = { app -> viewModel.approveApplication(app.id) },
+                            onApprove = { app -> viewModel.approveApplication(app.id, profile.id) },
                             onReject = { app -> viewModel.openRejectionDialog(app) }
                         )
                     }
+                    AdminTab.SELLERS_DIRECTORY -> {
+                        SellersDirectoryTabContent(
+                            sellers = uiState.sellers,
+                            onSuspend = { seller -> viewModel.openSuspensionDialog(seller) },
+                            onReactivate = { seller -> viewModel.reactivateSeller(seller.id) }
+                        )
+                    }
                     AdminTab.CAMPUS_METRICS -> {
-                        CampusMetricsTabContent(metrics = uiState.metrics)
+                        CampusMetricsTabContent(
+                            metrics = uiState.metrics,
+                            incidents = uiState.incidents
+                        )
                     }
                 }
             }
@@ -255,7 +360,7 @@ fun MeetingPointsTabContent(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Puntos Oficiales del Campus", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Text("Solo los puntos activos aparecen en el checkout de los alumnos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Sincronizados en Supabase para el checkout de los alumnos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -269,74 +374,121 @@ fun MeetingPointsTabContent(
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(meetingPoints, key = { it.id }) { point ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (point.isActive) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        if (meetingPoints.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(if (point.isActive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = if (point.isActive) Color(0xFF2E7D32) else Color(0xFFC8102E),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = point.name,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                point.pavilion?.let {
-                                    Text(
-                                        text = "📍 $it",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color(0xFF003366)
-                                    )
-                                }
-                                point.description?.let {
-                                    Text(
-                                        text = it,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
+                    Icon(
+                        imageVector = Icons.Default.Place,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "No hay puntos de encuentro configurados",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(meetingPoints, key = { it.id }) { point ->
+                    CampusMeetingPointItemCard(point = point, onToggle = { onToggle(point) })
+                }
+            }
+        }
+    }
+}
 
-                        Switch(
-                            checked = point.isActive,
-                            onCheckedChange = { onToggle(point) }
+@Composable
+fun CampusMeetingPointItemCard(
+    point: CampusMeetingPoint,
+    onToggle: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (point.isActive) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = if (point.isActive) Color(0xFF003366).copy(alpha = 0.1f) else Color.LightGray.copy(alpha = 0.3f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Place,
+                        contentDescription = null,
+                        tint = if (point.isActive) Color(0xFF003366) else Color.Gray,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = point.name,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    point.pavilion?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Place,
+                                contentDescription = null,
+                                tint = Color(0xFF003366),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF003366),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                    point.description?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = point.isActive,
+                onCheckedChange = { onToggle() }
+            )
         }
     }
 }
@@ -348,103 +500,165 @@ fun SellerApplicationsTabContent(
     onReject: (SellerApplication) -> Unit
 ) {
     if (applications.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No hay solicitudes registradas.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        return
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(applications, key = { it.id }) { app ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = app.storeName,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color(0xFF003366)
-                            )
-                            Text(
-                                text = "Categoría: ${app.category}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                Icon(
+                    imageVector = Icons.Default.VerifiedUser,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "No hay solicitudes de nuevos vendedores pendientes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(applications, key = { it.id }) { app ->
+                SellerApplicationCard(
+                    application = app,
+                    onApprove = { onApprove(app) },
+                    onReject = { onReject(app) }
+                )
+            }
+        }
+    }
+}
 
-                        ApplicationStatusBadge(status = app.status)
-                    }
-
-                    HorizontalDivider()
-
+@Composable
+fun SellerApplicationCard(
+    application: SellerApplication,
+    onApprove: () -> Unit,
+    onReject: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Postulante: ${app.applicantName}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "Correo: ${app.studentEmail}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Ubicación propuesta: ${app.proposedLocation}",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = application.storeName.ifBlank { "Nuevo Emprendimiento" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF003366)
                     )
                     Text(
-                        text = "Propuesta: ${app.description}",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "Rubro: ${application.category.ifBlank { "General" }}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.SemiBold
                     )
+                }
+                ApplicationStatusBadge(status = application.status)
+            }
 
-                    if (app.status == ApplicationStatus.PENDIENTE) {
-                        HorizontalDivider()
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedButton(
-                                onClick = { onReject(app) },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text("Rechazar")
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = { onApprove(app) },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Text("Aprobar Emprendedor")
-                            }
-                        }
-                    } else if (app.status == ApplicationStatus.RECHAZADA && app.rejectionReason != null) {
-                        HorizontalDivider()
-                        Text(
-                            text = "Motivo de rechazo: ${app.rejectionReason}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFC8102E),
-                            fontWeight = FontWeight.Bold
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Postulante: ${application.applicantName}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (application.phone.isNotBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Phone,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Contacto: ${application.phone}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (!application.proposedLocation.isNullOrBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Place,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Ubicación propuesta: ${application.proposedLocation}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (application.description.isNotBlank()) {
+                    Text(
+                        text = "Descripción: ${application.description}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (application.status == ApplicationStatus.RECHAZADA && !application.rejectionReason.isNullOrBlank()) {
+                    Text(
+                        text = "Motivo de rechazo: ${application.rejectionReason}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFC8102E),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            if (application.status == ApplicationStatus.PENDIENTE) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onReject,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E))
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Rechazar")
+                    }
+                    Button(
+                        onClick = onApprove,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Aprobar")
                     }
                 }
             }
@@ -453,66 +667,344 @@ fun SellerApplicationsTabContent(
 }
 
 @Composable
-fun CampusMetricsTabContent(metrics: com.example.vallego.domain.model.CampusMetrics) {
+fun SellersDirectoryTabContent(
+    sellers: List<UserProfile>,
+    onSuspend: (UserProfile) -> Unit,
+    onReactivate: (UserProfile) -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF003366)),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
+        Column {
+            Text("Puestos del Campus (${sellers.size})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text("Gestión y auditoría de emprendedores registrados en la universidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        if (sellers.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Store,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "No hay emprendedores registrados en este campus",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(sellers, key = { it.id }) { seller ->
+                    SellerDirectoryCard(
+                        seller = seller,
+                        onSuspend = { onSuspend(seller) },
+                        onReactivate = { onReactivate(seller) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SellerDirectoryCard(
+    seller: UserProfile,
+    onSuspend: () -> Unit,
+    onReactivate: () -> Unit
+) {
+    val isSuspended = seller.role == UserRole.SUSPENDED
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSuspended) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Text(
-                    text = "Telemetría en Vivo del Campus",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleMedium
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ValleGoBusinessAvatar(
+                    avatarUrl = seller.avatarUrl,
+                    storeName = seller.displayStoreName,
+                    size = 46.dp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = seller.displayStoreName,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF003366)
+                    )
+                    Text(
+                        text = "Dueño: ${seller.fullName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (seller.phone.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = seller.phone,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Surface(
+                    color = if (isSuspended) Color(0xFFC8102E) else if (seller.acceptingOrders) Color(0xFF2E7D32) else Color.Gray,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = if (isSuspended) "SUSPENDIDO" else if (seller.acceptingOrders) "ABIERTO" else "CERRADO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (isSuspended && !seller.suspensionReason.isNullOrBlank()) {
+                Surface(
+                    color = Color.White.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Motivo de suspensión: ${seller.suspensionReason}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFC8102E),
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "Monitoreo en tiempo real de transacciones contra entrega y actividad de puestos.",
-                    color = Color.White.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.bodySmall
+                    text = "Ubicación: ${seller.businessLocation ?: seller.campus}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (isSuspended) {
+                    Button(
+                        onClick = onReactivate,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text("Reactivar", fontSize = 12.sp)
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onSuspend,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.PersonOff, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Suspender", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CampusMetricsTabContent(
+    metrics: CampusMetrics,
+    incidents: List<OrderIncident>
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF003366)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "Telemetría en Vivo del Campus",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Monitoreo en tiempo real de transacciones contra entrega y actividad de puestos.",
+                        color = Color.White.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AdminMetricCard(
+                    title = "Ventas Hoy",
+                    value = "S/ %.2f".format(metrics.totalSalesToday),
+                    color = Color(0xFF003366),
+                    modifier = Modifier.weight(1.3f)
+                )
+                AdminMetricCard(
+                    title = "Pedidos Hoy",
+                    value = "${metrics.totalOrdersToday}",
+                    color = Color(0xFF2E7D32),
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            AdminMetricCard(
-                title = "Ventas Hoy",
-                value = "S/ %.2f".format(metrics.totalSalesToday),
-                color = Color(0xFF003366),
-                modifier = Modifier.weight(1.3f)
-            )
-            AdminMetricCard(
-                title = "Pedidos Hoy",
-                value = "${metrics.totalOrdersToday}",
-                color = Color(0xFF2E7D32),
-                modifier = Modifier.weight(1f)
-            )
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AdminMetricCard(
+                    title = "Puestos Activos",
+                    value = "${metrics.activeSellersCount}",
+                    color = Color(0xFF1976D2),
+                    modifier = Modifier.weight(1f)
+                )
+                AdminMetricCard(
+                    title = "Puntos Activos",
+                    value = "${metrics.activeMeetingPointsCount}",
+                    color = Color(0xFFF57C00),
+                    modifier = Modifier.weight(1f)
+                )
+                AdminMetricCard(
+                    title = "Postulaciones",
+                    value = "${metrics.pendingApplicationsCount}",
+                    color = Color(0xFFC8102E),
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            AdminMetricCard(
-                title = "Puestos Activos",
-                value = "${metrics.activeSellersCount}",
-                color = Color(0xFF1976D2),
-                modifier = Modifier.weight(1f)
-            )
-            AdminMetricCard(
-                title = "Puntos Activos",
-                value = "${metrics.activeMeetingPointsCount}",
-                color = Color(0xFFF57C00),
-                modifier = Modifier.weight(1f)
-            )
-            AdminMetricCard(
-                title = "Postulaciones",
-                value = "${metrics.pendingApplicationsCount}",
-                color = Color(0xFFC8102E),
-                modifier = Modifier.weight(1f)
-            )
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ReportProblem,
+                    contentDescription = null,
+                    tint = Color(0xFF003366),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Registro de Incidencias (${incidents.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF003366)
+                )
+            }
+        }
+
+        if (incidents.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Sin incidencias reportadas en el campus.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            items(incidents, key = { it.id.ifBlank { UUID.randomUUID().toString() } }) { incident ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFE65100),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = when (incident.incidentType) {
+                                    "NO_SHOW_BUYER" -> "Comprador no se presentó (No-Show)"
+                                    "CANCELADO_VENDEDOR" -> "Cancelado por el puesto"
+                                    else -> incident.incidentType
+                                },
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFE65100)
+                            )
+                            incident.details?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -554,7 +1046,7 @@ fun AdminMetricCard(
 fun ApplicationStatusBadge(status: ApplicationStatus) {
     val (bgColor, textColor, text) = when (status) {
         ApplicationStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
-        ApplicationStatus.APROBADA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Aprobado ✓")
+        ApplicationStatus.APROBADA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Aprobado")
         ApplicationStatus.RECHAZADA -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
     }
 

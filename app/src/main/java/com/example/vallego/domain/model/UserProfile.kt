@@ -22,6 +22,7 @@ data class UserProfile(
     @SerialName("banner_url") val bannerUrl: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("accepting_orders") val acceptingOrders: Boolean = true,
+    @SerialName("suspension_reason") val suspensionReason: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 ) {

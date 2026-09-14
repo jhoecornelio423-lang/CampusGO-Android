@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import com.example.vallego.domain.repository.AdminRepository
 import kotlinx.coroutines.launch
 
 class CartViewModel(
     private val cartRepository: CartRepository,
     private val orderRepository: OrderRepository,
-    private val createOrderWithSubordersUseCase: CreateOrderWithSubordersUseCase
+    private val createOrderWithSubordersUseCase: CreateOrderWithSubordersUseCase,
+    private val adminRepository: AdminRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CartUiState())
@@ -37,6 +39,33 @@ class CartViewModel(
             cartRepository.cartCalculation.collect { calculation ->
                 _uiState.update { it.copy(calculation = calculation) }
             }
+        }
+        viewModelScope.launch {
+            adminRepository.refreshMeetingPoints()
+        }
+        viewModelScope.launch {
+            adminRepository.observeMeetingPoints().collect { allPoints ->
+                val activePoints = allPoints.filter { it.isActive }
+                if (activePoints.isNotEmpty()) {
+                    _uiState.update { current ->
+                        val updatedSelection = if (current.selectedMeetingPoint != null && activePoints.any { it.id == current.selectedMeetingPoint.id }) {
+                            current.selectedMeetingPoint
+                        } else {
+                            activePoints.firstOrNull()
+                        }
+                        current.copy(
+                            meetingPoints = activePoints,
+                            selectedMeetingPoint = updatedSelection
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun refreshMeetingPoints() {
+        viewModelScope.launch {
+            adminRepository.refreshMeetingPoints()
         }
     }
 

@@ -13,6 +13,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
 class SellerDashboardViewModel(
@@ -36,17 +43,43 @@ class SellerDashboardViewModel(
         loadSellerProfile()
         viewModelScope.launch {
             orderRepository.observeSubOrdersForSeller(sellerId).collect { orders ->
-                val completed = orders.filter { it.status == SubOrderStatus.COMPLETADO }
-                val earnings = completed.sumOf { it.subtotalAmount }
+                val today = LocalDate.now(limaZone)
+                val groupedByDate = orders.groupBy { parseOrderLocalDate(it.createdAt) }
+                val todayOrders = groupedByDate[today].orEmpty()
+                val todayCompleted = todayOrders.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
+                val todayEarnings = todayCompleted.sumOf { it.subtotalAmount }
+
+                val pastDates = groupedByDate.keys.filter { it.isBefore(today) }.sortedDescending()
+                val pastGroups = pastDates.map { date ->
+                    val dayOrders = groupedByDate[date].orEmpty()
+                    val completed = dayOrders.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
+                    val cancelled = dayOrders.filter {
+                        it.status == SubOrderStatus.RECHAZADO ||
+                        it.status == SubOrderStatus.CANCELADO ||
+                        it.status == SubOrderStatus.NO_ENTREGADO
+                    }
+                    DailyOrderGroup(
+                        date = date,
+                        displayTitle = formatDayTitle(date, today),
+                        isToday = false,
+                        totalEarnings = completed.sumOf { it.subtotalAmount },
+                        completedCount = completed.size,
+                        cancelledCount = cancelled.size,
+                        orders = dayOrders
+                    )
+                }
+
                 _uiState.update {
                     it.copy(
                         subOrders = orders,
-                        totalSubOrdersToday = orders.size,
+                        todayOrders = todayOrders,
+                        pastDayGroups = pastGroups,
+                        totalSubOrdersToday = todayOrders.size,
                         pendingCount = orders.count { s -> s.status == SubOrderStatus.PENDIENTE },
                         inPreparationCount = orders.count { s -> s.status == SubOrderStatus.ACEPTADO || s.status == SubOrderStatus.EN_PREPARACION },
                         readyCount = orders.count { s -> s.status == SubOrderStatus.LISTO || s.status == SubOrderStatus.ESPERANDO_ENTREGA },
-                        completedCount = completed.size,
-                        earningsToday = earnings,
+                        completedCount = todayCompleted.size,
+                        earningsToday = todayEarnings,
                         isLoading = false
                     )
                 }
@@ -296,6 +329,7 @@ class SellerDashboardViewModel(
                 _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al confirmar entrega y pago.") }
             } else {
                 dismissDeliveryDialog()
+                _uiState.update { it.copy(successMessage = "¡Venta y entrega registrada correctamente!") }
             }
         }
     }
@@ -464,5 +498,54 @@ class SellerDashboardViewModel(
 
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+    }
+
+    fun togglePastDayExpanded(date: LocalDate) {
+        _uiState.update { state ->
+            val set = state.expandedPastDates
+            val nextSet = if (set.contains(date)) set - date else set + date
+            state.copy(expandedPastDates = nextSet)
+        }
+    }
+
+    private val limaZone: ZoneId = ZoneId.of("America/Lima")
+
+    private fun parseOrderLocalDate(createdAtIso: String?): LocalDate {
+        if (createdAtIso.isNullOrBlank()) return LocalDate.now(limaZone)
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss"
+        )
+        for (pattern in formats) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                val date = sdf.parse(createdAtIso)
+                if (date != null) {
+                    return Instant.ofEpochMilli(date.time).atZone(limaZone).toLocalDate()
+                }
+            } catch (_: Exception) {
+                // try next
+            }
+        }
+        return LocalDate.now(limaZone)
+    }
+
+    private fun formatDayTitle(date: LocalDate, today: LocalDate): String {
+        return when (date) {
+            today -> "Hoy"
+            today.minusDays(1) -> "Ayer"
+            else -> {
+                val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"))
+                    .replaceFirstChar { it.uppercase() }
+                val month = date.month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"))
+                "$dayOfWeek, ${date.dayOfMonth} de $month"
+            }
+        }
     }
 }

@@ -50,8 +50,12 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
+
 data class CategoryVisualTheme(
-    val emoji: String,
+    val emoji: String = "",
+    val iconResId: Int,
     val backgroundBrush: Brush,
     val contentColor: Color
 )
@@ -63,7 +67,7 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
         text.contains("pollo") || text.contains("chaufa") || text.contains("salchipapa") ||
         text.contains("arroz") || text.contains("sandwich") || text.contains("menú") || text.contains("menu") -> {
             CategoryVisualTheme(
-                emoji = "🍔",
+                iconResId = R.drawable.ic_cat_food,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFFEDD5), Color(0xFFFED7AA))),
                 contentColor = Color(0xFFC2410C)
             )
@@ -73,7 +77,7 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
         text.contains("brownie") || text.contains("pastel") || text.contains("galleta") ||
         text.contains("chocolate") || text.contains("crepa") || text.contains("waffle") -> {
             CategoryVisualTheme(
-                emoji = "🧁",
+                iconResId = R.drawable.ic_cat_desserts,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFCE7F3), Color(0xFFFBCFE8))),
                 contentColor = Color(0xFFBE185D)
             )
@@ -83,7 +87,7 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
         text.contains("agua") || text.contains("infusión") || text.contains("frappe") ||
         text.contains("batido") || text.contains("smoothie") -> {
             CategoryVisualTheme(
-                emoji = "🥤",
+                iconResId = R.drawable.ic_cat_drinks,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFE0F2FE), Color(0xFFBAE6FD))),
                 contentColor = Color(0xFF0369A1)
             )
@@ -92,7 +96,7 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
         text.contains("doritos") || text.contains("piqueo") || text.contains("frutos") ||
         text.contains("canchita") || text.contains("popcorn") -> {
             CategoryVisualTheme(
-                emoji = "🍿",
+                iconResId = R.drawable.ic_cat_snacks,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFEF3C7), Color(0xFFFDE68A))),
                 contentColor = Color(0xFFB45309)
             )
@@ -100,14 +104,14 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
         text.contains("papel") || text.contains("cuaderno") || text.contains("copia") ||
         text.contains("util") || text.contains("impresion") || text.contains("libro") -> {
             CategoryVisualTheme(
-                emoji = "📚",
+                iconResId = R.drawable.ic_cat_stationery,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFEDE9FE), Color(0xFFDDD6FE))),
                 contentColor = Color(0xFF6D28D9)
             )
         }
         else -> {
             CategoryVisualTheme(
-                emoji = "🍱",
+                iconResId = R.drawable.ic_cat_all,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0))),
                 contentColor = Color(0xFF475569)
             )
@@ -116,7 +120,7 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
 }
 
 @Composable
-fun ValleGoProductImage(
+fun CampusGoProductImage(
     imageUrl: String?,
     modifier: Modifier = Modifier,
     categoryName: String? = null,
@@ -150,24 +154,37 @@ fun ValleGoProductImage(
                     onError = { isError = true }
                 )
             } else {
-                Text(
-                    text = theme.emoji,
-                    fontSize = emojiSize.sp,
-                    textAlign = TextAlign.Center
+                Icon(
+                    painter = painterResource(id = theme.iconResId),
+                    contentDescription = productName ?: "Producto",
+                    tint = theme.contentColor,
+                    modifier = Modifier.size((emojiSize * 1.25f).dp)
                 )
             }
         } else {
-            Text(
-                text = theme.emoji,
-                fontSize = emojiSize.sp,
-                textAlign = TextAlign.Center
+            Icon(
+                painter = painterResource(id = theme.iconResId),
+                contentDescription = productName ?: "Producto",
+                tint = theme.contentColor,
+                modifier = Modifier.size((emojiSize * 1.25f).dp)
             )
         }
     }
 }
 
 @Composable
-fun ValleGoBusinessBanner(
+fun ValleGoProductImage(
+    imageUrl: String?,
+    modifier: Modifier = Modifier,
+    categoryName: String? = null,
+    productName: String? = null,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(12.dp),
+    emojiSize: Int = 26
+) = CampusGoProductImage(imageUrl, modifier, categoryName, productName, contentScale, shape, emojiSize)
+
+@Composable
+fun CampusGoBusinessBanner(
     bannerUrl: String?,
     storeName: String?,
     modifier: Modifier = Modifier,
@@ -180,9 +197,9 @@ fun ValleGoBusinessBanner(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF002244),
-                        Color(0xFF003366),
-                        Color(0xFFCC0000)
+                        Color(0xFF16324F), // Azul Oscuro Contraste
+                        Color(0xFF16A085), // Verde Turquesa Principal
+                        Color(0xFFF4B942)  // Amarillo Cálido Acento
                     )
                 )
             ),
@@ -211,6 +228,15 @@ fun ValleGoBusinessBanner(
 }
 
 @Composable
+fun ValleGoBusinessBanner(
+    bannerUrl: String?,
+    storeName: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(16.dp)
+) = CampusGoBusinessBanner(bannerUrl, storeName, modifier, contentScale, shape)
+
+@Composable
 private fun FallbackStoreBannerContent(storeName: String?) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -219,12 +245,12 @@ private fun FallbackStoreBannerContent(storeName: String?) {
         Icon(
             imageVector = Icons.Default.Store,
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.85f),
+            tint = Color.White.copy(alpha = 0.95f),
             modifier = Modifier.size(28.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = storeName?.trim()?.takeIf { it.isNotBlank() } ?: "Puesto Universitario Valle-Go",
+            text = storeName?.trim()?.takeIf { it.isNotBlank() } ?: "Puesto Universitario • Campus Go",
             color = Color.White,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
@@ -234,7 +260,7 @@ private fun FallbackStoreBannerContent(storeName: String?) {
 }
 
 @Composable
-fun ValleGoBusinessAvatar(
+fun CampusGoBusinessAvatar(
     avatarUrl: String?,
     storeName: String?,
     modifier: Modifier = Modifier,
@@ -251,7 +277,7 @@ fun ValleGoBusinessAvatar(
                 trimmed.take(2).uppercase()
             }
         } else {
-            "VG"
+            "CG"
         }
     }
 
@@ -261,7 +287,7 @@ fun ValleGoBusinessAvatar(
             .clip(shape)
             .background(
                 Brush.linearGradient(
-                    listOf(Color(0xFF003366), Color(0xFF0284C7))
+                    listOf(Color(0xFF16324F), Color(0xFF16A085))
                 )
             )
             .border(1.5.dp, Color.White, shape),
@@ -300,7 +326,16 @@ fun ValleGoBusinessAvatar(
 }
 
 @Composable
-fun ValleGoUserAvatar(
+fun ValleGoBusinessAvatar(
+    avatarUrl: String?,
+    storeName: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    shape: Shape = CircleShape
+) = CampusGoBusinessAvatar(avatarUrl, storeName, modifier, size, shape)
+
+@Composable
+fun CampusGoUserAvatar(
     avatarUrl: String?,
     name: String?,
     modifier: Modifier = Modifier,
@@ -327,7 +362,7 @@ fun ValleGoUserAvatar(
             .clip(shape)
             .background(
                 Brush.linearGradient(
-                    listOf(Color(0xFF003366), Color(0xFF1E88E5))
+                    listOf(Color(0xFF16324F), Color(0xFF16A085))
                 )
             )
             .border(1.5.dp, Color.White, shape),
@@ -364,6 +399,15 @@ fun ValleGoUserAvatar(
         }
     }
 }
+
+@Composable
+fun ValleGoUserAvatar(
+    avatarUrl: String?,
+    name: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+    shape: Shape = CircleShape
+) = CampusGoUserAvatar(avatarUrl, name, modifier, size, shape)
 
 fun isSubOrderExpired(createdAtIso: String?): Boolean {
     if (createdAtIso.isNullOrBlank()) return false
@@ -431,8 +475,8 @@ fun SubOrderCountdownTimerBadge(
     val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 
     val (bgCol, textCol, borderCol) = when {
-        totalSeconds > 600 -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFA5D6A7)) // Verde
-        totalSeconds in 301..600 -> Triple(Color(0xFFFFF3E0), Color(0xFFEF6C00), Color(0xFFFFCC80)) // Ámbar
+        totalSeconds > 600 -> Triple(Color(0xFFE6F6F3), Color(0xFF16A085), Color(0xFFA3E4D7)) // Verde Turquesa
+        totalSeconds in 301..600 -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), Color(0xFFFDE68A)) // Amarillo Cálido
         totalSeconds in 1..300 -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), Color(0xFFEF9A9A)) // Rojo urgente
         else -> Triple(Color(0xFFFFCDD2), Color(0xFFB71C1C), Color(0xFFE57373)) // Expirado
     }
@@ -486,13 +530,13 @@ fun StoreStatusBadge(
 
     val (bgCol, textCol, label) = when {
         !acceptingOrders || normStatus == "CERRADO" ->
-            Triple(Color(0xFFF1F5F9), Color(0xFF64748B), "Cerrado")
+            Triple(Color(0xFFF4F6F8), Color(0xFF64748B), "Cerrado")
         normStatus == "SATURADO" ->
             Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "Saturado (Demoras)")
         normStatus == "PAUSADO" ->
             Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), "Pausado")
         else ->
-            Triple(Color(0xFFDCFCE7), Color(0xFF16A34A), "Abierto")
+            Triple(Color(0xFFE6F6F3), Color(0xFF16A085), "Abierto")
     }
 
     Row(
@@ -572,7 +616,7 @@ fun compressImageUri(
         scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, outputStream)
         outputStream.toByteArray()
     } catch (e: Exception) {
-        android.util.Log.e("ValleGoVisual", "Error comprimiendo imagen: ${e.message}", e)
+        android.util.Log.e("CampusGoVisual", "Error comprimiendo imagen: ${e.message}", e)
         null
     }
 }
