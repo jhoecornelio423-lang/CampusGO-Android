@@ -153,4 +153,37 @@ class DomainModelsTest {
         assertEquals("998877665", decoded.buyerPhone)
         assertEquals("Sin azúcar por favor", decoded.notes)
     }
+
+    @Test
+    fun testUserProfileCleansPaymentMethodsTagFromDescription() {
+        val profileWithTag = UserProfile(
+            id = "seller-99",
+            fullName = "Rodrigo Vendedor",
+            businessName = "Papas El Tío",
+            businessDescription = "Las mejores papas del campus.\n<!--PM:YAPE,EFECTIVO-->"
+        )
+        assertEquals("Las mejores papas del campus.", profileWithTag.displayBusinessDescription)
+    }
+
+    @Test
+    fun testSellerPaymentMethodsStorageTagParsingAndEnrichment() {
+        val storage = com.example.vallego.data.repository.SellerPaymentMethodsStorage
+        val embedded = storage.embedMethodsInDescription("Snacks rápidos", listOf("YAPE"))
+        assertEquals("Snacks rápidos\n<!--PM:YAPE-->", embedded)
+
+        val parsed = storage.parseMethodsFromDescription(embedded)
+        assertNotNull(parsed)
+        assertEquals(listOf("YAPE"), parsed)
+
+        val profile = UserProfile(
+            id = "seller-online-1",
+            fullName = "Ana Ventas",
+            businessDescription = embedded,
+            supportedPaymentMethods = emptyList()
+        )
+        val enriched = storage.enrichProfile(profile)
+        assertEquals(listOf("YAPE"), enriched.supportedPaymentMethods)
+        assertEquals(listOf("YAPE"), enriched.effectivePaymentMethods)
+        assertEquals("Snacks rápidos", enriched.businessDescription)
+    }
 }

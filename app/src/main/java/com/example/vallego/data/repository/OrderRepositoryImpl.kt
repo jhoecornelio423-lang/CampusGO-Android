@@ -457,7 +457,47 @@ class OrderRepositoryImpl(
                                 )
                             }
 
-                            val orderStatus = mapRemoteStatusToOrderStatus(ro.status)
+                            val rawOrderStatus = mapRemoteStatusToOrderStatus(ro.status)
+                            val computedOrderStatus = if (domainSubOrders.isNotEmpty()) {
+                                val allCancelledOrRejected = domainSubOrders.all {
+                                    it.status == SubOrderStatus.RECHAZADO ||
+                                    it.status == SubOrderStatus.CANCELADO ||
+                                    it.status == SubOrderStatus.NO_ENTREGADO
+                                }
+                                val allCompleted = domainSubOrders.all {
+                                    it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO
+                                }
+                                val hasRejected = domainSubOrders.any { it.status == SubOrderStatus.RECHAZADO }
+                                val activeSubOrders = domainSubOrders.filter {
+                                    it.status != SubOrderStatus.RECHAZADO &&
+                                    it.status != SubOrderStatus.CANCELADO &&
+                                    it.status != SubOrderStatus.NO_ENTREGADO
+                                }
+
+                                when {
+                                    allCancelledOrRejected -> OrderStatus.CANCELADA
+                                    allCompleted -> OrderStatus.COMPLETADA
+                                    hasRejected && activeSubOrders.isNotEmpty() -> OrderStatus.PARCIALMENTE_ACEPTADA
+                                    activeSubOrders.isNotEmpty() && activeSubOrders.all { it.status == SubOrderStatus.PENDIENTE } -> OrderStatus.PENDIENTE
+                                    activeSubOrders.isNotEmpty() -> OrderStatus.EN_PROCESO
+                                    else -> rawOrderStatus
+                                }
+                            } else {
+                                rawOrderStatus
+                            }
+
+                            val activeTotal = domainSubOrders.filter {
+                                it.status != SubOrderStatus.RECHAZADO &&
+                                it.status != SubOrderStatus.CANCELADO &&
+                                it.status != SubOrderStatus.NO_ENTREGADO
+                            }.sumOf { it.subtotalAmount }
+
+                            val effectiveTotal = if (computedOrderStatus == OrderStatus.PARCIALMENTE_ACEPTADA && activeTotal > 0.0) {
+                                activeTotal
+                            } else {
+                                ro.totalPrice
+                            }
+
                             val meetingPlace = ro.meetingPointName ?: ro.deliveryPlace ?: "Campus Universitario"
                             val schedule = ro.scheduledTime ?: extractScheduleFromDeliveryPlace(ro.deliveryPlace)
 
@@ -468,8 +508,8 @@ class OrderRepositoryImpl(
                                 meetingPointId = ro.meetingPointId ?: "mp-default",
                                 meetingPointName = meetingPlace,
                                 scheduledTime = schedule,
-                                totalAmount = ro.totalPrice,
-                                status = orderStatus,
+                                totalAmount = effectiveTotal,
+                                status = computedOrderStatus,
                                 subOrders = domainSubOrders,
                                 paymentMethod = parsePaymentMethod(ro.paymentMethod),
                                 notes = ro.notes,

@@ -29,6 +29,8 @@ data class UserProfile(
     @SerialName("updated_at") val updatedAt: String? = null
 ) {
     val displayStoreName: String get() = businessName?.trim()?.takeIf { it.isNotBlank() } ?: fullName
+    val displayBusinessDescription: String?
+        get() = businessDescription?.replace(Regex("<!--PM:[^>]*-->"), "")?.trim()?.takeIf { it.isNotBlank() }
     val effectivePaymentMethods: List<String>
         get() = if (supportedPaymentMethods.isEmpty()) listOf("EFECTIVO", "YAPE", "PLIN") else supportedPaymentMethods
 }

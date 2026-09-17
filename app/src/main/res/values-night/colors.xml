@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- En modo nocturno, se fuerzan explícitamente a blanco puro para evitar que capas del SO las oscurezcan -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="splash_background">#FFFFFFFF</color>
+    <color name="splash_icon_background">#FFFFFFFF</color>
+</resources>

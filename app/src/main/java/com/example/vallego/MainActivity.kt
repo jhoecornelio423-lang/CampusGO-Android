@@ -30,6 +30,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.decorView.isForceDarkAllowed = false
+        }
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
 
         // Solicitar permiso de notificaciones para Android 13+ (API 33+)
         checkAndRequestNotificationPermission()
@@ -45,7 +52,7 @@ class MainActivity : ComponentActivity() {
             ValleGOTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = androidx.compose.ui.graphics.Color.White
                 ) {
                     androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
                         MainNavigation()

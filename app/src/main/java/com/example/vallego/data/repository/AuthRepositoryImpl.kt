@@ -30,6 +30,9 @@ class AuthRepositoryImpl(
     private val _isAuthenticated = MutableStateFlow(false)
     override val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
 
+    private val _isSessionChecking = MutableStateFlow(true)
+    override val isSessionChecking: StateFlow<Boolean> = _isSessionChecking.asStateFlow()
+
     private val scope = CoroutineScope(Dispatchers.IO)
 
     init {
@@ -58,13 +61,22 @@ class AuthRepositoryImpl(
                                 )
                             }
                         }
+                        _isSessionChecking.value = false
                     }
                     is SessionStatus.NotAuthenticated -> {
                         _currentProfile.value = null
                         _isAuthenticated.value = false
+                        _isSessionChecking.value = false
                     }
                     else -> Unit
                 }
+            }
+        }
+        scope.launch {
+            // Límite de seguridad para no quedar bloqueado en carga inicial si la red demora
+            kotlinx.coroutines.delay(2500)
+            if (_isSessionChecking.value) {
+                _isSessionChecking.value = false
             }
         }
     }

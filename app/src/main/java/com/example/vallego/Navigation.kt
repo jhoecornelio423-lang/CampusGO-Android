@@ -1,9 +1,15 @@
 package com.example.vallego
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -11,6 +17,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.vallego.domain.model.UserRole
 import com.example.vallego.domain.repository.AuthRepository
@@ -29,9 +38,34 @@ fun MainNavigation(
 ) {
     val isAuthenticated by authRepository.isAuthenticated.collectAsState()
     val currentProfile by authRepository.currentProfile.collectAsState()
+    val isSessionChecking by authRepository.isSessionChecking.collectAsState()
     val scope = rememberCoroutineScope()
 
-    if (!isAuthenticated || currentProfile == null) {
+    if (isSessionChecking) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.campus_logo_full),
+                    contentDescription = "Logo Campus Go",
+                    modifier = Modifier.size(170.dp),
+                    contentScale = ContentScale.Fit
+                )
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = Color(0xFF16A085),
+                    strokeWidth = 3.dp
+                )
+            }
+        }
+    } else if (!isAuthenticated || currentProfile == null) {
         AuthRoute(
             onAuthSuccess = { /* State triggers automatic recomposition */ },
             modifier = Modifier.fillMaxSize().safeDrawingPadding()

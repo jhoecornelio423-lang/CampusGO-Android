@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 interface AuthRepository {
     val currentProfile: StateFlow<UserProfile?>
     val isAuthenticated: StateFlow<Boolean>
+    val isSessionChecking: StateFlow<Boolean>
 
     suspend fun signIn(email: String, password: String): Result<UserProfile>
     suspend fun signUp(email: String, password: String, fullName: String, phone: String, role: UserRole = UserRole.COMPRADOR): Result<UserProfile>

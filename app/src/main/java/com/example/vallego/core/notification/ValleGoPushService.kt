@@ -43,8 +43,10 @@ class ValleGoPushService : Service(), KoinComponent {
     private var isSellerFirstRun = true
 
     private val lastKnownBuyerStatuses = mutableMapOf<String, String>()
+    private val lastKnownBuyerSubOrderStatuses = mutableMapOf<String, String>()
     private var isBuyerFirstRun = true
     private val productNameCache = ConcurrentHashMap<String, String>()
+    private val sellerNameCache = ConcurrentHashMap<String, String>()
 
     override fun onCreate() {
         super.onCreate()
@@ -268,21 +270,133 @@ class ValleGoPushService : Service(), KoinComponent {
     }
 
     private suspend fun monitorBuyerOrders(buyerId: String) {
-        val orders = postgrest.from("orders")
-            .select {
-                filter { eq("buyer_id", buyerId) }
+        val orders = try {
+            postgrest.from("orders")
+                .select {
+                    filter { eq("buyer_id", buyerId) }
+                }
+                .decodeList<RemoteOrderDto>()
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val orderMap = orders.associateBy { it.id }
+        val orderIds = orders.map { it.id }
+
+        val subOrders = if (orderIds.isNotEmpty()) {
+            try {
+                postgrest.from("sub_orders")
+                    .select {
+                        filter { isIn("order_id", orderIds) }
+                    }
+                    .decodeList<RemoteSubOrderDto>()
+            } catch (_: Exception) {
+                emptyList()
             }
-            .decodeList<RemoteOrderDto>()
+        } else {
+            emptyList()
+        }
+
+        // Cachear nombres de vendedores que atienden los subpedidos
+        val missingSellerIds = subOrders.map { it.sellerId }
+            .filter { it.isNotBlank() && !sellerNameCache.containsKey(it) }
+            .distinct()
+        if (missingSellerIds.isNotEmpty()) {
+            try {
+                val sellers = postgrest.from("profiles")
+                    .select {
+                        filter { isIn("id", missingSellerIds) }
+                    }
+                    .decodeList<UserProfile>()
+                for (s in sellers) {
+                    sellerNameCache[s.id] = s.displayStoreName
+                }
+            } catch (_: Exception) {}
+        }
 
         if (isBuyerFirstRun) {
             orders.forEach {
                 lastKnownBuyerStatuses[it.id] = it.status.lowercase()
                 markAsNotified("buyer_order_${it.id}_${it.status.lowercase()}")
             }
+            subOrders.forEach {
+                lastKnownBuyerSubOrderStatuses[it.id] = it.status.lowercase()
+                markAsNotified("buyer_sub_${it.id}_${it.status.lowercase()}")
+            }
             isBuyerFirstRun = false
             return
         }
 
+        // 1. Monitoreo reactivo de subpedidos (Notificaciones granulares por puesto)
+        for (sub in subOrders) {
+            val currentSubStatus = sub.status.lowercase()
+            val previousSubStatus = lastKnownBuyerSubOrderStatuses[sub.id]
+
+            if (previousSubStatus != null && previousSubStatus != currentSubStatus) {
+                val eventKey = "buyer_sub_${sub.id}_$currentSubStatus"
+                if (!isAlreadyNotified(eventKey)) {
+                    markAsNotified(eventKey)
+                    val parentOrder = orderMap[sub.orderId]
+                    val storeName = sellerNameCache[sub.sellerId] ?: "El emprendedor"
+                    val meetingPoint = parentOrder?.meetingPointName ?: parentOrder?.deliveryPlace ?: "Campus Universitario"
+                    val schedule = parentOrder?.scheduledTime?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
+                    val itemsSummary = getOrderItemsSummary(orderId = sub.orderId, subOrderId = sub.id)
+                    val summaryPart = if (itemsSummary.isNotBlank()) " ($itemsSummary)" else ""
+
+                    when (currentSubStatus) {
+                        "accepted", "aceptado" -> {
+                            ValleGoNotificationHelper.showOrderNotification(
+                                context = this@ValleGoPushService,
+                                notificationId = sub.id.hashCode(),
+                                title = "Pedido aceptado",
+                                message = "$storeName aceptó tu pedido$summaryPart.",
+                                orderId = sub.orderId
+                            )
+                        }
+                        "preparing", "in_preparation", "en_preparacion" -> {
+                            ValleGoNotificationHelper.showOrderNotification(
+                                context = this@ValleGoPushService,
+                                notificationId = sub.id.hashCode(),
+                                title = "Pedido en preparación",
+                                message = "$storeName comenzó a preparar tu pedido$summaryPart.",
+                                orderId = sub.orderId
+                            )
+                        }
+                        "ready", "listo", "esperando_entrega" -> {
+                            ValleGoNotificationHelper.showOrderNotification(
+                                context = this@ValleGoPushService,
+                                notificationId = sub.id.hashCode(),
+                                title = "¡Tu pedido está listo!",
+                                message = "Tu pedido de $storeName está listo. Acércate al punto de encuentro: $meetingPoint$schedule.",
+                                orderId = sub.orderId
+                            )
+                        }
+                        "completed", "completado" -> {
+                            ValleGoNotificationHelper.showOrderNotification(
+                                context = this@ValleGoPushService,
+                                notificationId = sub.id.hashCode(),
+                                title = "¡Pedido entregado!",
+                                message = "Tu entrega con $storeName fue completada exitosamente.",
+                                orderId = sub.orderId
+                            )
+                        }
+                        "rejected", "rechazado", "cancelled", "cancelado" -> {
+                            val reasonPart = if (!sub.rejectionReason.isNullOrBlank()) ": ${sub.rejectionReason}" else "."
+                            ValleGoNotificationHelper.showOrderNotification(
+                                context = this@ValleGoPushService,
+                                notificationId = sub.id.hashCode(),
+                                title = "Pedido cancelado/rechazado",
+                                message = "$storeName no pudo atender tu pedido$reasonPart",
+                                orderId = sub.orderId
+                            )
+                        }
+                    }
+                }
+            }
+            lastKnownBuyerSubOrderStatuses[sub.id] = currentSubStatus
+        }
+
+        // 2. Monitoreo de órdenes globales (para órdenes legacy)
         for (order in orders) {
             val currentStatus = order.status.lowercase()
             val previousStatus = lastKnownBuyerStatuses[order.id]
@@ -293,6 +407,9 @@ class ValleGoPushService : Service(), KoinComponent {
                     markAsNotified(eventKey)
                     val itemsSummary = getOrderItemsSummary(order.id)
                     val summaryPart = if (itemsSummary.isNotBlank()) " ($itemsSummary)" else ""
+                    val meetingPoint = order.meetingPointName ?: order.deliveryPlace ?: "Campus Universitario"
+                    val schedule = order.scheduledTime?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
+
                     when (currentStatus) {
                         "accepted", "aceptado", "in_preparation", "en_preparacion" -> {
                             ValleGoNotificationHelper.showOrderNotification(
@@ -308,7 +425,7 @@ class ValleGoPushService : Service(), KoinComponent {
                                 context = this@ValleGoPushService,
                                 notificationId = order.id.hashCode(),
                                 title = "¡Tu pedido está listo!",
-                                message = "Acércate a recoger tu pedido$summaryPart al punto de encuentro.",
+                                message = "Tu pedido está listo. Acércate al punto de encuentro: $meetingPoint$schedule.",
                                 orderId = order.id
                             )
                         }

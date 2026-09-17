@@ -54,6 +54,21 @@ data class SellerBusinessProfileUpdateDto(
 )
 
 @kotlinx.serialization.Serializable
+data class SellerBusinessProfileWithPointsUpdateDto(
+    @kotlinx.serialization.SerialName("business_name") val businessName: String?,
+    @kotlinx.serialization.SerialName("business_status") val businessStatus: String,
+    @kotlinx.serialization.SerialName("business_description") val businessDescription: String?,
+    @kotlinx.serialization.SerialName("business_category") val businessCategory: String?,
+    @kotlinx.serialization.SerialName("business_location") val businessLocation: String?,
+    @kotlinx.serialization.SerialName("open_time") val openTime: String?,
+    @kotlinx.serialization.SerialName("close_time") val closeTime: String?,
+    @kotlinx.serialization.SerialName("banner_url") val bannerUrl: String?,
+    @kotlinx.serialization.SerialName("avatar_url") val avatarUrl: String?,
+    @kotlinx.serialization.SerialName("accepting_orders") val acceptingOrders: Boolean,
+    @kotlinx.serialization.SerialName("supported_meeting_points") val supportedMeetingPoints: List<String>? = null
+)
+
+@kotlinx.serialization.Serializable
 data class SellerBusinessProfileLegacyUpdateDto(
     @kotlinx.serialization.SerialName("business_name") val businessName: String?,
     @kotlinx.serialization.SerialName("business_status") val businessStatus: String,
@@ -309,11 +324,15 @@ class ProductRepositoryImpl(
                 ?: profile.effectivePaymentMethods
             SellerPaymentMethodsStorage.saveMethods(targetId, methodsToPersist)
 
+            val descWithTag = SellerPaymentMethodsStorage.embedMethodsInDescription(profile.businessDescription, methodsToPersist)
+            SellerPaymentMethodsStorage.saveMethods(targetId, methodsToPersist)
+
             try {
+                // Intento 1: DTO completo con columna nativa supported_payment_methods y supported_meeting_points
                 val dto = SellerBusinessProfileUpdateDto(
                     businessName = profile.businessName?.trim(),
                     businessStatus = profile.businessStatus,
-                    businessDescription = profile.businessDescription?.trim(),
+                    businessDescription = descWithTag,
                     businessCategory = profile.businessCategory?.trim(),
                     businessLocation = profile.businessLocation?.trim(),
                     openTime = profile.openTime,
@@ -331,27 +350,49 @@ class ProductRepositoryImpl(
                 }
             } catch (e: Exception) {
                 val errMsg = (e.message ?: "") + " " + (e.cause?.message ?: "") + " " + e.toString()
-                // Si la columna supported_payment_methods o supported_meeting_points aún no existe en Supabase, actualizar con DTO legacy
                 if (errMsg.contains("supported_payment_methods", ignoreCase = true) ||
                     errMsg.contains("supported_meeting_points", ignoreCase = true) ||
                     errMsg.contains("schema cache", ignoreCase = true) ||
                     errMsg.contains("PGRST204", ignoreCase = true)) {
-                    android.util.Log.w("ProductRepo", "Columna de pagos/puntos no existe en Supabase. Actualizando perfil con DTO legacy.", e)
-                    val legacyDto = SellerBusinessProfileLegacyUpdateDto(
-                        businessName = profile.businessName?.trim(),
-                        businessStatus = profile.businessStatus,
-                        businessDescription = profile.businessDescription?.trim(),
-                        businessCategory = profile.businessCategory?.trim(),
-                        businessLocation = profile.businessLocation?.trim(),
-                        openTime = profile.openTime,
-                        closeTime = profile.closeTime,
-                        bannerUrl = profile.bannerUrl,
-                        avatarUrl = profile.avatarUrl,
-                        acceptingOrders = profile.acceptingOrders
-                    )
-                    postgrest.from("profiles").update(legacyDto) {
-                        filter {
-                            eq("id", targetId)
+                    android.util.Log.w("ProductRepo", "Columna de pagos/puntos no existe en Supabase. Actualizando con DTO resiliente con metadata de pagos en nube.")
+                    try {
+                        // Intento 2: Conserva supported_meeting_points y persiste métodos de pago en metadata de descripción
+                        val pointsDto = SellerBusinessProfileWithPointsUpdateDto(
+                            businessName = profile.businessName?.trim(),
+                            businessStatus = profile.businessStatus,
+                            businessDescription = descWithTag,
+                            businessCategory = profile.businessCategory?.trim(),
+                            businessLocation = profile.businessLocation?.trim(),
+                            openTime = profile.openTime,
+                            closeTime = profile.closeTime,
+                            bannerUrl = profile.bannerUrl,
+                            avatarUrl = profile.avatarUrl,
+                            acceptingOrders = profile.acceptingOrders,
+                            supportedMeetingPoints = profile.supportedMeetingPoints
+                        )
+                        postgrest.from("profiles").update(pointsDto) {
+                            filter {
+                                eq("id", targetId)
+                            }
+                        }
+                    } catch (e2: Exception) {
+                        // Intento 3: Legacy mínimo en caso de que tampoco exista supported_meeting_points
+                        val legacyDto = SellerBusinessProfileLegacyUpdateDto(
+                            businessName = profile.businessName?.trim(),
+                            businessStatus = profile.businessStatus,
+                            businessDescription = descWithTag,
+                            businessCategory = profile.businessCategory?.trim(),
+                            businessLocation = profile.businessLocation?.trim(),
+                            openTime = profile.openTime,
+                            closeTime = profile.closeTime,
+                            bannerUrl = profile.bannerUrl,
+                            avatarUrl = profile.avatarUrl,
+                            acceptingOrders = profile.acceptingOrders
+                        )
+                        postgrest.from("profiles").update(legacyDto) {
+                            filter {
+                                eq("id", targetId)
+                            }
                         }
                     }
                 } else {
@@ -359,7 +400,11 @@ class ProductRepositoryImpl(
                 }
             }
             android.util.Log.d("ProductRepo", "Perfil de puesto actualizado exitosamente: ${profile.businessName}")
-            Result.success(profile.copy(id = targetId, supportedPaymentMethods = methodsToPersist))
+            Result.success(profile.copy(
+                id = targetId,
+                businessDescription = SellerPaymentMethodsStorage.cleanDescription(profile.businessDescription),
+                supportedPaymentMethods = methodsToPersist
+            ))
         } catch (e: Exception) {
             android.util.Log.e("ProductRepo", "Error al actualizar perfil de negocio: ${e.message}", e)
             Result.failure(e)

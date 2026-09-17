@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,9 @@ fun ProductDetailBottomSheet(
     var specialInstructions by remember { mutableStateOf("") }
     val maxStock = remember(product.stock) { maxOf(1, product.stock) }
 
+    val configuration = LocalConfiguration.current
+    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = modalBottomSheetState,
@@ -57,11 +61,13 @@ fun ProductDetailBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = sheetMaxHeight)
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
             Column(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),

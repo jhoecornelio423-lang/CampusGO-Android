@@ -448,8 +448,11 @@ fun BuyerOrderCard(
                 }
             }
 
-            // Botón Cancelar Pedido (si sigue PENDIENTE y aún no está expirado)
-            if (order.status == OrderStatus.PENDIENTE && !isHistoryTab) {
+            // Botón Cancelar Pedido (solo si todos los subpedidos siguen estrictamente PENDIENTE y ninguno ha sido rechazado/atendido)
+            val allSubOrdersPending = order.subOrders.isNotEmpty() && order.subOrders.all { it.status == SubOrderStatus.PENDIENTE }
+            val hasRejectedSubOrder = order.subOrders.any { it.status == SubOrderStatus.RECHAZADO }
+
+            if (order.status == OrderStatus.PENDIENTE && !isHistoryTab && allSubOrdersPending && !hasRejectedSubOrder) {
                 if (anyPendingExpired) {
                     Surface(
                         color = Color(0xFFFFEBEE),

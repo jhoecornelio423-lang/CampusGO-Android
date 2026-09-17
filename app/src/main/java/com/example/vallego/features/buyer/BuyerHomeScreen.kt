@@ -59,13 +59,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.NotificationsActive
 import com.example.vallego.domain.model.Category
 import com.example.vallego.domain.model.Product
+import com.example.vallego.domain.model.SubOrderStatus
 import com.example.vallego.R
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
 import com.example.vallego.domain.repository.AdminRepository
 import com.example.vallego.domain.repository.CartRepository
+import com.example.vallego.domain.repository.OrderRepository
 import com.example.vallego.domain.repository.ProductRepository
 import com.example.vallego.features.cart.CartScreen
 import com.example.vallego.features.tracking.OrderTrackingScreen
@@ -109,7 +112,8 @@ fun BuyerHomeScreen(
     modifier: Modifier = Modifier,
     cartRepository: CartRepository = koinInject(),
     productRepository: ProductRepository = koinInject(),
-    adminRepository: AdminRepository = koinInject()
+    adminRepository: AdminRepository = koinInject(),
+    orderRepository: OrderRepository = koinInject()
 ) {
     var currentProfile by remember { mutableStateOf(profile) }
     var showProfile by remember { mutableStateOf(false) }
@@ -118,6 +122,15 @@ fun BuyerHomeScreen(
     var selectedStoreForProfile by remember { mutableStateOf<StoreCatalogGroup?>(null) }
     val allMeetingPoints by adminRepository.observeMeetingPoints().collectAsState(initial = emptyList())
     val cartCalculation by cartRepository.cartCalculation.collectAsState()
+    val buyerOrders by orderRepository.observeOrdersForBuyer(profile.id).collectAsState(initial = emptyList())
+    val readyOrdersInfo = remember(buyerOrders) {
+        buyerOrders.flatMap { order ->
+            order.subOrders
+                .filter { it.status == SubOrderStatus.LISTO || it.status == SubOrderStatus.ESPERANDO_ENTREGA }
+                .map { sub -> Triple(order, sub, "${order.id}_${sub.id}") }
+        }
+    }
+    var dismissedReadyAlerts by remember { mutableStateOf(setOf<String>()) }
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryFilter by remember { mutableStateOf("TODOS") }
@@ -572,6 +585,108 @@ fun BuyerHomeScreen(
                         .padding(bottom = if (cartCalculation.totalItemCount > 0) 70.dp else 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // 0. Banner de aviso en tiempo real de pedidos listos para recoger
+                    val visibleReadyOrders = readyOrdersInfo.filter { it.third !in dismissedReadyAlerts }
+                    visibleReadyOrders.forEach { (order, subOrder, alertKey) ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                            border = BorderStroke(1.5.dp, Color(0xFF00A884)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    ) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = Color(0xFF00A884),
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.NotificationsActive,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                        Column {
+                                            Text(
+                                                text = "¡Tu pedido está listo!",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color(0xFF004D40)
+                                            )
+                                            Text(
+                                                text = "Puesto: ${subOrder.sellerName}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF00796B)
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { dismissedReadyAlerts = dismissedReadyAlerts + alertKey },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Ocultar aviso",
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "Tu pedido de \"${subOrder.sellerName}\" está listo. Acércate al punto de encuentro \"${order.meetingPointName}\"${if (order.scheduledTime.isNotBlank()) " (Horario: ${order.scheduledTime})" else ""}.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF16324F),
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Button(
+                                    onClick = { showTracking = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Ver punto de encuentro y seguimiento",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // 1. Carrusel Horizontal de Puestos (Historias del Campus)
                     if (realStoresWithProducts.isNotEmpty()) {
                         Column(

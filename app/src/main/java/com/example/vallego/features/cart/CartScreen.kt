@@ -257,27 +257,6 @@ fun CartScreen(
                                 contentDescription = "Volver"
                             )
                         }
-                    },
-                    actions = {
-                        if (!uiState.isEmpty) {
-                            TextButton(
-                                onClick = { showClearCartDialog = true },
-                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC8102E))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteSweep,
-                                    contentDescription = "Vaciar carrito",
-                                    tint = Color(0xFFC8102E),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Vaciar",
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFC8102E)
-                                )
-                            }
-                        }
                     }
                 )
             },
