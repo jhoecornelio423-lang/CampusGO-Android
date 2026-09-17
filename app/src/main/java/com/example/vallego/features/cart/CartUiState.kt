@@ -123,18 +123,28 @@ private val defaultSchedule = generateDeliverySchedule()
 
 data class CartUiState(
     val calculation: CartCalculationResult = CartCalculationResult(emptyList()),
-    val meetingPoints: List<CampusMeetingPoint> = defaultMeetingPoints,
-    val selectedMeetingPoint: CampusMeetingPoint? = defaultMeetingPoints.firstOrNull(),
+    val meetingPoints: List<CampusMeetingPoint> = emptyList(),
+    val selectedMeetingPoint: CampusMeetingPoint? = null,
     val availableTimeSlots: List<String> = defaultSchedule.slots,
     val selectedTimeSlot: String = defaultSchedule.slots.firstOrNull() ?: "Hoy 12:00",
     val isCampusClosedNow: Boolean = defaultSchedule.isCampusClosedNow,
     val deliveryScheduleNote: String = defaultSchedule.infoMessage,
     val selectedPaymentMethod: PaymentMethod = PaymentMethod.YAPE,
+    val availablePaymentMethods: List<PaymentMethod> = listOf(PaymentMethod.YAPE, PaymentMethod.PLIN, PaymentMethod.EFECTIVO),
+    val paymentMethodWarning: String? = null,
     val orderNotes: String = "",
     val isSubmitting: Boolean = false,
     val placedOrder: Order? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val meetingPointWarning: String? = null
 ) {
     val isEmpty: Boolean get() = calculation.storeGroups.isEmpty()
-    val canCheckout: Boolean get() = !isEmpty && selectedMeetingPoint != null && selectedTimeSlot.isNotBlank() && !isSubmitting
+    val canCheckout: Boolean
+        get() = !isEmpty &&
+                selectedMeetingPoint != null &&
+                selectedTimeSlot.isNotBlank() &&
+                !isSubmitting &&
+                meetingPointWarning == null &&
+                paymentMethodWarning == null &&
+                availablePaymentMethods.contains(selectedPaymentMethod)
 }

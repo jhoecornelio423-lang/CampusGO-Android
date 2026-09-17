@@ -17,6 +17,7 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import com.example.vallego.domain.repository.AdminRepository
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.TimeZone
@@ -24,7 +25,8 @@ import java.util.UUID
 
 class SellerDashboardViewModel(
     private val orderRepository: OrderRepository,
-    private val productRepository: ProductRepository
+    private val productRepository: ProductRepository,
+    private val adminRepository: AdminRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SellerDashboardUiState())
@@ -41,17 +43,43 @@ class SellerDashboardViewModel(
         _uiState.update { it.copy(isAcceptingOrders = initialAcceptingOrders) }
         loadProducts()
         loadSellerProfile()
+
+        if (adminRepository != null) {
+            viewModelScope.launch {
+                adminRepository.refreshMeetingPoints()
+            }
+            viewModelScope.launch {
+                adminRepository.observeMeetingPoints().collect { points ->
+                    _uiState.update { it.copy(availableMeetingPoints = points.filter { p -> p.isActive }) }
+                }
+            }
+        }
         viewModelScope.launch {
             orderRepository.observeSubOrdersForSeller(sellerId).collect { orders ->
                 val today = LocalDate.now(limaZone)
-                val groupedByDate = orders.groupBy { parseOrderLocalDate(it.createdAt) }
-                val todayOrders = groupedByDate[today].orEmpty()
-                val todayCompleted = todayOrders.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
+                val activeStatuses = setOf(
+                    SubOrderStatus.PENDIENTE,
+                    SubOrderStatus.ACEPTADO,
+                    SubOrderStatus.EN_PREPARACION,
+                    SubOrderStatus.LISTO,
+                    SubOrderStatus.ESPERANDO_ENTREGA
+                )
+
+                val activeOrders = orders.filter { it.status in activeStatuses }
+                val closedOrders = orders.filter { it.status !in activeStatuses }
+                val closedGroupedByDate = closedOrders.groupBy { parseOrderLocalDate(it.createdAt) }
+
+                val todayClosed = closedGroupedByDate[today].orEmpty()
+                val todayCompleted = todayClosed.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
                 val todayEarnings = todayCompleted.sumOf { it.subtotalAmount }
 
-                val pastDates = groupedByDate.keys.filter { it.isBefore(today) }.sortedDescending()
+                val todayOrders = (activeOrders + todayClosed)
+                    .distinctBy { it.id }
+                    .sortedByDescending { it.createdAt }
+
+                val pastDates = closedGroupedByDate.keys.filter { it.isBefore(today) }.sortedDescending()
                 val pastGroups = pastDates.map { date ->
-                    val dayOrders = groupedByDate[date].orEmpty()
+                    val dayOrders = closedGroupedByDate[date].orEmpty()
                     val completed = dayOrders.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
                     val cancelled = dayOrders.filter {
                         it.status == SubOrderStatus.RECHAZADO ||
@@ -94,10 +122,19 @@ class SellerDashboardViewModel(
             productRepository.getSellerProfiles().onSuccess { profiles ->
                 val myProfile = profiles.find { it.id == currentSellerId }
                 if (myProfile != null) {
+                    val currentMethods = _uiState.value.sellerProfile?.supportedPaymentMethods.orEmpty()
+                    val resolvedMethods = if (myProfile.supportedPaymentMethods.isNotEmpty()) {
+                        myProfile.supportedPaymentMethods
+                    } else if (currentMethods.isNotEmpty()) {
+                        currentMethods
+                    } else {
+                        emptyList()
+                    }
+                    val finalProfile = myProfile.copy(supportedPaymentMethods = resolvedMethods)
                     _uiState.update {
                         it.copy(
-                            sellerProfile = myProfile,
-                            isAcceptingOrders = myProfile.acceptingOrders
+                            sellerProfile = finalProfile,
+                            isAcceptingOrders = finalProfile.acceptingOrders
                         )
                     }
                 }
@@ -123,6 +160,28 @@ class SellerDashboardViewModel(
             SellerTab.PRODUCTOS -> loadProducts()
             SellerTab.MI_PUESTO -> loadSellerProfile()
             SellerTab.PEDIDOS -> {}
+            SellerTab.ESTADISTICAS -> loadStatistics()
+        }
+    }
+
+    fun loadStatistics(range: String = _uiState.value.statsTimeRange) {
+        _uiState.update { it.copy(isLoadingStats = true, statsTimeRange = range) }
+        viewModelScope.launch {
+            val sellerId = currentSellerId.ifBlank {
+                _uiState.value.sellerProfile?.id ?: return@launch
+            }
+            val res = orderRepository.getSellerDashboardStatistics(sellerId, range)
+            res.onSuccess { stats ->
+                val localSubOrders = _uiState.value.subOrders
+                val resolvedStats = if (stats.totalOrdersCount == 0 && localSubOrders.isNotEmpty()) {
+                    null
+                } else {
+                    stats
+                }
+                _uiState.update { it.copy(statsData = resolvedStats, isLoadingStats = false) }
+            }.onFailure {
+                _uiState.update { it.copy(statsData = null, isLoadingStats = false) }
+            }
         }
     }
 
@@ -415,7 +474,9 @@ class SellerDashboardViewModel(
         closeTime: String?,
         bannerUrl: String?,
         avatarUrl: String?,
-        acceptingOrders: Boolean
+        acceptingOrders: Boolean,
+        supportedMeetingPoints: List<String> = emptyList(),
+        supportedPaymentMethods: List<String> = listOf("EFECTIVO", "YAPE", "PLIN")
     ) {
         val currentProfile = _uiState.value.sellerProfile
         val profileToSave = (currentProfile ?: com.example.vallego.domain.model.UserProfile(
@@ -432,10 +493,18 @@ class SellerDashboardViewModel(
             closeTime = closeTime?.trim()?.takeIf { it.isNotBlank() },
             bannerUrl = bannerUrl?.trim()?.takeIf { it.isNotBlank() },
             avatarUrl = avatarUrl?.trim()?.takeIf { it.isNotBlank() },
-            acceptingOrders = acceptingOrders
+            acceptingOrders = acceptingOrders,
+            supportedMeetingPoints = supportedMeetingPoints,
+            supportedPaymentMethods = supportedPaymentMethods
         )
 
-        _uiState.update { it.copy(isSavingProfile = true) }
+        _uiState.update {
+            it.copy(
+                sellerProfile = profileToSave,
+                isAcceptingOrders = profileToSave.acceptingOrders,
+                isSavingProfile = true
+            )
+        }
         viewModelScope.launch {
             val result = productRepository.updateBusinessProfile(profileToSave)
             if (result.isSuccess) {
@@ -449,10 +518,27 @@ class SellerDashboardViewModel(
                     )
                 }
             } else {
-                val err = result.exceptionOrNull()?.message ?: "Error al guardar el puesto."
-                _uiState.update { it.copy(isSavingProfile = false, errorMessage = err) }
+                val rawErr = result.exceptionOrNull()?.message ?: "Error al guardar el puesto."
+                val friendlyErr = when {
+                    rawErr.contains("schema cache", ignoreCase = true) || rawErr.contains("supported_meeting_points", ignoreCase = true) ->
+                        "Se requiere actualizar las columnas de puntos de encuentro en la base de datos de Supabase."
+                    rawErr.contains("network", ignoreCase = true) || rawErr.contains("connect", ignoreCase = true) || rawErr.contains("timeout", ignoreCase = true) ->
+                        "Error de conexión. Verifica tu acceso a internet e intenta nuevamente."
+                    rawErr.contains("URL:", ignoreCase = true) || rawErr.contains("Headers:", ignoreCase = true) ->
+                        "No se pudo sincronizar el puesto con el servidor en este momento."
+                    else -> rawErr
+                }
+                _uiState.update { it.copy(isSavingProfile = false, errorMessage = friendlyErr) }
             }
         }
+    }
+
+    fun openSubOrderDetail(subOrder: SubOrder) {
+        _uiState.update { it.copy(selectedSubOrderForDetail = subOrder) }
+    }
+
+    fun dismissSubOrderDetail() {
+        _uiState.update { it.copy(selectedSubOrderForDetail = null) }
     }
 
     fun openNoShowDialog(subOrder: SubOrder) {

@@ -9,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
@@ -36,6 +39,7 @@ fun ProductDetailBottomSheet(
     isStoreAvailable: Boolean = true,
     storeStatus: String = "ABIERTO",
     onDismiss: () -> Unit,
+    onStoreClick: (() -> Unit)? = null,
     onAddToCart: (product: Product, quantity: Int, specialInstructions: String?) -> Unit
 ) {
     val modalBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -77,23 +81,6 @@ fun ProductDetailBottomSheet(
                         emojiSize = 56,
                         modifier = Modifier.fillMaxSize()
                     )
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.4f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                 }
 
                 // Tienda y Categoría
@@ -104,12 +91,22 @@ fun ProductDetailBottomSheet(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .then(
+                                if (onStoreClick != null) {
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onStoreClick() }
+                                        .background(Color(0xFFE6F7F3))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                } else Modifier
+                            )
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_store_modern),
                             contentDescription = null,
-                            tint = Color(0xFF16324F),
+                            tint = if (onStoreClick != null) Color(0xFF00A884) else Color(0xFF16324F),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -117,8 +114,19 @@ fun ProductDetailBottomSheet(
                             text = storeName,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F)
+                            color = if (onStoreClick != null) Color(0xFF00A884) else Color(0xFF16324F),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        if (onStoreClick != null) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = "Ver Puesto",
+                                tint = Color(0xFF00A884),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                     if (!categoryName.isNullOrBlank()) {
                         Surface(

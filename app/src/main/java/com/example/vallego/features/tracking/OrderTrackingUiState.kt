@@ -2,6 +2,7 @@ package com.example.vallego.features.tracking
 
 import com.example.vallego.domain.model.Order
 import com.example.vallego.domain.model.OrderStatus
+import com.example.vallego.domain.model.SubOrder
 
 enum class TrackingTab {
     EN_CURSO,
@@ -15,7 +16,10 @@ data class OrderTrackingUiState(
     val selectedTab: TrackingTab = TrackingTab.EN_CURSO,
     val orders: List<Order> = emptyList(),
     val isCancelling: Boolean = false,
-    val orderToCancel: Order? = null
+    val orderToCancel: Order? = null,
+    val reviewedOrders: Map<String, Int> = emptyMap(),
+    val subOrderToRate: SubOrder? = null,
+    val isSubmittingReview: Boolean = false
 ) {
     val activeOrders: List<Order>
         get() = orders.filter {

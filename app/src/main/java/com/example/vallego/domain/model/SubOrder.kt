@@ -1,4 +1,4 @@
-﻿package com.example.vallego.domain.model
+package com.example.vallego.domain.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -25,6 +25,12 @@ data class SubOrder(
     @SerialName("status") val status: SubOrderStatus = SubOrderStatus.PENDIENTE,
     @SerialName("rejection_reason") val rejectionReason: String? = null,
     @SerialName("payment_method") val paymentMethod: PaymentMethod? = null,
+    @SerialName("meeting_point_id") val meetingPointId: String? = null,
+    @SerialName("meeting_point_name") val meetingPointName: String? = null,
+    @SerialName("scheduled_time") val scheduledTime: String? = null,
+    @SerialName("buyer_name") val buyerName: String? = null,
+    @SerialName("buyer_phone") val buyerPhone: String? = null,
+    @SerialName("notes") val notes: String? = null,
     @SerialName("is_payment_confirmed") val isPaymentConfirmed: Boolean = false,
     @SerialName("is_delivery_confirmed") val isDeliveryConfirmed: Boolean = false,
     @SerialName("created_at") val createdAt: String? = null,

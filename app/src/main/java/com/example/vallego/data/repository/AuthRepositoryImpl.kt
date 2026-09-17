@@ -194,12 +194,13 @@ class AuthRepositoryImpl(
     }
 
     private suspend fun fetchProfile(userId: String): UserProfile {
-        return postgrest.from("profiles")
+        val profile = postgrest.from("profiles")
             .select {
                 filter {
                     eq("id", userId)
                 }
             }
             .decodeSingle<UserProfile>()
+        return SellerPaymentMethodsStorage.enrichProfile(profile)
     }
 }

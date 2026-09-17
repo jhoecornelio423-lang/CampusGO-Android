@@ -30,9 +30,98 @@ class AdminRepositoryImpl(
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val _meetingPointsFlow = MutableStateFlow<List<CampusMeetingPoint>>(emptyList())
-    private val _applicationsFlow = MutableStateFlow<List<SellerApplication>>(emptyList())
-    private val _sellersFlow = MutableStateFlow<List<UserProfile>>(emptyList())
+    companion object {
+        private val defaultMeetingPoints = listOf(
+            CampusMeetingPoint(
+                id = "mp-1",
+                name = "Puerta Principal - Acceso Exterior",
+                description = "Zona de torniquetes y vereda de ingreso",
+                pavilion = "Acceso Exterior",
+                campus = "Los Olivos",
+                zoneType = "EXTERIOR",
+                isActive = true
+            ),
+            CampusMeetingPoint(
+                id = "mp-2",
+                name = "Puerta 2 - Reja Auxiliar",
+                description = "Frente al paradero de transporte",
+                pavilion = "Acceso Exterior",
+                campus = "Los Olivos",
+                zoneType = "EXTERIOR",
+                isActive = true
+            ),
+            CampusMeetingPoint(
+                id = "mp-3",
+                name = "Pabellón C - Explanada Central",
+                description = "Área techada de mesas de estudio",
+                pavilion = "Pabellón C",
+                campus = "Los Olivos",
+                zoneType = "INTERIOR",
+                isActive = true
+            ),
+            CampusMeetingPoint(
+                id = "mp-4",
+                name = "Cafetería Campus - Terraza",
+                description = "Mesas al aire libre",
+                pavilion = "Pabellón D",
+                campus = "Los Olivos",
+                zoneType = "INTERIOR",
+                isActive = true
+            )
+        )
+
+        private val defaultApplications = listOf(
+            SellerApplication(
+                id = "app-1",
+                userId = "user-carlos",
+                applicantName = "Carlos Mendoza Ramos",
+                phone = "987654321",
+                storeName = "Postres UCV",
+                category = "Repostería",
+                description = "Venta de queques, brownies y pies de limón caseros para recreo.",
+                proposedLocation = "Pabellón B piso 1",
+                status = ApplicationStatus.PENDIENTE
+            ),
+            SellerApplication(
+                id = "app-2",
+                userId = "user-maria",
+                applicantName = "María Fernanda Torres",
+                phone = "912345678",
+                storeName = "Sándwiches Vallejo",
+                category = "Comida Rápida",
+                description = "Triples, empanadas y tostadas mixtas para el desayuno.",
+                proposedLocation = "Pabellón C entrada",
+                status = ApplicationStatus.PENDIENTE
+            )
+        )
+
+        private val defaultSellers = listOf(
+            UserProfile(
+                id = "seller-papu",
+                fullName = "Papu Burger",
+                role = UserRole.EMPRENDEDOR,
+                businessName = "Papu Burger",
+                businessCategory = "Comida Rápida",
+                businessStatus = "ABIERTO",
+                acceptingOrders = true,
+                supportedMeetingPoints = listOf("mp-1", "mp-2")
+            ),
+            UserProfile(
+                id = "seller-dulce",
+                fullName = "Dulce Tentación",
+                role = UserRole.EMPRENDEDOR,
+                businessName = "Dulce Tentación",
+                businessCategory = "Repostería",
+                businessStatus = "ABIERTO",
+                acceptingOrders = true,
+                supportedMeetingPoints = listOf("mp-1", "mp-2", "mp-3", "mp-4")
+            )
+        )
+    }
+
+    private val _meetingPointsFlow = MutableStateFlow<List<CampusMeetingPoint>>(defaultMeetingPoints)
+    private val _applicationsFlow = MutableStateFlow<List<SellerApplication>>(defaultApplications)
+    private val _sellersFlow = MutableStateFlow<List<UserProfile>>(defaultSellers)
     private val _incidentsFlow = MutableStateFlow<List<OrderIncident>>(emptyList())
 
     init {
@@ -64,56 +153,31 @@ class AdminRepositoryImpl(
         }
 
         if (_meetingPointsFlow.value.isEmpty()) {
-            _meetingPointsFlow.value = listOf(
-                CampusMeetingPoint(
-                    id = "mp-1",
-                    name = "Biblioteca Central - Puerta Principal",
-                    description = "Zona de torniquetes de acceso",
-                    pavilion = "Edificio Central",
-                    campus = "Los Olivos",
-                    isActive = true
-                ),
-                CampusMeetingPoint(
-                    id = "mp-2",
-                    name = "Pabellón A - Zona de Bancas",
-                    description = "Patio central frente al cafetín",
-                    pavilion = "Pabellón A",
-                    campus = "Los Olivos",
-                    isActive = true
-                ),
-                CampusMeetingPoint(
-                    id = "mp-3",
-                    name = "Pabellón C - Explanada",
-                    description = "Área techada de mesas de estudio",
-                    pavilion = "Pabellón C",
-                    campus = "Los Olivos",
-                    isActive = true
-                ),
-                CampusMeetingPoint(
-                    id = "mp-4",
-                    name = "Cafetería Campus - Terraza",
-                    description = "Mesas al aire libre",
-                    pavilion = "Pabellón D",
-                    campus = "Los Olivos",
-                    isActive = true
-                )
-            )
+            _meetingPointsFlow.value = defaultMeetingPoints
         }
     }
 
-    private suspend fun refreshSellerApplications() {
+    private suspend fun refreshSellerApplications() = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val remoteApps = postgrest.from("seller_applications")
                     .select()
                     .decodeList<SellerApplication>()
-                _applicationsFlow.value = remoteApps
-                return
+                if (remoteApps.isNotEmpty()) {
+                    _applicationsFlow.value = remoteApps
+                    return@withContext
+                }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error al cargar seller_applications: ${e.message}", e)
+        }
+
+        if (_applicationsFlow.value.isEmpty()) {
+            _applicationsFlow.value = defaultApplications
+        }
     }
 
-    private suspend fun refreshSellers() {
+    override suspend fun refreshSellers() = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val profiles = postgrest.from("profiles")
@@ -126,12 +190,21 @@ class AdminRepositoryImpl(
                         }
                     }
                     .decodeList<UserProfile>()
-                _sellersFlow.value = profiles
+                if (profiles.isNotEmpty()) {
+                    _sellersFlow.value = profiles.map { SellerPaymentMethodsStorage.enrichProfile(it) }
+                    return@withContext
+                }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error al cargar profiles de vendedores: ${e.message}", e)
+        }
+
+        if (_sellersFlow.value.isEmpty()) {
+            _sellersFlow.value = defaultSellers
+        }
     }
 
-    private suspend fun refreshIncidents() {
+    private suspend fun refreshIncidents() = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val remoteIncidents = postgrest.from("order_incidents")
@@ -139,7 +212,9 @@ class AdminRepositoryImpl(
                     .decodeList<OrderIncident>()
                 _incidentsFlow.value = remoteIncidents
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error al cargar order_incidents: ${e.message}", e)
+        }
     }
 
     override fun observeMeetingPoints(): Flow<List<CampusMeetingPoint>> = _meetingPointsFlow.asStateFlow()

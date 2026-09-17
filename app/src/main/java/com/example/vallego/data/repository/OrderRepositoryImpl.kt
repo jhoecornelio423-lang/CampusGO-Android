@@ -23,6 +23,20 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.doubleOrNull
+import com.example.vallego.domain.model.HourlyDemandStat
+import com.example.vallego.domain.model.MeetingPointStat
+import com.example.vallego.domain.model.SellerDashboardStats
+import com.example.vallego.domain.model.TopProductStat
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -117,6 +131,17 @@ data class UpdateSuborderStatusResponseDto(
     @SerialName("rejection_reason") val rejectionReason: String? = null
 )
 
+@Serializable
+data class RemoteReviewDto(
+    val id: String? = null,
+    @SerialName("order_id") val orderId: String,
+    @SerialName("reviewer_id") val reviewerId: String,
+    @SerialName("reviewee_id") val revieweeId: String,
+    val rating: Int,
+    val comment: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
 class OrderRepositoryImpl(
     private val postgrest: Postgrest? = null,
     private val recalculateOrderUseCase: RecalculateOrderUseCase = RecalculateOrderUseCase()
@@ -125,8 +150,11 @@ class OrderRepositoryImpl(
     private val _ordersFlow = MutableStateFlow<List<Order>>(emptyList())
     val ordersFlow = _ordersFlow.asStateFlow()
 
+    private val buyerReviewsMap = ConcurrentHashMap<String, Int>()
     private val productNameCache = ConcurrentHashMap<String, String>()
     private val profileNameCache = ConcurrentHashMap<String, String>()
+    private val profilePhoneCache = ConcurrentHashMap<String, String>()
+    private val sellerSubOrdersCache = ConcurrentHashMap<String, List<SubOrder>>()
     private val jsonParser = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -135,6 +163,8 @@ class OrderRepositoryImpl(
 
     override fun clearCache() {
         _ordersFlow.value = emptyList()
+        buyerReviewsMap.clear()
+        sellerSubOrdersCache.clear()
     }
 
     override suspend fun placeOrder(order: Order): Result<Order> = withContext(Dispatchers.IO) {
@@ -143,10 +173,20 @@ class OrderRepositoryImpl(
                 return@withContext Result.failure(Exception("El pedido no contiene ningún producto."))
             }
 
+            val enrichedSubOrders = order.subOrders.map { sub ->
+                sub.copy(
+                    meetingPointId = sub.meetingPointId ?: order.meetingPointId,
+                    meetingPointName = sub.meetingPointName ?: order.meetingPointName,
+                    scheduledTime = sub.scheduledTime ?: order.scheduledTime,
+                    buyerName = sub.buyerName ?: order.buyerName,
+                    notes = sub.notes ?: order.notes
+                )
+            }
+
             if (postgrest != null) {
 
                 val subordersArray = buildJsonArray {
-                    for (sub in order.subOrders) {
+                    for (sub in enrichedSubOrders) {
                         val subId = if (isValidUUID(sub.id)) sub.id else UUID.randomUUID().toString()
                         val subPm = (sub.paymentMethod ?: PaymentMethod.EFECTIVO).name
                         add(buildJsonObject {
@@ -193,7 +233,8 @@ class OrderRepositoryImpl(
                 val confirmedOrder = order.copy(
                     id = response.orderId ?: order.id,
                     totalAmount = response.totalAmount ?: order.totalAmount,
-                    status = OrderStatus.PENDIENTE
+                    status = OrderStatus.PENDIENTE,
+                    subOrders = enrichedSubOrders
                 )
 
                 val currentList = _ordersFlow.value.toMutableList()
@@ -203,11 +244,12 @@ class OrderRepositoryImpl(
 
                 Result.success(confirmedOrder)
             } else {
+                val localOrder = order.copy(subOrders = enrichedSubOrders)
                 val currentList = _ordersFlow.value.toMutableList()
-                currentList.removeAll { it.id == order.id }
-                currentList.add(0, order)
+                currentList.removeAll { it.id == localOrder.id }
+                currentList.add(0, localOrder)
                 _ordersFlow.value = currentList
-                Result.success(order)
+                Result.success(localOrder)
             }
         } catch (e: Exception) {
             val friendlyMsg = mapExceptionToUserFriendlyMessage(e)
@@ -252,6 +294,10 @@ class OrderRepositoryImpl(
 
     override suspend fun getSubOrdersForSeller(sellerId: String): Result<List<SubOrder>> = withContext(Dispatchers.IO) {
         try {
+            val cached = sellerSubOrdersCache[sellerId]
+            if (!cached.isNullOrEmpty()) {
+                return@withContext Result.success(cached)
+            }
             val subOrders = _ordersFlow.value.flatMap { it.subOrders }.filter { it.sellerId == sellerId }
             Result.success(subOrders)
         } catch (e: Exception) {
@@ -348,6 +394,8 @@ class OrderRepositoryImpl(
                                         )
                                     }
                                     val subStatus = mapRemoteStatusToSubOrderStatus(rso.status)
+                                    val meetingPlace = ro.meetingPointName ?: ro.deliveryPlace ?: "Campus Universitario"
+                                    val schedule = ro.scheduledTime ?: extractScheduleFromDeliveryPlace(ro.deliveryPlace)
                                     SubOrder(
                                         id = rso.id,
                                         orderId = ro.id,
@@ -358,6 +406,12 @@ class OrderRepositoryImpl(
                                         status = subStatus,
                                         rejectionReason = rso.rejectionReason,
                                         paymentMethod = parsePaymentMethod(rso.paymentMethod),
+                                        meetingPointId = ro.meetingPointId,
+                                        meetingPointName = meetingPlace,
+                                        scheduledTime = schedule,
+                                        buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
+                                        buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
+                                        notes = ro.notes,
                                         isPaymentConfirmed = rso.isPaymentConfirmed,
                                         isDeliveryConfirmed = rso.isDeliveryConfirmed,
                                         createdAt = rso.createdAt,
@@ -377,6 +431,8 @@ class OrderRepositoryImpl(
                                     )
                                 }
                                 val subStatus = mapRemoteStatusToSubOrderStatus(ro.status)
+                                val meetingPlace = ro.meetingPointName ?: ro.deliveryPlace ?: "Campus Universitario"
+                                val schedule = ro.scheduledTime ?: extractScheduleFromDeliveryPlace(ro.deliveryPlace)
                                 listOf(
                                     SubOrder(
                                         id = ro.id,
@@ -387,6 +443,12 @@ class OrderRepositoryImpl(
                                         subtotalAmount = ro.totalPrice,
                                         status = subStatus,
                                         paymentMethod = parsePaymentMethod(ro.paymentMethod),
+                                        meetingPointId = ro.meetingPointId,
+                                        meetingPointName = meetingPlace,
+                                        scheduledTime = schedule,
+                                        buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
+                                        buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
+                                        notes = ro.notes,
                                         isPaymentConfirmed = (subStatus == SubOrderStatus.COMPLETADO),
                                         isDeliveryConfirmed = (subStatus == SubOrderStatus.COMPLETADO),
                                         createdAt = ro.createdAt,
@@ -430,7 +492,12 @@ class OrderRepositoryImpl(
     }.flowOn(Dispatchers.IO)
 
     override fun observeSubOrdersForSeller(sellerId: String): Flow<List<SubOrder>> = flow {
-        emit(_ordersFlow.value.flatMap { it.subOrders }.filter { it.sellerId == sellerId })
+        val initialCached = sellerSubOrdersCache[sellerId]
+        if (!initialCached.isNullOrEmpty()) {
+            emit(initialCached)
+        } else {
+            emit(_ordersFlow.value.flatMap { it.subOrders }.filter { it.sellerId == sellerId })
+        }
 
         while (true) {
             try {
@@ -512,6 +579,30 @@ class OrderRepositoryImpl(
                             } catch (_: Exception) {}
                         }
 
+                        val remoteParentOrders = try {
+                            postgrest.from("orders")
+                                .select { filter { isIn("id", parentOrderIds) } }
+                                .decodeList<RemoteOrderDto>()
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                        val parentOrdersMap = remoteParentOrders.associateBy { it.id }
+
+                        val missingBuyerIds = remoteParentOrders.map { it.buyerId }
+                            .filter { isValidUUID(it) && (!profileNameCache.containsKey(it) || !profilePhoneCache.containsKey(it)) }
+                            .distinct()
+                        if (missingBuyerIds.isNotEmpty()) {
+                            try {
+                                val buyers = postgrest.from("profiles")
+                                    .select { filter { isIn("id", missingBuyerIds) } }
+                                    .decodeList<ProfileBasicDto>()
+                                for (b in buyers) {
+                                    b.fullName?.let { profileNameCache[b.id] = it }
+                                    b.phone?.let { profilePhoneCache[b.id] = it }
+                                }
+                            } catch (_: Exception) {}
+                        }
+
                         val itemsBySubOrder = remoteItems.groupBy { it.subOrderId ?: it.orderId }
 
                         val mappedSubOrders = combinedSubOrders.map { rso ->
@@ -527,6 +618,13 @@ class OrderRepositoryImpl(
                                 )
                             }
                             val subStatus = mapRemoteStatusToSubOrderStatus(rso.status)
+                            val parentOrder = parentOrdersMap[rso.orderId]
+                            val buyerId = parentOrder?.buyerId
+                            val buyerName = buyerId?.let { profileNameCache[it] } ?: ""
+                            val buyerPhone = buyerId?.let { profilePhoneCache[it] } ?: ""
+                            val meetingPlace = parentOrder?.meetingPointName?.takeIf { it.isNotBlank() } ?: parentOrder?.deliveryPlace ?: "Punto de encuentro"
+                            val scheduledTime = parentOrder?.scheduledTime ?: extractScheduleFromDeliveryPlace(parentOrder?.deliveryPlace)
+
                             SubOrder(
                                 id = rso.id,
                                 orderId = rso.orderId,
@@ -537,6 +635,12 @@ class OrderRepositoryImpl(
                                 status = subStatus,
                                 rejectionReason = rso.rejectionReason,
                                 paymentMethod = parsePaymentMethod(rso.paymentMethod),
+                                meetingPointId = parentOrder?.meetingPointId,
+                                meetingPointName = meetingPlace,
+                                scheduledTime = scheduledTime,
+                                buyerName = buyerName,
+                                buyerPhone = buyerPhone,
+                                notes = parentOrder?.notes,
                                 isPaymentConfirmed = rso.isPaymentConfirmed,
                                 isDeliveryConfirmed = rso.isDeliveryConfirmed,
                                 createdAt = rso.createdAt,
@@ -544,8 +648,10 @@ class OrderRepositoryImpl(
                             )
                         }
 
+                        sellerSubOrdersCache[sellerId] = mappedSubOrders
                         emit(mappedSubOrders)
                     } else {
+                        sellerSubOrdersCache[sellerId] = emptyList()
                         emit(emptyList())
                     }
                 }
@@ -800,6 +906,260 @@ class OrderRepositoryImpl(
         return if (openParen in 0 until closeParen) {
             deliveryPlace.substring(openParen + 1, closeParen).trim()
         } else "Turno seleccionado"
+    }
+
+    override suspend fun submitSellerReview(
+        orderId: String,
+        buyerId: String,
+        sellerId: String,
+        rating: Int,
+        comment: String?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val clampedRating = rating.coerceIn(1, 5)
+            val compoundKey = "$orderId-$sellerId"
+            buyerReviewsMap[compoundKey] = clampedRating
+            buyerReviewsMap[orderId] = clampedRating
+
+            if (postgrest != null && isValidUUID(orderId) && isValidUUID(buyerId) && isValidUUID(sellerId)) {
+                try {
+                    val payload = buildJsonObject {
+                        put("order_id", orderId)
+                        put("reviewer_id", buyerId)
+                        put("reviewee_id", sellerId)
+                        put("rating", clampedRating)
+                        if (!comment.isNullOrBlank()) {
+                            put("comment", comment.trim())
+                        }
+                    }
+                    postgrest.from("reviews").insert(payload)
+                } catch (e: Exception) {
+                    // Si falla por duplicidad o RLS no disponible, mantenemos la calificación local
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getBuyerReviews(buyerId: String): Result<Map<String, Int>> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null && isValidUUID(buyerId)) {
+                try {
+                    val remoteReviews = postgrest.from("reviews")
+                        .select {
+                            filter {
+                                eq("reviewer_id", buyerId)
+                            }
+                        }
+                        .decodeList<RemoteReviewDto>()
+                    for (rev in remoteReviews) {
+                        buyerReviewsMap["${rev.orderId}-${rev.revieweeId}"] = rev.rating
+                        buyerReviewsMap[rev.orderId] = rev.rating
+                    }
+                } catch (_: Exception) {}
+            }
+            Result.success(buyerReviewsMap.toMap())
+        } catch (e: Exception) {
+            Result.success(buyerReviewsMap.toMap())
+        }
+    }
+
+    override suspend fun getSellerDashboardStatistics(sellerId: String, range: String): Result<SellerDashboardStats> = withContext(Dispatchers.IO) {
+        try {
+            val dbRange = when (range.lowercase()) {
+                "hoy", "today" -> "today"
+                "semana", "week" -> "week"
+                else -> "all"
+            }
+
+            if (postgrest != null && isValidUUID(sellerId)) {
+                try {
+                    val rpcParams = buildJsonObject {
+                        put("p_seller_id", sellerId)
+                        put("p_time_range", dbRange)
+                    }
+                    val jsonElement = postgrest.rpc("get_seller_dashboard_statistics", rpcParams).decodeAs<JsonObject>()
+
+                    val totalEarnings = jsonElement["total_earnings"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+                    val completedCount = jsonElement["completed_count"]?.jsonPrimitive?.intOrNull ?: 0
+                    val cancelledCount = jsonElement["cancelled_count"]?.jsonPrimitive?.intOrNull ?: 0
+                    val inProgressCount = jsonElement["in_progress_count"]?.jsonPrimitive?.intOrNull ?: 0
+                    val totalOrdersCount = jsonElement["total_orders_count"]?.jsonPrimitive?.intOrNull ?: 0
+                    val avgTicket = jsonElement["average_ticket"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+
+                    val topProducts = jsonElement["top_products"]?.jsonArray?.mapNotNull { el ->
+                        val obj = el as? JsonObject ?: return@mapNotNull null
+                        val name = obj["product_name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                        val units = obj["units_sold"]?.jsonPrimitive?.intOrNull ?: 0
+                        val amt = obj["total_amount"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+                        TopProductStat(name, units, amt)
+                    } ?: emptyList()
+
+                    val hourlyDist = jsonElement["hourly_distribution"]?.jsonArray?.mapNotNull { el ->
+                        val obj = el as? JsonObject ?: return@mapNotNull null
+                        val slot = obj["slot"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                        val count = obj["order_count"]?.jsonPrimitive?.intOrNull ?: 0
+                        HourlyDemandStat(slot, count)
+                    } ?: emptyList()
+
+                    val topMeetingPoints = jsonElement["top_meeting_points"]?.jsonArray?.mapNotNull { el ->
+                        val obj = el as? JsonObject ?: return@mapNotNull null
+                        val ptName = obj["point_name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                        val count = obj["delivery_count"]?.jsonPrimitive?.intOrNull ?: 0
+                        MeetingPointStat(ptName, count)
+                    } ?: emptyList()
+
+                    val stats = SellerDashboardStats(
+                        totalEarnings = totalEarnings,
+                        completedCount = completedCount,
+                        cancelledCount = cancelledCount,
+                        inProgressCount = inProgressCount,
+                        totalOrdersCount = totalOrdersCount,
+                        averageTicket = avgTicket,
+                        topProducts = topProducts,
+                        hourlyDistribution = hourlyDist,
+                        topMeetingPoints = topMeetingPoints
+                    )
+
+                    val cachedCount = sellerSubOrdersCache[sellerId]?.size ?: 0
+                    if (totalOrdersCount > 0 || cachedCount == 0) {
+                        return@withContext Result.success(stats)
+                    }
+                } catch (_: Exception) {
+                    // Si RPC no está desplegado o falla la red, procedemos al cálculo con caché local
+                }
+            }
+
+            // Fallback: cálculo local reactivo usando subpedidos en memoria/caché
+            val cachedOrders = sellerSubOrdersCache[sellerId]
+            val subOrders = if (!cachedOrders.isNullOrEmpty()) {
+                cachedOrders
+            } else {
+                getSubOrdersForSeller(sellerId).getOrDefault(emptyList())
+            }
+            val stats = computeLocalSellerStats(subOrders, dbRange)
+            Result.success(stats)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun computeLocalSellerStats(subOrders: List<SubOrder>, dbRange: String): SellerDashboardStats {
+        val now = System.currentTimeMillis()
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone("America/Lima")).apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfToday = calendar.timeInMillis
+        val startOfWeek = startOfToday - (6L * 24 * 60 * 60 * 1000)
+
+        val filtered = when (dbRange) {
+            "today" -> subOrders.filter { parseIso(it.createdAt) >= startOfToday }
+            "week" -> subOrders.filter { parseIso(it.createdAt) >= startOfWeek }
+            else -> subOrders
+        }
+
+        val completed = filtered.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
+        val cancelled = filtered.filter { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO }
+        val inProgress = filtered.filter {
+            it.status == SubOrderStatus.PENDIENTE ||
+            it.status == SubOrderStatus.ACEPTADO ||
+            it.status == SubOrderStatus.EN_PREPARACION ||
+            it.status == SubOrderStatus.LISTO ||
+            it.status == SubOrderStatus.ESPERANDO_ENTREGA
+        }
+
+        val totalEarnings = completed.sumOf { it.subtotalAmount }
+        val completedCount = completed.size
+        val avgTicket = if (completedCount > 0) totalEarnings / completedCount else 0.0
+
+        val productCounts = mutableMapOf<String, Pair<Int, Double>>()
+        completed.forEach { order ->
+            order.items.forEach { item ->
+                val cur = productCounts.getOrDefault(item.productName, Pair(0, 0.0))
+                productCounts[item.productName] = Pair(cur.first + item.quantity, cur.second + (item.unitPrice * item.quantity))
+            }
+        }
+        val topProducts = productCounts.entries
+            .map { (name, pair) -> TopProductStat(name, pair.first, pair.second) }
+            .sortedByDescending { it.totalAmount }
+            .take(5)
+
+        val pointCounts = mutableMapOf<String, Int>()
+        filtered.forEach { order ->
+            val pt = order.meetingPointName?.trim().takeIf { !it.isNullOrBlank() } ?: "Punto por acordar"
+            pointCounts[pt] = pointCounts.getOrDefault(pt, 0) + 1
+        }
+        val topPoints = pointCounts.entries
+            .map { MeetingPointStat(it.key, it.value) }
+            .sortedByDescending { it.deliveryCount }
+            .take(4)
+
+        var morning = 0
+        var lunch = 0
+        var afternoon = 0
+        var night = 0
+        filtered.forEach { order ->
+            val hour = getHourOfDay(order.createdAt)
+            when (hour) {
+                in 8..11 -> morning++
+                in 12..14 -> lunch++
+                in 15..17 -> afternoon++
+                else -> night++
+            }
+        }
+        val hourly = listOf(
+            HourlyDemandStat("morning", morning),
+            HourlyDemandStat("lunch", lunch),
+            HourlyDemandStat("afternoon", afternoon),
+            HourlyDemandStat("night", night)
+        )
+
+        return SellerDashboardStats(
+            totalEarnings = totalEarnings,
+            completedCount = completedCount,
+            cancelledCount = cancelled.size,
+            inProgressCount = inProgress.size,
+            totalOrdersCount = filtered.size,
+            averageTicket = avgTicket,
+            topProducts = topProducts,
+            hourlyDistribution = hourly,
+            topMeetingPoints = topPoints
+        )
+    }
+
+    private fun parseIso(isoDate: String?): Long {
+        if (isoDate.isNullOrBlank()) return 0L
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss"
+        )
+        for (pattern in formats) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                val d = sdf.parse(isoDate)
+                if (d != null) return d.time
+            } catch (_: Exception) {}
+        }
+        return 0L
+    }
+
+    private fun getHourOfDay(isoDate: String?): Int {
+        val t = parseIso(isoDate)
+        if (t <= 0L) return 12
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("America/Lima")).apply { timeInMillis = t }
+        return cal.get(Calendar.HOUR_OF_DAY)
     }
 
     private fun isValidUUID(value: String): Boolean = try {

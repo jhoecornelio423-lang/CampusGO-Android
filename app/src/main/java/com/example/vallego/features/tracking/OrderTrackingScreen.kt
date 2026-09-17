@@ -1,12 +1,18 @@
 package com.example.vallego.features.tracking
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -18,8 +24,10 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.domain.model.Order
@@ -104,6 +113,36 @@ fun OrderTrackingScreen(
         )
     }
 
+    // Modal de Calificación al Vendedor
+    if (uiState.subOrderToRate != null) {
+        val subOrder = uiState.subOrderToRate!!
+        RateSellerDialog(
+            sellerName = subOrder.sellerName,
+            isSubmitting = uiState.isSubmittingReview,
+            onDismiss = { viewModel.dismissRateDialog() },
+            onSubmit = { rating, comment ->
+                viewModel.submitReview(
+                    buyerId = buyerProfile.id,
+                    orderId = subOrder.orderId,
+                    sellerId = subOrder.sellerId,
+                    rating = rating,
+                    comment = comment
+                )
+            }
+        )
+    }
+
+    var selectedOrderForDetail by remember { mutableStateOf<Order?>(null) }
+
+    if (selectedOrderForDetail != null) {
+        BuyerOrderDetailDialog(
+            order = selectedOrderForDetail!!,
+            reviewedOrders = uiState.reviewedOrders,
+            onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) },
+            onDismiss = { selectedOrderForDetail = null }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -111,7 +150,7 @@ fun OrderTrackingScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Mis Pedidos Valle-Go",
+                            text = "Mis Pedidos Campus-Go",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF003366)
                         )
@@ -219,13 +258,16 @@ fun OrderTrackingScreen(
                             BuyerOrderCard(
                                 order = order,
                                 isHistoryTab = uiState.selectedTab == TrackingTab.HISTORIAL,
+                                reviewedOrders = uiState.reviewedOrders,
                                 onCancelOrder = { viewModel.openCancelDialog(order) },
                                 onRepeatOrder = {
                                     viewModel.repeatOrder(order) {
                                         onNavigateToCart?.invoke()
                                     }
                                 },
-                                onExpiredSubOrder = { viewModel.expirePendingOrders() }
+                                onExpiredSubOrder = { viewModel.expirePendingOrders() },
+                                onOpenDetail = { selectedOrderForDetail = order },
+                                onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) }
                             )
                         }
                     }
@@ -239,9 +281,12 @@ fun OrderTrackingScreen(
 fun BuyerOrderCard(
     order: Order,
     isHistoryTab: Boolean = false,
+    reviewedOrders: Map<String, Int> = emptyMap(),
     onCancelOrder: (() -> Unit)? = null,
     onRepeatOrder: (() -> Unit)? = null,
     onExpiredSubOrder: (() -> Unit)? = null,
+    onOpenDetail: (() -> Unit)? = null,
+    onRateSeller: ((SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -281,7 +326,12 @@ fun BuyerOrderCard(
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (onOpenDetail != null) Modifier.clickable { onOpenDetail() }
+                        else Modifier
+                    )
             ) {
                 Column(
                     modifier = Modifier
@@ -375,9 +425,15 @@ fun BuyerOrderCard(
             )
 
             order.subOrders.forEach { subOrder ->
+                val rating = reviewedOrders["${subOrder.orderId}-${subOrder.sellerId}"]
+                    ?: reviewedOrders[subOrder.id]
+                    ?: if (order.subOrders.size == 1) reviewedOrders[order.id] else null
                 SubOrderTrackingItem(
                     subOrder = subOrder,
-                    onExpired = onExpiredSubOrder
+                    isOrderCompleted = order.status == OrderStatus.COMPLETADA,
+                    ratingGiven = rating,
+                    onExpired = onExpiredSubOrder,
+                    onRate = if (onRateSeller != null) { { onRateSeller(subOrder) } } else null
                 )
             }
 
@@ -447,6 +503,20 @@ fun BuyerOrderCard(
                     Text("Repetir Pedido", fontWeight = FontWeight.Bold)
                 }
             }
+
+            if (onOpenDetail != null) {
+                OutlinedButton(
+                    onClick = { onOpenDetail.invoke() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF003366)),
+                    border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Ver Detalle del Pedido", fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     }
 }
@@ -454,7 +524,10 @@ fun BuyerOrderCard(
 @Composable
 fun SubOrderTrackingItem(
     subOrder: SubOrder,
-    onExpired: (() -> Unit)? = null
+    isOrderCompleted: Boolean = false,
+    ratingGiven: Int? = null,
+    onExpired: (() -> Unit)? = null,
+    onRate: (() -> Unit)? = null
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -570,6 +643,68 @@ fun SubOrderTrackingItem(
             } else {
                 TrackingStepper(status = subOrder.status)
             }
+
+            // Calificación al Vendedor
+            val canRate = subOrder.status == SubOrderStatus.COMPLETADO ||
+                          subOrder.status == SubOrderStatus.PAGO_CONFIRMADO ||
+                          isOrderCompleted
+            if (canRate) {
+                Spacer(modifier = Modifier.height(2.dp))
+                if (ratingGiven != null && ratingGiven > 0) {
+                    Surface(
+                        color = Color(0xFFFEF3C7).copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Tu calificación:",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF92400E)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                for (star in 1..5) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = if (star <= ratingGiven) Color(0xFFF59E0B) else Color(0xFFCBD5E1),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else if (onRate != null) {
+                    OutlinedButton(
+                        onClick = onRate,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
+                        border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Agregar Calificación",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFFD97706)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -655,4 +790,410 @@ fun OrderStatusBadge(status: OrderStatus) {
             color = textColor
         )
     }
+}
+
+@Composable
+fun BuyerOrderDetailDialog(
+    order: Order,
+    reviewedOrders: Map<String, Int> = emptyMap(),
+    onRateSeller: ((SubOrder) -> Unit)? = null,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Detalle del Pedido",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF003366),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                OrderStatusBadge(status = order.status)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Tarjeta Destacada de Punto de Entrega (Campus-Go)
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = Color(0xFFC8102E),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Punto de Entrega Acordado",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color(0xFF003366)
+                            )
+                        }
+                        Text(
+                            text = order.meetingPointName.ifBlank { "Campus Universitario" },
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = Color(0xFF003366),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Hora acordada: ${order.scheduledTime.ifBlank { "Lo antes posible" }}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+
+                // Desglose de Puestos y Productos
+                Text(
+                    text = "Puestos participantes (${order.subOrders.size}):",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFF003366)
+                )
+
+                order.subOrders.forEach { subOrder ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = subOrder.sellerName.ifBlank { "Puesto Comercial" },
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFF003366)
+                                )
+                                SubOrderStatusBadge(status = subOrder.status)
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                            subOrder.items.forEach { item ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "${item.quantity}x ${item.productName}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "S/ %.2f".format(item.subtotal),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = "Subtotal: S/ %.2f".format(subOrder.subtotalAmount),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF003366)
+                                )
+                            }
+
+                            val canRateSub = subOrder.status == SubOrderStatus.COMPLETADO ||
+                                              subOrder.status == SubOrderStatus.PAGO_CONFIRMADO ||
+                                              order.status == OrderStatus.COMPLETADA
+                            if (canRateSub) {
+                                val rating = reviewedOrders["${subOrder.orderId}-${subOrder.sellerId}"]
+                                    ?: reviewedOrders[subOrder.id]
+                                    ?: if (order.subOrders.size == 1) reviewedOrders[order.id] else null
+                                if (rating != null && rating > 0) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Tu calificación:",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF92400E)
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            for (star in 1..5) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = null,
+                                                    tint = if (star <= rating) Color(0xFFF59E0B) else Color(0xFFCBD5E1),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                } else if (onRateSeller != null) {
+                                    OutlinedButton(
+                                        onClick = { onRateSeller(subOrder) },
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
+                                        border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = null,
+                                            tint = Color(0xFFF59E0B),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Agregar Calificación",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFFD97706)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Resumen de Pago
+                val pm = order.paymentMethod ?: order.subOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO
+                val (pmBg, pmColor, pmName) = when (pm) {
+                    PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
+                    PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
+                    PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
+                    else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), pm.name)
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = pmBg,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = "Pago: $pmName",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = pmColor
+                        )
+                    }
+                    Text(
+                        text = "Total: S/ %.2f".format(order.totalAmount),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        color = Color(0xFF003366)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+            ) {
+                Text("Cerrar")
+            }
+        }
+    )
+}
+
+@Composable
+fun SubOrderStatusBadge(status: SubOrderStatus) {
+    val (backgroundColor, textColor, label) = when (status) {
+        SubOrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
+        SubOrderStatus.ACEPTADO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "Aceptado")
+        SubOrderStatus.EN_PREPARACION -> Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "En Preparación")
+        SubOrderStatus.LISTO -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Listo")
+        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Esperando")
+        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), "Completado")
+        SubOrderStatus.RECHAZADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
+        SubOrderStatus.CANCELADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelado")
+        SubOrderStatus.NO_ENTREGADO -> Triple(Color(0xFFECEFF1), Color(0xFF455A64), "No entregado")
+    }
+
+    Surface(
+        color = backgroundColor,
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = textColor
+        )
+    }
+}
+
+@Composable
+fun RateSellerDialog(
+    sellerName: String,
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (rating: Int, comment: String?) -> Unit
+) {
+    var selectedStars by remember { mutableStateOf(5) }
+    var comment by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFEF3C7)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFFF59E0B),
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        },
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Calificar Vendedor",
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color(0xFF003366)
+                )
+                if (sellerName.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = sellerName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF64748B),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Selecciona las estrellas según tu experiencia:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF64748B),
+                    textAlign = TextAlign.Center
+                )
+
+                // Fila de 5 estrellas interactivas (SIN NÚMEROS)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (starIndex in 1..5) {
+                        val isSelected = starIndex <= selectedStars
+                        IconButton(
+                            onClick = { selectedStars = starIndex },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Estrella",
+                                tint = if (isSelected) Color(0xFFF59E0B) else Color(0xFFCBD5E1),
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Campo opcional de reseña
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Comentario (opcional)") },
+                    placeholder = { Text("¿Qué tal estuvo la atención y la entrega?") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 4,
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSubmit(selectedStars, comment.takeIf { it.isNotBlank() }) },
+                enabled = selectedStars in 1..5 && !isSubmitting,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                } else {
+                    Text("Enviar Calificación", fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                enabled = !isSubmitting,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Cancelar")
+            }
+        }
+    )
 }

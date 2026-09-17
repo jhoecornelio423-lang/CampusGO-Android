@@ -1,5 +1,6 @@
 package com.example.vallego.features.cart
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -11,6 +12,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
@@ -57,6 +60,50 @@ fun CartScreen(
         targetValue = if (isOrderConfirmed) 20.dp else 0.dp,
         label = "cart_dialog_blur"
     )
+
+    var showClearCartDialog by remember { mutableStateOf(false) }
+
+    if (showClearCartDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCartDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DeleteSweep,
+                    contentDescription = null,
+                    tint = Color(0xFFC8102E),
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "¿Vaciar el carrito?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que deseas eliminar todos los productos seleccionados?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clearCart()
+                        showClearCartDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                ) {
+                    Text("Sí, vaciar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showClearCartDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     // Dialogo de Éxito cuando se genera la orden y sus subpedidos
     if (uiState.placedOrder != null) {
@@ -210,6 +257,27 @@ fun CartScreen(
                                 contentDescription = "Volver"
                             )
                         }
+                    },
+                    actions = {
+                        if (!uiState.isEmpty) {
+                            TextButton(
+                                onClick = { showClearCartDialog = true },
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC8102E))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteSweep,
+                                    contentDescription = "Vaciar carrito",
+                                    tint = Color(0xFFC8102E),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Vaciar",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFC8102E)
+                                )
+                            }
+                        }
                     }
                 )
             },
@@ -260,6 +328,36 @@ fun CartScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Cabecera de lista con opción rápida de vaciar carrito
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Productos seleccionados",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF003366)
+                    )
+                    TextButton(
+                        onClick = { showClearCartDialog = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC8102E))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Vaciar carrito",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
                 // Grupos por Emprendimiento
                 uiState.calculation.storeGroups.forEach { group ->
                     Card(
@@ -399,6 +497,33 @@ fun CartScreen(
                             )
                         }
 
+                        // Aviso si no hay intersección de puntos de entrega
+                        if (uiState.meetingPointWarning != null) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = uiState.meetingPointWarning!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF92400E)
+                                    )
+                                }
+                            }
+                        }
+
                         // Dropdown de Puntos de Encuentro
                         var expanded by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(
@@ -406,9 +531,9 @@ fun CartScreen(
                             onExpandedChange = { expanded = !expanded }
                         ) {
                             val selectedText = uiState.selectedMeetingPoint?.let { pt ->
-                                val pavilionPart = if (!pt.pavilion.isNullOrBlank()) " (${pt.pavilion})" else ""
-                                "${pt.name}$pavilionPart"
-                            } ?: if (uiState.meetingPoints.isEmpty()) "Cargando puntos de entrega..." else "Selecciona un punto"
+                                val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " • Exterior" else " • Interior"
+                                "${pt.name}$zonePart"
+                            } ?: if (uiState.meetingPoints.isEmpty()) "Sin puntos de entrega disponibles" else "Selecciona un punto de entrega"
 
                             OutlinedTextField(
                                 value = selectedText,
@@ -425,7 +550,7 @@ fun CartScreen(
                             ) {
                                 if (uiState.meetingPoints.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text("No hay puntos de entrega disponibles") },
+                                        text = { Text("No hay puntos de entrega compatibles") },
                                         onClick = { expanded = false },
                                         enabled = false
                                     )
@@ -433,18 +558,34 @@ fun CartScreen(
                                     uiState.meetingPoints.forEach { point ->
                                         DropdownMenuItem(
                                             text = {
-                                                Column {
-                                                    val pavilionPart = if (!point.pavilion.isNullOrBlank()) " (${point.pavilion})" else ""
-                                                    Text(
-                                                        text = "${point.name}$pavilionPart",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.SemiBold
-                                                    )
+                                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(
+                                                            text = point.name,
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            modifier = Modifier.weight(1f, fill = false)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Surface(
+                                                            color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) "Exterior" else "Interior",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                                fontWeight = FontWeight.Bold,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                    }
                                                     if (!point.description.isNullOrBlank()) {
+                                                        Spacer(modifier = Modifier.height(2.dp))
                                                         Text(
                                                             text = point.description,
                                                             style = MaterialTheme.typography.bodySmall,
-                                                            color = Color(0xFF666666)
+                                                            color = Color(0xFF64748B)
                                                         )
                                                     }
                                                 }
@@ -515,59 +656,81 @@ fun CartScreen(
                             }
                         }
 
-                        // Método de Pago contra entrega
+                        // Método de Pago
                         Text(
                             text = "Método de Pago (Contra entrega)",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = uiState.selectedPaymentMethod == PaymentMethod.YAPE,
-                                onClick = { viewModel.selectPaymentMethod(PaymentMethod.YAPE) },
-                                label = { Text("Yape", fontWeight = if (uiState.selectedPaymentMethod == PaymentMethod.YAPE) FontWeight.Bold else FontWeight.Normal) },
-                                leadingIcon = if (uiState.selectedPaymentMethod == PaymentMethod.YAPE) {
-                                    { Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF6A1B9A),
-                                    selectedLabelColor = Color.White,
-                                    selectedLeadingIconColor = Color.White
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = uiState.selectedPaymentMethod == PaymentMethod.PLIN,
-                                onClick = { viewModel.selectPaymentMethod(PaymentMethod.PLIN) },
-                                label = { Text("Plin", fontWeight = if (uiState.selectedPaymentMethod == PaymentMethod.PLIN) FontWeight.Bold else FontWeight.Normal) },
-                                leadingIcon = if (uiState.selectedPaymentMethod == PaymentMethod.PLIN) {
-                                    { Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF00796B),
-                                    selectedLabelColor = Color.White,
-                                    selectedLeadingIconColor = Color.White
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = uiState.selectedPaymentMethod == PaymentMethod.EFECTIVO,
-                                onClick = { viewModel.selectPaymentMethod(PaymentMethod.EFECTIVO) },
-                                label = { Text("Efectivo", fontWeight = if (uiState.selectedPaymentMethod == PaymentMethod.EFECTIVO) FontWeight.Bold else FontWeight.Normal) },
-                                leadingIcon = if (uiState.selectedPaymentMethod == PaymentMethod.EFECTIVO) {
-                                    { Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF003366),
-                                    selectedLabelColor = Color.White,
-                                    selectedLeadingIconColor = Color.White
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
+                        if (uiState.paymentMethodWarning != null) {
+                            Surface(
+                                color = Color(0xFFFEF2F2),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = uiState.paymentMethodWarning!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF991B1B)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.availablePaymentMethods.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                uiState.availablePaymentMethods.forEach { method ->
+                                    val (label, containerColor) = when (method) {
+                                        PaymentMethod.YAPE -> "Yape" to Color(0xFF6A1B9A)
+                                        PaymentMethod.PLIN -> "Plin" to Color(0xFF00796B)
+                                        PaymentMethod.EFECTIVO -> "Efectivo" to Color(0xFF003366)
+                                        PaymentMethod.TRANSFERENCIA -> "Transferencia" to Color(0xFF0284C7)
+                                        PaymentMethod.OTRO -> "Otro" to Color(0xFF475569)
+                                    }
+                                    val isSelected = uiState.selectedPaymentMethod == method
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { viewModel.selectPaymentMethod(method) },
+                                        label = {
+                                            Text(
+                                                label,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        leadingIcon = if (isSelected) {
+                                            {
+                                                Icon(
+                                                    Icons.Default.CheckCircle,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        } else null,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = containerColor,
+                                            selectedLabelColor = Color.White,
+                                            selectedLeadingIconColor = Color.White
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
 
                         // Indicaciones opcionales

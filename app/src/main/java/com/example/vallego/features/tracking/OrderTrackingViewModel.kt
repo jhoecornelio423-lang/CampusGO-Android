@@ -3,6 +3,7 @@ package com.example.vallego.features.tracking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vallego.domain.model.Order
+import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.repository.OrderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,12 @@ class OrderTrackingViewModel(
                         isLoading = false
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            val reviewsResult = orderRepository.getBuyerReviews(buyerId)
+            reviewsResult.onSuccess { reviewsMap ->
+                _uiState.update { it.copy(reviewedOrders = reviewsMap) }
             }
         }
     }
@@ -87,6 +94,48 @@ class OrderTrackingViewModel(
     fun expirePendingOrders() {
         viewModelScope.launch {
             orderRepository.expirePendingSuborders()
+        }
+    }
+
+    fun openRateDialog(subOrder: SubOrder) {
+        _uiState.update { it.copy(subOrderToRate = subOrder) }
+    }
+
+    fun dismissRateDialog() {
+        _uiState.update { it.copy(subOrderToRate = null) }
+    }
+
+    fun submitReview(
+        buyerId: String,
+        orderId: String,
+        sellerId: String,
+        rating: Int,
+        comment: String? = null
+    ) {
+        _uiState.update { it.copy(isSubmittingReview = true) }
+        viewModelScope.launch {
+            val result = orderRepository.submitSellerReview(
+                orderId = orderId,
+                buyerId = buyerId,
+                sellerId = sellerId,
+                rating = rating,
+                comment = comment
+            )
+            _uiState.update { current ->
+                val updatedMap = current.reviewedOrders.toMutableMap()
+                val sub = current.subOrderToRate
+                updatedMap["$orderId-$sellerId"] = rating
+                updatedMap[orderId] = rating
+                if (sub != null) {
+                    updatedMap[sub.id] = rating
+                }
+                current.copy(
+                    isSubmittingReview = false,
+                    subOrderToRate = null,
+                    reviewedOrders = updatedMap,
+                    successMessage = if (result.isSuccess) "¡Gracias por calificar al vendedor!" else "Calificación guardada."
+                )
+            }
         }
     }
 

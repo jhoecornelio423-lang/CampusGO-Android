@@ -89,4 +89,68 @@ class DomainModelsTest {
         assertEquals(dulceValle.subtotalAmount, decodedOrder.subOrders[1].subtotalAmount, 0.001)
         assertEquals(dulceValle.status, decodedOrder.subOrders[1].status)
     }
+
+    @Test
+    fun testCampusGoMeetingPointAndZoneTypeSerialization() {
+        val meetingPoint = CampusMeetingPoint(
+            id = "mp-puerta-1",
+            name = "Cafetería Central",
+            pavilion = "Pabellón A",
+            zoneType = "INTERIOR",
+            isActive = true
+        )
+        val jsonStr = json.encodeToString(meetingPoint)
+        assertTrue(jsonStr.contains("\"zone_type\""))
+        assertTrue(jsonStr.contains("INTERIOR"))
+
+        val decoded = json.decodeFromString<CampusMeetingPoint>(jsonStr)
+        assertEquals("INTERIOR", decoded.zoneType)
+        assertEquals("Cafetería Central", decoded.name)
+
+        // Fallback al valor por defecto EXTERIOR cuando se omite en el payload
+        val jsonWithoutZone = """{"id":"mp-default","name":"Punto Default"}"""
+        val decodedDefault = json.decodeFromString<CampusMeetingPoint>(jsonWithoutZone)
+        assertEquals("EXTERIOR", decodedDefault.zoneType)
+    }
+
+    @Test
+    fun testUserProfileSupportedMeetingPointsSerialization() {
+        val profile = UserProfile(
+            id = "seller-100",
+            fullName = "Doña Carmen",
+            role = UserRole.EMPRENDEDOR,
+            businessName = "Empanadas del Valle",
+            supportedMeetingPoints = listOf("mp-1", "mp-2")
+        )
+        val jsonStr = json.encodeToString(profile)
+        assertTrue(jsonStr.contains("\"supported_meeting_points\""))
+
+        val decoded = json.decodeFromString<UserProfile>(jsonStr)
+        assertEquals(2, decoded.supportedMeetingPoints.size)
+        assertTrue(decoded.supportedMeetingPoints.contains("mp-1"))
+        assertTrue(decoded.supportedMeetingPoints.contains("mp-2"))
+    }
+
+    @Test
+    fun testSubOrderDeliverySnapshotFields() {
+        val subOrder = SubOrder(
+            id = "sub-10",
+            orderId = "order-20",
+            sellerId = "seller-5",
+            sellerName = "Juguería Campus",
+            subtotalAmount = 15.0,
+            meetingPointId = "mp-puerta-2",
+            meetingPointName = "Puerta 2 - Reja Auxiliar",
+            scheduledTime = "14:30",
+            buyerName = "Carlos Mendoza",
+            buyerPhone = "998877665",
+            notes = "Sin azúcar por favor"
+        )
+        val jsonStr = json.encodeToString(subOrder)
+        val decoded = json.decodeFromString<SubOrder>(jsonStr)
+        assertEquals("Puerta 2 - Reja Auxiliar", decoded.meetingPointName)
+        assertEquals("Carlos Mendoza", decoded.buyerName)
+        assertEquals("998877665", decoded.buyerPhone)
+        assertEquals("Sin azúcar por favor", decoded.notes)
+    }
 }

@@ -17,5 +17,6 @@ class ValleGoApplication : Application() {
             modules(networkModule, repositoryModule, uiModule)
         }
         com.example.vallego.core.notification.ValleGoNotificationHelper.createNotificationChannels(this)
+        com.example.vallego.data.repository.SellerPaymentMethodsStorage.initialize(this)
     }
 }

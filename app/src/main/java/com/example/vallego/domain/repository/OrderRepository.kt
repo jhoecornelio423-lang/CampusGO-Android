@@ -16,5 +16,9 @@ interface OrderRepository {
     suspend fun cancelOrderByBuyer(orderId: String): Result<Unit>
     suspend fun markBuyerNoShow(subOrderId: String, reason: String? = null): Result<SubOrder>
     suspend fun expirePendingSuborders(): Result<Int>
+    suspend fun submitSellerReview(orderId: String, buyerId: String, sellerId: String, rating: Int, comment: String? = null): Result<Unit>
+    suspend fun getBuyerReviews(buyerId: String): Result<Map<String, Int>>
+    suspend fun getSellerDashboardStatistics(sellerId: String, range: String): Result<com.example.vallego.domain.model.SellerDashboardStats>
     fun clearCache()
 }
+

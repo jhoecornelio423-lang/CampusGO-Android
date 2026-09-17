@@ -1,6 +1,7 @@
 package com.example.vallego.features.buyer
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -20,15 +21,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
@@ -59,10 +64,12 @@ import com.example.vallego.domain.model.Product
 import com.example.vallego.R
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
+import com.example.vallego.domain.repository.AdminRepository
 import com.example.vallego.domain.repository.CartRepository
 import com.example.vallego.domain.repository.ProductRepository
 import com.example.vallego.features.cart.CartScreen
 import com.example.vallego.features.tracking.OrderTrackingScreen
+import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
 import com.example.vallego.ui.components.StoreStatusBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import com.example.vallego.ui.components.ValleGoBusinessBanner
@@ -85,7 +92,13 @@ data class StoreCatalogGroup(
     val closeTime: String?,
     val description: String?,
     val acceptingOrders: Boolean,
-    val products: List<Product>
+    val products: List<Product>,
+    val sellerProfile: UserProfile? = null,
+    val businessCategory: String? = null,
+    val phone: String = "",
+    val ratingAverage: Double = 5.0,
+    val supportedMeetingPoints: List<String> = emptyList(),
+    val supportedPaymentMethods: List<String> = listOf("EFECTIVO", "YAPE", "PLIN")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,18 +108,16 @@ fun BuyerHomeScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     cartRepository: CartRepository = koinInject(),
-    productRepository: ProductRepository = koinInject()
+    productRepository: ProductRepository = koinInject(),
+    adminRepository: AdminRepository = koinInject()
 ) {
     var currentProfile by remember { mutableStateOf(profile) }
-    var showProfileDialog by remember { mutableStateOf(false) }
+    var showProfile by remember { mutableStateOf(false) }
     var showCart by remember { mutableStateOf(false) }
     var showTracking by remember { mutableStateOf(false) }
+    var selectedStoreForProfile by remember { mutableStateOf<StoreCatalogGroup?>(null) }
+    val allMeetingPoints by adminRepository.observeMeetingPoints().collectAsState(initial = emptyList())
     val cartCalculation by cartRepository.cartCalculation.collectAsState()
-
-    val backgroundBlurRadius by animateDpAsState(
-        targetValue = if (showProfileDialog) 20.dp else 0.dp,
-        label = "profile_dialog_blur"
-    )
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryFilter by remember { mutableStateOf("TODOS") }
@@ -114,6 +125,23 @@ fun BuyerHomeScreen(
     var selectedStoreId by remember { mutableStateOf<String?>(null) }
 
     var selectedProductForDetail by remember { mutableStateOf<Pair<Product, StoreCatalogGroup>?>(null) }
+
+    // Manejo nativo del botón / gesto Atrás de Android
+    BackHandler(enabled = selectedProductForDetail != null) {
+        selectedProductForDetail = null
+    }
+    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile != null) {
+        selectedStoreForProfile = null
+    }
+    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile == null && showCart) {
+        showCart = false
+    }
+    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && showTracking) {
+        showTracking = false
+    }
+    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && !showTracking && showProfile) {
+        showProfile = false
+    }
 
     var realStoresWithProducts by remember { mutableStateOf<List<StoreCatalogGroup>>(emptyList()) }
     var categoriesList by remember { mutableStateOf<List<Category>>(emptyList()) }
@@ -164,7 +192,13 @@ fun BuyerHomeScreen(
                         closeTime = seller.closeTime,
                         description = seller.businessDescription,
                         acceptingOrders = seller.acceptingOrders,
-                        products = sellerProds
+                        products = sellerProds,
+                        sellerProfile = seller,
+                        businessCategory = seller.businessCategory,
+                        phone = seller.phone,
+                        ratingAverage = seller.ratingAverage,
+                        supportedMeetingPoints = seller.supportedMeetingPoints,
+                        supportedPaymentMethods = seller.effectivePaymentMethods
                     )
                 }
                 realStoresWithProducts = grouped
@@ -176,10 +210,38 @@ fun BuyerHomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        adminRepository.refreshMeetingPoints()
         while (isActive) {
             loadCatalog(isSilent = true)
             delay(8000)
         }
+    }
+
+    if (showProfile) {
+        BuyerProfileScreen(
+            profile = currentProfile,
+            onNavigateBack = { showProfile = false },
+            onSaveProfile = { updated ->
+                coroutineScope.launch {
+                    val res = productRepository.updateUserProfile(updated)
+                    if (res.isSuccess) {
+                        currentProfile = res.getOrNull() ?: updated
+                    }
+                }
+            },
+            onUploadAvatar = { bytes, onUploaded ->
+                coroutineScope.launch {
+                    val path = "avatars/${currentProfile.id}_${System.currentTimeMillis()}.jpg"
+                    val res = productRepository.uploadImage("business-assets", path, bytes)
+                    res.onSuccess { url ->
+                        onUploaded(url)
+                    }
+                }
+            },
+            onSignOut = onSignOut,
+            modifier = modifier
+        )
+        return
     }
 
     if (showTracking) {
@@ -208,6 +270,57 @@ fun BuyerHomeScreen(
         return
     }
 
+    // Pantalla completa de Perfil del Vendedor / Puesto Comercial
+    if (selectedStoreForProfile != null) {
+        BuyerSellerProfileScreen(
+            store = selectedStoreForProfile!!,
+            meetingPoints = allMeetingPoints,
+            cartCalculation = cartCalculation,
+            onNavigateBack = {
+                selectedProductForDetail = null
+                selectedStoreForProfile = null
+            },
+            onProductClick = { product ->
+                selectedProductForDetail = Pair(product, selectedStoreForProfile!!)
+            },
+            onAddToCart = { product ->
+                cartRepository.setStoreName(selectedStoreForProfile!!.sellerId, selectedStoreForProfile!!.sellerName)
+                cartRepository.addToCart(product, 1)
+            },
+            onNavigateToCart = {
+                selectedProductForDetail = null
+                selectedStoreForProfile = null
+                showCart = true
+            },
+            modifier = modifier
+        )
+
+        // Modal de Detalle de Producto al estilo Rappi dentro del perfil del vendedor
+        if (selectedProductForDetail != null) {
+            val (prod, store) = selectedProductForDetail!!
+            val catName = categoriesList.find { it.id == prod.categoryId }?.name
+            val isStoreAvail = store.acceptingOrders &&
+                    !store.businessStatus.equals("PAUSADO", ignoreCase = true) &&
+                    !store.businessStatus.equals("CERRADO", ignoreCase = true)
+            ProductDetailBottomSheet(
+                product = prod,
+                storeName = store.sellerName,
+                categoryName = catName,
+                isStoreAvailable = isStoreAvail,
+                storeStatus = store.businessStatus,
+                onDismiss = { selectedProductForDetail = null },
+                onStoreClick = {
+                    selectedProductForDetail = null
+                },
+                onAddToCart = { product, quantity, instructions ->
+                    cartRepository.setStoreName(store.sellerId, store.sellerName)
+                    cartRepository.addToCart(product, quantity)
+                }
+            )
+        }
+        return
+    }
+
     // Modal de Detalle de Producto al estilo Rappi
     if (selectedProductForDetail != null) {
         val (prod, store) = selectedProductForDetail!!
@@ -222,12 +335,17 @@ fun BuyerHomeScreen(
             isStoreAvailable = isStoreAvail,
             storeStatus = store.businessStatus,
             onDismiss = { selectedProductForDetail = null },
+            onStoreClick = {
+                selectedProductForDetail = null
+                selectedStoreForProfile = store
+            },
             onAddToCart = { product, quantity, instructions ->
                 cartRepository.setStoreName(store.sellerId, store.sellerName)
                 cartRepository.addToCart(product, quantity)
             }
         )
     }
+
 
     // Filtrado reactivo en tiempo real
     val filteredStores = remember(realStoresWithProducts, searchQuery, selectedCategoryFilter, onlyOpenStores, categoriesList) {
@@ -268,7 +386,7 @@ fun BuyerHomeScreen(
     }
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            modifier = modifier.blur(backgroundBlurRadius),
+            modifier = modifier,
             topBar = {
                 Surface(
                     color = Color.White,
@@ -282,54 +400,53 @@ fun BuyerHomeScreen(
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Fila 1: Selector de ubicación compacto y acciones principales limpias
+                        // Fila 1: Perfil del Comprador (Foto e Información como UN SOLO BOTÓN a la izquierda) y botones de acción a la derecha
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Píldora de Entrega compacta (solo indicador de ubicación)
+                            // Avatar e Información del comprador unificados en un solo botón que abre su perfil completo
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
+                                    .weight(1f, fill = false)
                                     .clip(RoundedCornerShape(12.dp))
+                                    .clickable { showProfile = true }
                                     .padding(vertical = 4.dp, horizontal = 4.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFE6F7F3)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null,
-                                        tint = Color(0xFF00A884),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
+                                ValleGoUserAvatar(
+                                    avatarUrl = currentProfile.avatarUrl,
+                                    name = currentProfile.fullName,
+                                    size = 40.dp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "ENTREGAR EN",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color(0xFF00A884),
-                                        letterSpacing = 0.8.sp
-                                    )
-                                    Text(
-                                        text = "Campus ${currentProfile.campus}",
+                                        text = currentProfile.fullName.ifBlank { "Comprador" },
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
+                                        fontSize = 15.sp,
                                         color = Color(0xFF16324F),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    val buyerSubtitle = if (!currentProfile.studentCode.isNullOrBlank()) {
+                                        "${currentProfile.studentCode} • Campus ${currentProfile.campus}"
+                                    } else {
+                                        "Estudiante • Campus ${currentProfile.campus}"
+                                    }
+                                    Text(
+                                        text = buyerSubtitle,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF64748B),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
 
-                            // Botones Superiores Descongestionados (Mis Pedidos, Carrito destacado, Mi Perfil directo)
+                            // Botones de acción a la derecha (Mis Pedidos y Carrito)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -387,19 +504,6 @@ fun BuyerHomeScreen(
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
-                                }
-
-                                // 3. Avatar de Usuario (Abre directamente Mi Perfil)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .clickable { showProfileDialog = true }
-                                ) {
-                                    ValleGoUserAvatar(
-                                        avatarUrl = currentProfile.avatarUrl,
-                                        name = currentProfile.fullName,
-                                        size = 36.dp
-                                    )
                                 }
                             }
                         }
@@ -670,80 +774,126 @@ fun BuyerHomeScreen(
                         val currentSelectedStore = realStoresWithProducts.find { it.sellerId == selectedStoreId }
                         if (currentSelectedStore != null) {
                             Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = Color(0xFFE6F7F3),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White,
                                 border = BorderStroke(1.dp, Color(0xFFB2E7DC)),
-                                modifier = Modifier.fillMaxWidth()
+                                shadowElevation = 2.dp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedStoreForProfile = currentSelectedStore }
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
                                     Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.weight(1f)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        ValleGoBusinessAvatar(
-                                            avatarUrl = currentSelectedStore.avatarUrl,
-                                            storeName = currentSelectedStore.sellerName,
-                                            size = 36.dp
-                                        )
-                                        Column {
-                                            Text(
-                                                text = currentSelectedStore.sellerName,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                color = Color(0xFF16324F),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            ValleGoBusinessAvatar(
+                                                avatarUrl = currentSelectedStore.avatarUrl,
+                                                storeName = currentSelectedStore.sellerName,
+                                                size = 42.dp
                                             )
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.ic_meeting_point),
-                                                    contentDescription = null,
-                                                    tint = Color(0xFF00A884),
-                                                    modifier = Modifier.size(12.dp)
-                                                )
-                                                Text(
-                                                    text = currentSelectedStore.location ?: "Campus",
-                                                    fontSize = 11.sp,
-                                                    color = Color(0xFF00A884),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                if (!currentSelectedStore.openTime.isNullOrBlank()) {
-                                                    Text(text = "•", fontSize = 11.sp, color = Color(0xFF00A884))
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = currentSelectedStore.sellerName,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp,
+                                                        color = Color(0xFF16324F),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false)
+                                                    )
+                                                    StoreStatusBadge(
+                                                        status = currentSelectedStore.businessStatus,
+                                                        acceptingOrders = currentSelectedStore.acceptingOrders
+                                                    )
+                                                }
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
                                                     Icon(
-                                                        painter = painterResource(id = R.drawable.ic_clock_modern),
+                                                        painter = painterResource(id = R.drawable.ic_meeting_point),
                                                         contentDescription = null,
                                                         tint = Color(0xFF00A884),
                                                         modifier = Modifier.size(12.dp)
                                                     )
                                                     Text(
-                                                        text = "${currentSelectedStore.openTime}-${currentSelectedStore.closeTime}",
+                                                        text = currentSelectedStore.location ?: "Campus",
                                                         fontSize = 11.sp,
                                                         color = Color(0xFF00A884),
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
+                                                    if (!currentSelectedStore.openTime.isNullOrBlank()) {
+                                                        Text(text = "•", fontSize = 11.sp, color = Color(0xFF00A884))
+                                                        Text(
+                                                            text = "${currentSelectedStore.openTime} - ${currentSelectedStore.closeTime}",
+                                                            fontSize = 11.sp,
+                                                            color = Color(0xFF64748B),
+                                                            maxLines = 1
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
+                                        IconButton(
+                                            onClick = { selectedStoreId = null },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Quitar filtro",
+                                                tint = Color(0xFF94A3B8),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
-                                    IconButton(
-                                        onClick = { selectedStoreId = null },
-                                        modifier = Modifier.size(28.dp)
+
+                                    HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFFE6F7F3))
+                                            .clickable { selectedStoreForProfile = currentSelectedStore }
+                                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Store,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00A884),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Ver perfil completo, banner y puntos de entrega",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF00A884)
+                                            )
+                                        }
                                         Icon(
-                                            imageVector = Icons.Default.Clear,
-                                            contentDescription = "Quitar filtro",
-                                            tint = Color(0xFF64748B),
-                                            modifier = Modifier.size(16.dp)
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = "Ir al perfil",
+                                            tint = Color(0xFF00A884),
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -862,6 +1012,7 @@ fun BuyerHomeScreen(
                                     store = store1,
                                     categoryName = catName1,
                                     onClick = { selectedProductForDetail = Pair(prod1, store1) },
+                                    onStoreClick = { selectedStoreForProfile = store1 },
                                     onQuickAdd = {
                                         cartRepository.setStoreName(store1.sellerId, store1.sellerName)
                                         cartRepository.addToCart(prod1, 1)
@@ -877,6 +1028,7 @@ fun BuyerHomeScreen(
                                         store = store2,
                                         categoryName = catName2,
                                         onClick = { selectedProductForDetail = Pair(prod2, store2) },
+                                        onStoreClick = { selectedStoreForProfile = store2 },
                                         onQuickAdd = {
                                             cartRepository.setStoreName(store2.sellerId, store2.sellerName)
                                             cartRepository.addToCart(prod2, 1)
@@ -962,56 +1114,21 @@ fun BuyerHomeScreen(
         }
     }
 
-    // Overlay elegante desenfocado / scrim para diálogo de perfil
-    AnimatedVisibility(
-        visible = showProfileDialog,
-        enter = fadeIn(),
-        exit = fadeOut()
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF03333D).copy(alpha = 0.55f))
-                .clickable { showProfileDialog = false }
-        )
     }
 }
 
-    if (showProfileDialog) {
-        BuyerProfileDialog(
-            profile = currentProfile,
-            onDismiss = { showProfileDialog = false },
-            onSaveProfile = { updated ->
-                coroutineScope.launch {
-                    val res = productRepository.updateUserProfile(updated)
-                    if (res.isSuccess) {
-                        currentProfile = res.getOrNull() ?: updated
-                    }
-                }
-            },
-            onUploadAvatar = { bytes, onUploaded ->
-                coroutineScope.launch {
-                    val path = "avatars/${currentProfile.id}_${System.currentTimeMillis()}.jpg"
-                    val res = productRepository.uploadImage("business-assets", path, bytes)
-                    res.onSuccess { url ->
-                        onUploaded(url)
-                    }
-                }
-            },
-            onSignOut = onSignOut
-        )
-    }
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BuyerProfileDialog(
+fun BuyerProfileScreen(
     profile: UserProfile,
-    onDismiss: () -> Unit,
+    onNavigateBack: () -> Unit,
     onSaveProfile: (UserProfile) -> Unit,
     onUploadAvatar: (ByteArray, (String) -> Unit) -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var isEditMode by remember { mutableStateOf(false) }
+    var showEnlargedPhoto by remember { mutableStateOf(false) }
     var fullName by remember(profile) { mutableStateOf(profile.fullName) }
     var phone by remember(profile) { mutableStateOf(profile.phone) }
     var studentCode by remember(profile) { mutableStateOf(profile.studentCode.orEmpty()) }
@@ -1035,251 +1152,333 @@ private fun BuyerProfileDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false
-        ),
-        shape = RoundedCornerShape(24.dp),
-        containerColor = Color.White,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        confirmButton = {
-            if (isEditMode) {
-                Button(
-                    onClick = {
-                        val updated = profile.copy(
-                            fullName = fullName.trim().ifBlank { profile.fullName },
-                            phone = phone.trim(),
-                            studentCode = studentCode.trim().takeIf { it.isNotBlank() },
-                            campus = campus.trim().ifBlank { profile.campus },
-                            avatarUrl = avatarUrl
-                        )
-                        onSaveProfile(updated)
-                        isEditMode = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884))
-                ) {
-                    Text("Guardar Cambios")
-                }
-            } else {
-                Button(
-                    onClick = { isEditMode = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884))
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Editar Perfil")
-                }
-            }
-        },
-        dismissButton = {
-            OutlinedButton(
-                onClick = {
-                    if (isEditMode) {
-                        fullName = profile.fullName
-                        phone = phone.trim()
-                        studentCode = profile.studentCode.orEmpty()
-                        campus = profile.campus
-                        avatarUrl = profile.avatarUrl
-                        isEditMode = false
-                    } else {
-                        onDismiss()
-                    }
-                }
-            ) {
-                Text(if (isEditMode) "Cancelar" else "Cerrar")
-            }
-        },
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isEditMode) "Editar Mi Perfil" else "Mi Perfil de Estudiante",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF16324F),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                if (isEditMode) {
-                    Surface(
-                        color = Color(0xFFE6F7F3),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "Modo Edición",
-                            color = Color(0xFF00A884),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Avatar grande
-                Box(
-                    contentAlignment = Alignment.BottomEnd,
-                    modifier = Modifier.padding(top = 4.dp)
-                ) {
-                    ValleGoUserAvatar(
-                        avatarUrl = avatarUrl,
-                        name = fullName,
-                        size = 88.dp
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (isEditMode) "Editar Mi Perfil" else "Mi Perfil",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF16324F)
                     )
-                    if (isEditMode) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFF00A884),
-                            shadowElevation = 4.dp,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .clickable { imagePickerLauncher.launch("image/*") }
+                },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        if (isEditMode) {
+                            fullName = profile.fullName
+                            phone = profile.phone
+                            studentCode = profile.studentCode.orEmpty()
+                            campus = profile.campus
+                            avatarUrl = profile.avatarUrl
+                            isEditMode = false
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Atrás",
+                            tint = Color(0xFF16324F)
+                        )
+                    }
+                },
+                actions = {
+                    if (!isEditMode) {
+                        FilledTonalButton(
+                            onClick = { isEditMode = true },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color(0xFFE6F7F3),
+                                contentColor = Color(0xFF00A884)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                if (isUploading) {
-                                    CircularProgressIndicator(
-                                        color = Color.White,
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.CameraAlt,
-                                        contentDescription = "Cambiar foto",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Editar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
+                )
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (isEditMode) {
+                        Button(
+                            onClick = {
+                                val updated = profile.copy(
+                                    fullName = fullName.trim().ifBlank { profile.fullName },
+                                    phone = phone.trim(),
+                                    studentCode = studentCode.trim().takeIf { it.isNotBlank() },
+                                    campus = campus.trim().ifBlank { profile.campus },
+                                    avatarUrl = avatarUrl
+                                )
+                                onSaveProfile(updated)
+                                isEditMode = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Guardar Cambios", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                fullName = profile.fullName
+                                phone = profile.phone
+                                studentCode = profile.studentCode.orEmpty()
+                                campus = profile.campus
+                                avatarUrl = profile.avatarUrl
+                                isEditMode = false
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                        ) {
+                            Text("Cancelar Edición", fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onSignOut,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = null,
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        },
+        containerColor = Color(0xFFF8FAFC)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                shadowElevation = 1.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.BottomEnd
+                    ) {
+                        Box(
+                            modifier = if (!isEditMode) Modifier.clip(CircleShape).clickable { showEnlargedPhoto = true } else Modifier
+                        ) {
+                            ValleGoUserAvatar(
+                                avatarUrl = avatarUrl,
+                                name = fullName,
+                                size = 96.dp
+                            )
+                        }
+                        if (isEditMode) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF00A884),
+                                shadowElevation = 4.dp,
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .clickable { imagePickerLauncher.launch("image/*") }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (isUploading) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.CameraAlt,
+                                            contentDescription = "Cambiar foto",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                if (isEditMode) {
-                    Text(
-                        text = "Toca el ícono de cámara para cambiar tu foto",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                    if (isEditMode) {
+                        Text(
+                            text = "Toca la cámara para cambiar tu foto de perfil",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B)
+                        )
+                    } else {
+                        Text(
+                            text = fullName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16324F)
+                        )
 
-                if (!isEditMode) {
-                    // MODO LECTURA POR DEFECTO
-                    Text(
-                        text = fullName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF16324F)
-                    )
-                    Surface(
-                        color = Color(0xFFE8F5E9),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        Surface(
+                            color = Color(0xFFE8F5E9),
+                            shape = RoundedCornerShape(20.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_school_cap),
-                                contentDescription = null,
-                                tint = Color(0xFF2E7D32),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Estudiante / Comprador",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF2E7D32)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_school_cap),
+                                    contentDescription = null,
+                                    tint = Color(0xFF2E7D32),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Estudiante / Comprador Campus Go",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
                         }
                     }
+                }
+            }
 
-                    HorizontalDivider()
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                shadowElevation = 1.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = "INFORMACIÓN DE LA CUENTA",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.8.sp
+                    )
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        ProfileDetailRow(icon = Icons.Default.Badge, label = "Código Universitario", value = studentCode.ifBlank { "No registrado" })
-                        ProfileDetailRow(icon = Icons.Default.Phone, label = "Teléfono", value = phone.ifBlank { "No registrado" })
-                        ProfileDetailRow(icon = Icons.Default.LocationOn, label = "Campus", value = "Campus $campus")
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    OutlinedButton(
-                        onClick = {
-                            onDismiss()
-                            onSignOut()
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = null,
-                            tint = Color(0xFFDC2626),
-                            modifier = Modifier.size(18.dp)
+                    if (!isEditMode) {
+                        ProfileDetailRow(
+                            icon = Icons.Default.Badge,
+                            label = "Código Universitario",
+                            value = studentCode.ifBlank { "No registrado" }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        ProfileDetailRow(
+                            icon = Icons.Default.Phone,
+                            label = "Teléfono / WhatsApp",
+                            value = phone.ifBlank { "No registrado" }
+                        )
+                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        ProfileDetailRow(
+                            icon = Icons.Default.LocationOn,
+                            label = "Campus Universitario",
+                            value = "Campus $campus"
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = fullName,
+                            onValueChange = { fullName = it },
+                            label = { Text("Nombre Completo") },
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF00A884)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = studentCode,
+                            onValueChange = { studentCode = it },
+                            label = { Text("Código de Estudiante") },
+                            leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = Color(0xFF00A884)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = phone,
+                            onValueChange = { phone = it },
+                            label = { Text("Teléfono / WhatsApp") },
+                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF00A884)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = campus,
+                            onValueChange = { campus = it },
+                            label = { Text("Campus") },
+                            leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF00A884)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
-                } else {
-                    // MODO EDICIÓN
-                    OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
-                        label = { Text("Nombre Completo") },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = studentCode,
-                        onValueChange = { studentCode = it },
-                        label = { Text("Código de Estudiante") },
-                        leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        label = { Text("Teléfono / WhatsApp") },
-                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = campus,
-                        onValueChange = { campus = it },
-                        label = { Text("Campus") },
-                        leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
                 }
             }
         }
-    )
+    }
+
+    if (showEnlargedPhoto) {
+        EnlargedPhotoViewerDialog(
+            photoUrl = avatarUrl,
+            name = fullName,
+            roleDescription = "Estudiante / Comprador • Campus $campus",
+            onDismiss = { showEnlargedPhoto = false }
+        )
+    }
 }
 
 @Composable
@@ -1313,6 +1512,7 @@ private fun BuyerProductGridCard(
     categoryName: String?,
     onClick: () -> Unit,
     onQuickAdd: () -> Unit,
+    onStoreClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isStoreAvail = store.acceptingOrders &&
@@ -1378,7 +1578,13 @@ private fun BuyerProductGridCard(
                 // Etiqueta del puesto
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .then(
+                            if (onStoreClick != null) Modifier.clickable { onStoreClick() }
+                            else Modifier
+                        )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Store,

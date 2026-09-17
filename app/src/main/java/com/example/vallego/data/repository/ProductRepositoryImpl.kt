@@ -48,6 +48,22 @@ data class SellerBusinessProfileUpdateDto(
     @kotlinx.serialization.SerialName("close_time") val closeTime: String?,
     @kotlinx.serialization.SerialName("banner_url") val bannerUrl: String?,
     @kotlinx.serialization.SerialName("avatar_url") val avatarUrl: String?,
+    @kotlinx.serialization.SerialName("accepting_orders") val acceptingOrders: Boolean,
+    @kotlinx.serialization.SerialName("supported_meeting_points") val supportedMeetingPoints: List<String>? = null,
+    @kotlinx.serialization.SerialName("supported_payment_methods") val supportedPaymentMethods: List<String>? = null
+)
+
+@kotlinx.serialization.Serializable
+data class SellerBusinessProfileLegacyUpdateDto(
+    @kotlinx.serialization.SerialName("business_name") val businessName: String?,
+    @kotlinx.serialization.SerialName("business_status") val businessStatus: String,
+    @kotlinx.serialization.SerialName("business_description") val businessDescription: String?,
+    @kotlinx.serialization.SerialName("business_category") val businessCategory: String?,
+    @kotlinx.serialization.SerialName("business_location") val businessLocation: String?,
+    @kotlinx.serialization.SerialName("open_time") val openTime: String?,
+    @kotlinx.serialization.SerialName("close_time") val closeTime: String?,
+    @kotlinx.serialization.SerialName("banner_url") val bannerUrl: String?,
+    @kotlinx.serialization.SerialName("avatar_url") val avatarUrl: String?,
     @kotlinx.serialization.SerialName("accepting_orders") val acceptingOrders: Boolean
 )
 
@@ -258,7 +274,8 @@ class ProductRepositoryImpl(
                     }
                 }
                 .decodeList<UserProfile>()
-            Result.success(profiles)
+            val enrichedProfiles = profiles.map { SellerPaymentMethodsStorage.enrichProfile(it) }
+            Result.success(enrichedProfiles)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -288,25 +305,61 @@ class ProductRepositoryImpl(
             val targetId = profile.id.ifBlank { auth.currentUserOrNull()?.id ?: "" }
             if (targetId.isBlank()) return@withContext Result.failure(IllegalStateException("No se pudo identificar la cuenta del vendedor."))
 
-            val dto = SellerBusinessProfileUpdateDto(
-                businessName = profile.businessName?.trim(),
-                businessStatus = profile.businessStatus,
-                businessDescription = profile.businessDescription?.trim(),
-                businessCategory = profile.businessCategory?.trim(),
-                businessLocation = profile.businessLocation?.trim(),
-                openTime = profile.openTime,
-                closeTime = profile.closeTime,
-                bannerUrl = profile.bannerUrl,
-                avatarUrl = profile.avatarUrl,
-                acceptingOrders = profile.acceptingOrders
-            )
-            postgrest.from("profiles").update(dto) {
-                filter {
-                    eq("id", targetId)
+            val methodsToPersist = profile.supportedPaymentMethods.takeIf { it.isNotEmpty() }
+                ?: profile.effectivePaymentMethods
+            SellerPaymentMethodsStorage.saveMethods(targetId, methodsToPersist)
+
+            try {
+                val dto = SellerBusinessProfileUpdateDto(
+                    businessName = profile.businessName?.trim(),
+                    businessStatus = profile.businessStatus,
+                    businessDescription = profile.businessDescription?.trim(),
+                    businessCategory = profile.businessCategory?.trim(),
+                    businessLocation = profile.businessLocation?.trim(),
+                    openTime = profile.openTime,
+                    closeTime = profile.closeTime,
+                    bannerUrl = profile.bannerUrl,
+                    avatarUrl = profile.avatarUrl,
+                    acceptingOrders = profile.acceptingOrders,
+                    supportedMeetingPoints = profile.supportedMeetingPoints,
+                    supportedPaymentMethods = methodsToPersist
+                )
+                postgrest.from("profiles").update(dto) {
+                    filter {
+                        eq("id", targetId)
+                    }
+                }
+            } catch (e: Exception) {
+                val errMsg = (e.message ?: "") + " " + (e.cause?.message ?: "") + " " + e.toString()
+                // Si la columna supported_payment_methods o supported_meeting_points aún no existe en Supabase, actualizar con DTO legacy
+                if (errMsg.contains("supported_payment_methods", ignoreCase = true) ||
+                    errMsg.contains("supported_meeting_points", ignoreCase = true) ||
+                    errMsg.contains("schema cache", ignoreCase = true) ||
+                    errMsg.contains("PGRST204", ignoreCase = true)) {
+                    android.util.Log.w("ProductRepo", "Columna de pagos/puntos no existe en Supabase. Actualizando perfil con DTO legacy.", e)
+                    val legacyDto = SellerBusinessProfileLegacyUpdateDto(
+                        businessName = profile.businessName?.trim(),
+                        businessStatus = profile.businessStatus,
+                        businessDescription = profile.businessDescription?.trim(),
+                        businessCategory = profile.businessCategory?.trim(),
+                        businessLocation = profile.businessLocation?.trim(),
+                        openTime = profile.openTime,
+                        closeTime = profile.closeTime,
+                        bannerUrl = profile.bannerUrl,
+                        avatarUrl = profile.avatarUrl,
+                        acceptingOrders = profile.acceptingOrders
+                    )
+                    postgrest.from("profiles").update(legacyDto) {
+                        filter {
+                            eq("id", targetId)
+                        }
+                    }
+                } else {
+                    throw e
                 }
             }
             android.util.Log.d("ProductRepo", "Perfil de puesto actualizado exitosamente: ${profile.businessName}")
-            Result.success(profile.copy(id = targetId))
+            Result.success(profile.copy(id = targetId, supportedPaymentMethods = methodsToPersist))
         } catch (e: Exception) {
             android.util.Log.e("ProductRepo", "Error al actualizar perfil de negocio: ${e.message}", e)
             Result.failure(e)

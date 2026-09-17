@@ -54,14 +54,18 @@ class ValleGoPushService : Service(), KoinComponent {
             title = "Campus Go",
             content = "Monitoreando pedidos y notificaciones en campus"
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID,
-                ongoingNotification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            )
-        } else {
-            startForeground(ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID, ongoingNotification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID,
+                    ongoingNotification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID, ongoingNotification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error iniciando servicio en primer plano", e)
         }
 
         val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -381,11 +385,15 @@ class ValleGoPushService : Service(), KoinComponent {
         private const val TAG = "ValleGoPushService"
 
         fun start(context: Context) {
-            val intent = Intent(context, ValleGoPushService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                val intent = Intent(context, ValleGoPushService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al iniciar ValleGoPushService", e)
             }
         }
 

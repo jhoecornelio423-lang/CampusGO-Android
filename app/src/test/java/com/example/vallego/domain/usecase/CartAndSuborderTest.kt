@@ -194,4 +194,145 @@ class CartAndSuborderTest {
         assertEquals(33.0, recalculatedOrder.totalAmount, 0.001)
         assertEquals(OrderStatus.PARCIALMENTE_ACEPTADA, recalculatedOrder.status)
     }
+
+    @Test
+    fun testMeetingPointIntersectionLogicMultiVendor() {
+        val mp1 = CampusMeetingPoint(id = "mp-1", name = "Puerta 1 - Exterior", zoneType = "EXTERIOR")
+        val mp2 = CampusMeetingPoint(id = "mp-2", name = "Puerta 2 - Panamericana", zoneType = "EXTERIOR")
+        val mp3 = CampusMeetingPoint(id = "mp-3", name = "Cafetería Central", zoneType = "INTERIOR")
+        val activePoints = listOf(mp1, mp2, mp3)
+
+        val seller1 = UserProfile(
+            id = "s-1",
+            fullName = "Vendedor A",
+            role = UserRole.EMPRENDEDOR,
+            supportedMeetingPoints = listOf("mp-1", "mp-2")
+        )
+        val seller2 = UserProfile(
+            id = "s-2",
+            fullName = "Vendedor B",
+            role = UserRole.EMPRENDEDOR,
+            supportedMeetingPoints = listOf("mp-2", "mp-3")
+        )
+        val seller3WithoutRestrictions = UserProfile(
+            id = "s-3",
+            fullName = "Vendedor C",
+            role = UserRole.EMPRENDEDOR,
+            supportedMeetingPoints = emptyList() // Atiende todos los puntos activos por defecto
+        )
+
+        val sellers = listOf(seller1, seller2, seller3WithoutRestrictions)
+
+        // Caso 1: Solo seller1 -> mp1, mp2
+        val seller1Points = listOf("s-1").map { sId ->
+            val s = sellers.first { it.id == sId }
+            if (s.supportedMeetingPoints.isNotEmpty()) s.supportedMeetingPoints.toSet() else activePoints.map { it.id }.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertEquals(setOf("mp-1", "mp-2"), seller1Points)
+
+        // Caso 2: Intersección seller1 y seller2 -> solo mp-2 en común
+        val common1And2 = listOf("s-1", "s-2").map { sId ->
+            val s = sellers.first { it.id == sId }
+            if (s.supportedMeetingPoints.isNotEmpty()) s.supportedMeetingPoints.toSet() else activePoints.map { it.id }.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertEquals(setOf("mp-2"), common1And2)
+
+        // Caso 3: Intersección seller1 y seller3 (seller3 sin restricciones) -> mp-1 y mp-2
+        val common1And3 = listOf("s-1", "s-3").map { sId ->
+            val s = sellers.first { it.id == sId }
+            if (s.supportedMeetingPoints.isNotEmpty()) s.supportedMeetingPoints.toSet() else activePoints.map { it.id }.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertEquals(setOf("mp-1", "mp-2"), common1And3)
+
+        // Caso 4: Vendedor con puntos disjuntos -> intersección vacía
+        val sellerDisjoint = UserProfile(
+            id = "s-4",
+            fullName = "Vendedor D",
+            role = UserRole.EMPRENDEDOR,
+            supportedMeetingPoints = listOf("mp-3")
+        )
+        val disjointCommon = listOf(seller1, sellerDisjoint).map { s ->
+            if (s.supportedMeetingPoints.isNotEmpty()) s.supportedMeetingPoints.toSet() else activePoints.map { it.id }.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertTrue(disjointCommon.isEmpty())
+    }
+
+    @Test
+    fun testPaymentMethodIntersectionLogicMultiVendor() {
+        val seller1 = UserProfile(
+            id = "s-1",
+            fullName = "Vendedor A",
+            role = UserRole.EMPRENDEDOR,
+            supportedPaymentMethods = listOf("EFECTIVO", "YAPE")
+        )
+        val seller2 = UserProfile(
+            id = "s-2",
+            fullName = "Vendedor B",
+            role = UserRole.EMPRENDEDOR,
+            supportedPaymentMethods = listOf("YAPE", "PLIN")
+        )
+        val sellerDefault = UserProfile(
+            id = "s-3",
+            fullName = "Vendedor C",
+            role = UserRole.EMPRENDEDOR,
+            supportedPaymentMethods = emptyList() // effective = EFECTIVO, YAPE, PLIN
+        )
+
+        // Caso 1: Vendedor A sólo acepta Efectivo y Yape
+        assertEquals(listOf("EFECTIVO", "YAPE"), seller1.effectivePaymentMethods)
+
+        // Caso 2: Intersección entre Vendedor A y Vendedor B -> Solo YAPE en común
+        val common1And2 = listOf(seller1, seller2).map { s ->
+            s.effectivePaymentMethods.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertEquals(setOf("YAPE"), common1And2)
+
+        // Caso 3: Intersección entre Vendedor A y Vendedor C (por defecto) -> EFECTIVO, YAPE
+        val common1And3 = listOf(seller1, sellerDefault).map { s ->
+            s.effectivePaymentMethods.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertEquals(setOf("EFECTIVO", "YAPE"), common1And3)
+
+        // Caso 4: Vendedor sólo Efectivo vs Vendedor sólo Plin -> Intersección vacía
+        val sellerCashOnly = UserProfile(id = "s-4", fullName = "Vendedor D", supportedPaymentMethods = listOf("EFECTIVO"))
+        val sellerPlinOnly = UserProfile(id = "s-5", fullName = "Vendedor E", supportedPaymentMethods = listOf("PLIN"))
+        val disjoint = listOf(sellerCashOnly, sellerPlinOnly).map { s ->
+            s.effectivePaymentMethods.toSet()
+        }.reduce { acc, set -> acc.intersect(set) }
+        assertTrue(disjoint.isEmpty())
+    }
+
+    @Test
+    fun testSellerPaymentMethodsStorageFallbackAndEnrichment() {
+        val storage = com.example.vallego.data.repository.SellerPaymentMethodsStorage
+        val sellerId = "seller-yape-only"
+
+        // 1. Vendedor guarda solo "YAPE"
+        storage.saveMethods(sellerId, listOf("YAPE"))
+        assertEquals(listOf("YAPE"), storage.getMethods(sellerId))
+
+        // 2. Simular respuesta de Supabase sin columna (supportedPaymentMethods = emptyList)
+        val profileFromDbWithoutColumn = UserProfile(
+            id = sellerId,
+            fullName = "Mi Tienda",
+            role = UserRole.EMPRENDEDOR,
+            supportedPaymentMethods = emptyList()
+        )
+
+        // 3. Al enriquecer el perfil, debe recuperar "YAPE" de la caché local y no reestablecer a todos
+        val enrichedProfile = storage.enrichProfile(profileFromDbWithoutColumn)
+        assertEquals(listOf("YAPE"), enrichedProfile.supportedPaymentMethods)
+        assertEquals(listOf("YAPE"), enrichedProfile.effectivePaymentMethods)
+
+        // 4. Si luego Supabase ya devuelve columna con "YAPE", se mantiene
+        val profileWithDbData = UserProfile(
+            id = sellerId,
+            fullName = "Mi Tienda",
+            role = UserRole.EMPRENDEDOR,
+            supportedPaymentMethods = listOf("YAPE")
+        )
+        val verifiedProfile = storage.enrichProfile(profileWithDbData)
+        assertEquals(listOf("YAPE"), verifiedProfile.supportedPaymentMethods)
+    }
 }
+

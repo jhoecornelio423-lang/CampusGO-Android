@@ -22,9 +22,13 @@ data class UserProfile(
     @SerialName("banner_url") val bannerUrl: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("accepting_orders") val acceptingOrders: Boolean = true,
+    @SerialName("supported_meeting_points") val supportedMeetingPoints: List<String> = emptyList(),
+    @SerialName("supported_payment_methods") val supportedPaymentMethods: List<String> = emptyList(),
     @SerialName("suspension_reason") val suspensionReason: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 ) {
     val displayStoreName: String get() = businessName?.trim()?.takeIf { it.isNotBlank() } ?: fullName
+    val effectivePaymentMethods: List<String>
+        get() = if (supportedPaymentMethods.isEmpty()) listOf("EFECTIVO", "YAPE", "PLIN") else supportedPaymentMethods
 }

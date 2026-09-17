@@ -11,3 +11,9 @@ local.properties
 *.apk
 capturas_pruebas/
 screen_*.png
+parse_ui.py
+sqlite_mcp_server.db
+Logo-CampusGo.png
+app/release/
+*.log
+

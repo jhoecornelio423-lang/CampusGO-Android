@@ -18,6 +18,7 @@ interface AdminRepository {
     suspend fun rejectSellerApplication(applicationId: String, reason: String): Result<Unit>
 
     fun observeSellers(): Flow<List<UserProfile>>
+    suspend fun refreshSellers()
     suspend fun toggleSellerSuspension(sellerId: String, isSuspended: Boolean, reason: String? = null): Result<Unit>
 
     fun observeIncidents(): Flow<List<OrderIncident>>
