@@ -243,7 +243,7 @@ fun WelcomeScreen(
                             )
                         }
                         Text(
-                            text = "Versión Beta v0.5.0",
+                            text = "Versión Beta v${com.example.vallego.BuildConfig.VERSION_NAME.removeSuffix("-beta")}",
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFFA0AEC0)

@@ -76,6 +76,8 @@ import com.example.vallego.domain.model.Product
 import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.SubOrderStatus
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.domain.model.verificationCode
+import androidx.compose.material.icons.filled.VerifiedUser
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
 import com.example.vallego.ui.components.StoreStatusBadge
 import com.example.vallego.ui.components.SubOrderCountdownTimerBadge
@@ -165,34 +167,57 @@ fun SellerDashboardScreen(
         }
     }
 
-    // Modal de Rechazo de Subpedido
+    // Modal de Rechazo o Cancelación de Subpedido
     if (uiState.selectedSubOrderForRejection != null) {
         val subOrder = uiState.selectedSubOrderForRejection!!
-        var selectedReason by remember { mutableStateOf("Sin insumos / agotado") }
+        val isPending = subOrder.status == SubOrderStatus.PENDIENTE
+        val defaultReason = if (isPending) "Sin insumos / agotado" else "Comprador no se presentó al punto de encuentro"
+        var selectedReason by remember { mutableStateOf(defaultReason) }
         var customReason by remember { mutableStateOf("") }
 
-        val commonReasons = listOf(
-            "Sin insumos / agotado",
-            "Puesto cerrado por clase / horario",
-            "Tiempo de espera muy alto",
-            "Otro motivo"
-        )
+        val commonReasons = if (isPending) {
+            listOf(
+                "Sin insumos / agotado",
+                "Puesto cerrado por clase / horario",
+                "Tiempo de espera muy alto",
+                "Otro motivo"
+            )
+        } else {
+            listOf(
+                "Comprador no se presentó al punto de encuentro",
+                "Insumos agotados / problema con el producto",
+                "Imprevisto en el punto de encuentro",
+                "Puesto cerrado por emergencia",
+                "Demora excesiva / tiempo insuficiente",
+                "Otro motivo"
+            )
+        }
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissRejectionDialog() },
             title = {
-                Text("Rechazar Subpedido", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isPending) "Rechazar Subpedido" else "Cancelar Subpedido en Curso",
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "El comprador será notificado y su orden total se recalculará automáticamente restando este importe.",
-                        style = MaterialTheme.typography.bodySmall
+                        text = if (isPending) {
+                            "El comprador será notificado y su orden se recalculará automáticamente restando este importe."
+                        } else {
+                            "El pedido se cancelará. El comprador será notificado y los productos se reincorporarán automáticamente a tu inventario disponible."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     commonReasons.forEach { reason ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedReason = reason }
                         ) {
                             RadioButton(
                                 selected = selectedReason == reason,
@@ -215,7 +240,7 @@ fun SellerDashboardScreen(
                 Button(
                     onClick = {
                         val finalReason = if (selectedReason == "Otro motivo") {
-                            customReason.ifBlank { "Cancelado por el puesto" }
+                            customReason.ifBlank { if (isPending) "Rechazado por el puesto" else "Cancelado por el vendedor" }
                         } else {
                             selectedReason
                         }
@@ -223,38 +248,56 @@ fun SellerDashboardScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
                 ) {
-                    Text("Confirmar Rechazo")
+                    Text(if (isPending) "Confirmar Rechazo" else "Confirmar Cancelación")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissRejectionDialog() }) {
-                    Text("Cancelar")
+                    Text("Volver")
                 }
             }
         )
     }
 
-    // Modal de Confirmación de Entrega y Cobro
+    // Modal de Confirmación de Entrega y Cobro con Código de Seguridad
     if (uiState.selectedSubOrderForDelivery != null) {
         val subOrder = uiState.selectedSubOrderForDelivery!!
+        var inputCode by remember { mutableStateOf("") }
+        var bypassCode by remember { mutableStateOf(false) }
+        val isCodeValid = inputCode.trim() == subOrder.verificationCode
+        val canConfirm = isCodeValid || bypassCode
+
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeliveryDialog() },
             title = {
-                Text("Confirmar Entrega y Cobro", fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        tint = Color(0xFF003366)
+                    )
+                    Text("Confirmar Entrega y Cobro", fontWeight = FontWeight.Bold)
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "¿Confirmas que entregaste el pedido al estudiante y recibiste el pago contra entrega?",
+                        text = "¿Confirmas que entregaste el pedido al comprador y recibiste el pago pactado?",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Text(
-                                text = "Subpedido",
+                                text = "Subpedido #${subOrder.id.takeLast(6).uppercase()}",
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -276,11 +319,116 @@ fun SellerDashboardScreen(
                             )
                         }
                     }
+
+                    // Código de Seguridad PIN de 4 dígitos
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isCodeValid) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(1.dp, if (isCodeValid) Color(0xFF2E7D32) else MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = if (isCodeValid) Color(0xFF2E7D32) else Color(0xFF003366),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Código de Seguridad (4 dígitos)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (isCodeValid) Color(0xFF2E7D32) else Color(0xFF003366)
+                                )
+                            }
+                            Text(
+                                text = "Pídele al comprador el código PIN de 4 dígitos que ve en su pantalla de seguimiento para verificar su identidad.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OutlinedTextField(
+                                value = inputCode,
+                                onValueChange = { newValue ->
+                                    if (newValue.length <= 4 && newValue.all { it.isDigit() }) {
+                                        inputCode = newValue
+                                    }
+                                },
+                                placeholder = {
+                                    Text(
+                                        "####",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 8.sp,
+                                    textAlign = TextAlign.Center
+                                ),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth(),
+                                isError = inputCode.length == 4 && !isCodeValid
+                            )
+                            if (isCodeValid) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Código verificado correctamente.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            } else if (inputCode.length == 4) {
+                                Text(
+                                    text = "Código incorrecto. Verifica con el comprador.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFC8102E),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // Opción de contingencia sin código
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(
+                            checked = bypassCode,
+                            onCheckedChange = { bypassCode = it }
+                        )
+                        Text(
+                            text = "¿El comprador no tiene celular a mano? Confirmar sin código.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { viewModel.confirmDeliveryAndPayment(subOrder.id) },
+                    enabled = canConfirm,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
                 ) {
                     Text("Confirmar Cobro y Entrega")
@@ -1110,8 +1258,12 @@ fun SellerDashboardScreen(
                     }
 
                     // Lista de Subpedidos de Hoy + Historial Acordeón de Días Anteriores
-                    val todayOrders = uiState.filteredTodayOrders
-                    val pastDayGroups = if (uiState.selectedFilter == SellerOrderFilter.TODOS) uiState.pastDayGroups else emptyList()
+                    val todayOrders = remember(uiState.todayOrders, uiState.selectedFilter) {
+                        uiState.filteredTodayOrders
+                    }
+                    val pastDayGroups = remember(uiState.pastDayGroups, uiState.selectedFilter) {
+                        if (uiState.selectedFilter == SellerOrderFilter.TODOS) uiState.pastDayGroups else emptyList()
+                    }
 
                     if (todayOrders.isEmpty() && pastDayGroups.isEmpty()) {
                         Card(
@@ -1753,31 +1905,49 @@ fun SellerSubOrderCard(
                         }
                     }
                     SubOrderStatus.ACEPTADO -> {
-                        Button(
-                            onClick = onStartPrep,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("Iniciar Preparación")
-                        }
-                    }
-                    SubOrderStatus.EN_PREPARACION -> {
-                        Button(
-                            onClick = onMarkReady,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("Marcar Listo")
-                        }
-                    }
-                    SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
-                                onClick = onOpenNoShow,
+                                onClick = onOpenRejection,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                             ) {
-                                Text("No se presentó", fontSize = 12.sp)
+                                Text("Cancelar", fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = onStartPrep,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("Iniciar Preparación", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    SubOrderStatus.EN_PREPARACION -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = onOpenRejection,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text("Cancelar", fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = onMarkReady,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("Marcar Listo", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(
+                                onClick = onOpenRejection,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text("Cancelar", fontSize = 12.sp)
                             }
                             Button(
                                 onClick = onOpenDelivery,
@@ -3209,26 +3379,11 @@ fun SellerOrderDetailDialog(
                             fontWeight = FontWeight.SemiBold
                         )
                         if (!subOrder.buyerPhone.isNullOrBlank()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "Teléfono: ${subOrder.buyerPhone}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF2E7D32),
-                                    fontWeight = FontWeight.Bold
-                                )
-                                TextButton(
-                                    onClick = {
-                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${subOrder.buyerPhone}"))
-                                        context.startActivity(intent)
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text("Llamar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                                }
-                            }
+                            Text(
+                                text = "Teléfono: ${subOrder.buyerPhone}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         if (!subOrder.notes.isNullOrBlank()) {
                             Text(
@@ -3320,27 +3475,60 @@ fun SellerOrderDetailDialog(
                     }
                 }
                 SubOrderStatus.ACEPTADO -> {
-                    Button(
-                        onClick = { onStartPrep(subOrder.id) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
-                    ) {
-                        Text("Iniciar Preparación")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                onDismiss()
+                                onOpenRejection(subOrder)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E))
+                        ) {
+                            Text("Cancelar")
+                        }
+                        Button(
+                            onClick = { onStartPrep(subOrder.id) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                        ) {
+                            Text("Iniciar Preparación")
+                        }
                     }
                 }
                 SubOrderStatus.EN_PREPARACION -> {
-                    Button(
-                        onClick = { onMarkReady(subOrder.id) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) {
-                        Text("Marcar Listo para Entrega")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                onDismiss()
+                                onOpenRejection(subOrder)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E))
+                        ) {
+                            Text("Cancelar")
+                        }
+                        Button(
+                            onClick = { onMarkReady(subOrder.id) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                        ) {
+                            Text("Marcar Listo")
+                        }
                     }
                 }
                 SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> {
-                    Button(
-                        onClick = { onOpenDelivery(subOrder) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
-                    ) {
-                        Text("Confirmar Entrega")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                onDismiss()
+                                onOpenRejection(subOrder)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E))
+                        ) {
+                            Text("Cancelar")
+                        }
+                        Button(
+                            onClick = { onOpenDelivery(subOrder) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
+                        ) {
+                            Text("Confirmar Entrega")
+                        }
                     }
                 }
                 else -> {

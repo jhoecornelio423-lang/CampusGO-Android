@@ -160,4 +160,53 @@ class SellerSuborderFlowTest {
         assertEquals(0.0, updatedOrder.totalAmount, 0.001)
         assertEquals(OrderStatus.CANCELADA, updatedOrder.status)
     }
+
+    @Test
+    fun testVerificationCodeGenerationAndConsistency() {
+        val code1 = subOrderPapu.verificationCode
+        val code2 = subOrderPapu.verificationCode
+
+        // Debe ser determinístico
+        assertEquals(code1, code2)
+        // Debe tener 4 dígitos numéricos
+        assertEquals(4, code1.length)
+        assertTrue(code1.all { it.isDigit() })
+
+        // Si se proporciona un deliveryCode explícito, debe tener prioridad
+        val customSub = subOrderPapu.copy(deliveryCode = "5829")
+        assertEquals("5829", customSub.verificationCode)
+    }
+
+    @Test
+    fun testSellerCanCancelOrderFromAcceptedOrPreparingOrReady() = runTest {
+        orderRepository.placeOrder(testOrder)
+
+        // Puesto acepta el pedido
+        orderRepository.updateSubOrderStatus("sub-papu-1", SubOrderStatus.ACEPTADO)
+        var papuSub = orderRepository.observeSubOrdersForSeller("seller-papu").first().first()
+        assertEquals(SubOrderStatus.ACEPTADO, papuSub.status)
+
+        // Puesto avanza a en preparación
+        orderRepository.updateSubOrderStatus("sub-papu-1", SubOrderStatus.EN_PREPARACION)
+        papuSub = orderRepository.observeSubOrdersForSeller("seller-papu").first().first()
+        assertEquals(SubOrderStatus.EN_PREPARACION, papuSub.status)
+
+        // Ocurre un imprevisto (ej. comprador no se presenta o emergencia en el puesto)
+        orderRepository.updateSubOrderStatus(
+            subOrderId = "sub-papu-1",
+            newStatus = SubOrderStatus.RECHAZADO,
+            rejectionReason = "Comprador no se presentó al punto de encuentro"
+        )
+
+        papuSub = orderRepository.observeSubOrdersForSeller("seller-papu").first().first()
+        // Cuando ya estaba más allá de PENDIENTE, se convierte en CANCELADO
+        assertEquals(SubOrderStatus.CANCELADO, papuSub.status)
+        assertEquals("Comprador no se presentó al punto de encuentro", papuSub.rejectionReason)
+
+        // Verificar que el comprador ve la orden recalculada
+        val buyerOrders = orderRepository.observeOrdersForBuyer("buyer-juan").first()
+        val updatedOrder = buyerOrders.first { it.id == "order-100" }
+        // Se restó papu (S/ 24.0), queda dulce (S/ 7.0)
+        assertEquals(7.0, updatedOrder.totalAmount, 0.001)
+    }
 }

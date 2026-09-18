@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
@@ -44,6 +45,7 @@ import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.SubOrderStatus
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.domain.model.verificationCode
 import com.example.vallego.ui.components.SubOrderCountdownTimerBadge
 import com.example.vallego.ui.components.isSubOrderExpired
 import org.koin.androidx.compose.koinViewModel
@@ -647,6 +649,62 @@ fun SubOrderTrackingItem(
                 TrackingStepper(status = subOrder.status)
             }
 
+            // Código de Seguridad PIN de Entrega para el Comprador
+            if (subOrder.status == SubOrderStatus.ACEPTADO ||
+                subOrder.status == SubOrderStatus.EN_PREPARACION ||
+                subOrder.status == SubOrderStatus.LISTO ||
+                subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA) {
+                val isReady = subOrder.status == SubOrderStatus.LISTO || subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA
+                Surface(
+                    color = if (isReady) Color(0xFFE0F2F1) else Color(0xFFF1F5F9),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, if (isReady) Color(0xFF80CBC4) else Color(0xFFCBD5E1)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VerifiedUser,
+                                contentDescription = null,
+                                tint = if (isReady) Color(0xFF00796B) else Color(0xFF003366),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "CÓDIGO DE ENTREGA",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                                )
+                                Text(
+                                    text = "Dile este PIN al vendedor al retirar",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Text(
+                            text = "#${subOrder.verificationCode}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp,
+                            color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                        )
+                    }
+                }
+            }
+
             // Calificación al Vendedor
             val canRate = subOrder.status == SubOrderStatus.COMPLETADO ||
                           subOrder.status == SubOrderStatus.PAGO_CONFIRMADO ||
@@ -937,6 +995,52 @@ fun BuyerOrderDetailDialog(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color(0xFF003366)
                                 )
+                            }
+
+                            if (subOrder.status == SubOrderStatus.ACEPTADO ||
+                                subOrder.status == SubOrderStatus.EN_PREPARACION ||
+                                subOrder.status == SubOrderStatus.LISTO ||
+                                subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA) {
+                                val isReady = subOrder.status == SubOrderStatus.LISTO || subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA
+                                Surface(
+                                    color = if (isReady) Color(0xFFE0F2F1) else Color(0xFFF1F5F9),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, if (isReady) Color(0xFF80CBC4) else Color(0xFFCBD5E1)),
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.VerifiedUser,
+                                                contentDescription = null,
+                                                tint = if (isReady) Color(0xFF00796B) else Color(0xFF003366),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Código PIN de Entrega:",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                                            )
+                                        }
+                                        Text(
+                                            text = "#${subOrder.verificationCode}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 2.sp,
+                                            color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                                        )
+                                    }
+                                }
                             }
 
                             val canRateSub = subOrder.status == SubOrderStatus.COMPLETADO ||

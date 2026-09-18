@@ -69,6 +69,7 @@ data class RemoteSubOrderDto(
     @SerialName("payment_method") val paymentMethod: String? = null,
     @SerialName("is_payment_confirmed") val isPaymentConfirmed: Boolean = false,
     @SerialName("is_delivery_confirmed") val isDeliveryConfirmed: Boolean = false,
+    @SerialName("delivery_code") val deliveryCode: String? = null,
     @SerialName("stock_reserved") val stockReserved: Boolean = true,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
@@ -155,6 +156,9 @@ class OrderRepositoryImpl(
     private val profileNameCache = ConcurrentHashMap<String, String>()
     private val profilePhoneCache = ConcurrentHashMap<String, String>()
     private val sellerSubOrdersCache = ConcurrentHashMap<String, List<SubOrder>>()
+    private val cachedOrderItemsByOrder = ConcurrentHashMap<String, List<RemoteOrderItemDto>>()
+    private val cachedSubOrdersByOrder = ConcurrentHashMap<String, List<RemoteSubOrderDto>>()
+    private val cachedParentOrders = ConcurrentHashMap<String, RemoteOrderDto>()
     private val jsonParser = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -165,6 +169,9 @@ class OrderRepositoryImpl(
         _ordersFlow.value = emptyList()
         buyerReviewsMap.clear()
         sellerSubOrdersCache.clear()
+        cachedOrderItemsByOrder.clear()
+        cachedSubOrdersByOrder.clear()
+        cachedParentOrders.clear()
     }
 
     override suspend fun placeOrder(order: Order): Result<Order> = withContext(Dispatchers.IO) {
@@ -306,7 +313,9 @@ class OrderRepositoryImpl(
     }
 
     override fun observeOrdersForBuyer(buyerId: String): Flow<List<Order>> = flow {
-        emit(_ordersFlow.value.filter { it.buyerId == buyerId })
+        val initialCached = _ordersFlow.value.filter { it.buyerId == buyerId }
+        emit(initialCached)
+        var previousEmitted: List<Order>? = initialCached.takeIf { it.isNotEmpty() }
 
         while (true) {
             try {
@@ -323,28 +332,58 @@ class OrderRepositoryImpl(
                     if (remoteOrders.isNotEmpty()) {
                         val orderIds = remoteOrders.map { it.id }
 
-                        val remoteSubOrders = try {
-                            postgrest.from("sub_orders")
-                                .select {
-                                    filter {
-                                        isIn("order_id", orderIds)
+                        // Optimización 1: Solo consultar sub_orders para órdenes activas o no cacheadas
+                        val orderIdsNeedingSubs = remoteOrders.filter { ro ->
+                            ro.status in listOf("pending", "accepted", "preparing", "ready") || !cachedSubOrdersByOrder.containsKey(ro.id)
+                        }.map { it.id }
+
+                        if (orderIdsNeedingSubs.isNotEmpty()) {
+                            val freshlyFetchedSubs = try {
+                                postgrest.from("sub_orders")
+                                    .select {
+                                        filter {
+                                            isIn("order_id", orderIdsNeedingSubs)
+                                        }
                                     }
-                                }
-                                .decodeList<RemoteSubOrderDto>()
-                        } catch (_: Exception) {
-                            emptyList()
+                                    .decodeList<RemoteSubOrderDto>()
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                            val groupedSubs = freshlyFetchedSubs.groupBy { it.orderId }
+                            orderIdsNeedingSubs.forEach { ordId ->
+                                cachedSubOrdersByOrder[ordId] = groupedSubs[ordId] ?: emptyList()
+                            }
                         }
 
-                        val remoteItems = try {
-                            postgrest.from("order_items")
-                                .select {
-                                    filter {
-                                        isIn("order_id", orderIds)
+                        val remoteSubOrders = orderIds.flatMap { ordId ->
+                            cachedSubOrdersByOrder[ordId] ?: emptyList()
+                        }
+
+                        // Optimización 2: Solo consultar order_items para órdenes activas o no cacheadas
+                        val orderIdsNeedingItems = remoteOrders.filter { ro ->
+                            ro.status in listOf("pending", "accepted", "preparing", "ready") || !cachedOrderItemsByOrder.containsKey(ro.id)
+                        }.map { it.id }
+
+                        if (orderIdsNeedingItems.isNotEmpty()) {
+                            val freshlyFetchedItems = try {
+                                postgrest.from("order_items")
+                                    .select {
+                                        filter {
+                                            isIn("order_id", orderIdsNeedingItems)
+                                        }
                                     }
-                                }
-                                .decodeList<RemoteOrderItemDto>()
-                        } catch (_: Exception) {
-                            emptyList()
+                                    .decodeList<RemoteOrderItemDto>()
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                            val groupedItems = freshlyFetchedItems.groupBy { it.orderId }
+                            orderIdsNeedingItems.forEach { ordId ->
+                                cachedOrderItemsByOrder[ordId] = groupedItems[ordId] ?: emptyList()
+                            }
+                        }
+
+                        val remoteItems = orderIds.flatMap { ordId ->
+                            cachedOrderItemsByOrder[ordId] ?: emptyList()
                         }
 
                         val missingProdIds = remoteItems.map { it.productId }
@@ -414,6 +453,7 @@ class OrderRepositoryImpl(
                                         notes = ro.notes,
                                         isPaymentConfirmed = rso.isPaymentConfirmed,
                                         isDeliveryConfirmed = rso.isDeliveryConfirmed,
+                                        deliveryCode = rso.deliveryCode,
                                         createdAt = rso.createdAt,
                                         updatedAt = rso.updatedAt
                                     )
@@ -457,45 +497,23 @@ class OrderRepositoryImpl(
                                 )
                             }
 
-                            val rawOrderStatus = mapRemoteStatusToOrderStatus(ro.status)
-                            val computedOrderStatus = if (domainSubOrders.isNotEmpty()) {
-                                val allCancelledOrRejected = domainSubOrders.all {
-                                    it.status == SubOrderStatus.RECHAZADO ||
-                                    it.status == SubOrderStatus.CANCELADO ||
-                                    it.status == SubOrderStatus.NO_ENTREGADO
-                                }
-                                val allCompleted = domainSubOrders.all {
-                                    it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO
-                                }
-                                val hasRejected = domainSubOrders.any { it.status == SubOrderStatus.RECHAZADO }
-                                val activeSubOrders = domainSubOrders.filter {
-                                    it.status != SubOrderStatus.RECHAZADO &&
-                                    it.status != SubOrderStatus.CANCELADO &&
-                                    it.status != SubOrderStatus.NO_ENTREGADO
-                                }
-
-                                when {
-                                    allCancelledOrRejected -> OrderStatus.CANCELADA
-                                    allCompleted -> OrderStatus.COMPLETADA
-                                    hasRejected && activeSubOrders.isNotEmpty() -> OrderStatus.PARCIALMENTE_ACEPTADA
-                                    activeSubOrders.isNotEmpty() && activeSubOrders.all { it.status == SubOrderStatus.PENDIENTE } -> OrderStatus.PENDIENTE
-                                    activeSubOrders.isNotEmpty() -> OrderStatus.EN_PROCESO
-                                    else -> rawOrderStatus
-                                }
+                            val activeSubs = domainSubOrders.filter {
+                                it.status != SubOrderStatus.RECHAZADO && it.status != SubOrderStatus.CANCELADO
+                            }
+                            val effectiveTotal = if (activeSubs.isNotEmpty()) {
+                                activeSubs.sumOf { it.subtotalAmount }
                             } else {
-                                rawOrderStatus
+                                if (domainSubOrders.isNotEmpty()) 0.0 else ro.totalPrice
                             }
 
-                            val activeTotal = domainSubOrders.filter {
-                                it.status != SubOrderStatus.RECHAZADO &&
-                                it.status != SubOrderStatus.CANCELADO &&
-                                it.status != SubOrderStatus.NO_ENTREGADO
-                            }.sumOf { it.subtotalAmount }
-
-                            val effectiveTotal = if (computedOrderStatus == OrderStatus.PARCIALMENTE_ACEPTADA && activeTotal > 0.0) {
-                                activeTotal
-                            } else {
-                                ro.totalPrice
+                            val computedOrderStatus = when {
+                                domainSubOrders.isEmpty() -> mapRemoteStatusToOrderStatus(ro.status)
+                                domainSubOrders.all { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO } -> OrderStatus.CANCELADA
+                                domainSubOrders.all { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO } -> OrderStatus.COMPLETADA
+                                domainSubOrders.any { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO } &&
+                                domainSubOrders.any { it.status == SubOrderStatus.ACEPTADO || it.status == SubOrderStatus.EN_PREPARACION || it.status == SubOrderStatus.LISTO || it.status == SubOrderStatus.COMPLETADO } -> OrderStatus.PARCIALMENTE_ACEPTADA
+                                domainSubOrders.any { it.status == SubOrderStatus.ACEPTADO || it.status == SubOrderStatus.EN_PREPARACION || it.status == SubOrderStatus.LISTO } -> OrderStatus.EN_PROCESO
+                                else -> mapRemoteStatusToOrderStatus(ro.status)
                             }
 
                             val meetingPlace = ro.meetingPointName ?: ro.deliveryPlace ?: "Campus Universitario"
@@ -518,25 +536,39 @@ class OrderRepositoryImpl(
                             )
                         }
 
-                        _ordersFlow.value = mappedOrders
-                        emit(mappedOrders)
-                    } else {
+                        if (mappedOrders != previousEmitted) {
+                            previousEmitted = mappedOrders
+                            _ordersFlow.value = mappedOrders
+                            emit(mappedOrders)
+                        }
+                    } else if (previousEmitted != null && previousEmitted.isNotEmpty()) {
+                        previousEmitted = emptyList()
+                        _ordersFlow.value = emptyList()
                         emit(emptyList())
                     }
                 }
             } catch (_: Exception) {
             }
 
-            delay(3000)
+            val hasActiveOrders = previousEmitted?.any { o ->
+                o.status in listOf(OrderStatus.PENDIENTE, OrderStatus.EN_PROCESO, OrderStatus.PARCIALMENTE_ACEPTADA)
+            } ?: false
+            delay(if (hasActiveOrders) 3000L else 5000L)
         }
     }.flowOn(Dispatchers.IO)
 
     override fun observeSubOrdersForSeller(sellerId: String): Flow<List<SubOrder>> = flow {
+        var previousEmitted: List<SubOrder>? = null
         val initialCached = sellerSubOrdersCache[sellerId]
         if (!initialCached.isNullOrEmpty()) {
+            previousEmitted = initialCached
             emit(initialCached)
         } else {
-            emit(_ordersFlow.value.flatMap { it.subOrders }.filter { it.sellerId == sellerId })
+            val fallback = _ordersFlow.value.flatMap { it.subOrders }.filter { it.sellerId == sellerId }
+            if (fallback.isNotEmpty()) {
+                previousEmitted = fallback
+                emit(fallback)
+            }
         }
 
         while (true) {
@@ -586,12 +618,27 @@ class OrderRepositoryImpl(
                     if (combinedSubOrders.isNotEmpty()) {
                         val parentOrderIds = combinedSubOrders.map { it.orderId }.distinct()
 
-                        val remoteItems = try {
-                            postgrest.from("order_items")
-                                .select { filter { isIn("order_id", parentOrderIds) } }
-                                .decodeList<RemoteOrderItemDto>()
-                        } catch (_: Exception) {
-                            emptyList()
+                        // Optimización 1: Solo consultar order_items para subpedidos activos o no cacheados
+                        val orderIdsNeedingItems = combinedSubOrders.filter { rso ->
+                            rso.status in listOf("pending", "accepted", "preparing", "ready") || !cachedOrderItemsByOrder.containsKey(rso.orderId)
+                        }.map { it.orderId }.distinct()
+
+                        if (orderIdsNeedingItems.isNotEmpty()) {
+                            val freshlyFetchedItems = try {
+                                postgrest.from("order_items")
+                                    .select { filter { isIn("order_id", orderIdsNeedingItems) } }
+                                    .decodeList<RemoteOrderItemDto>()
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                            val groupedItems = freshlyFetchedItems.groupBy { it.orderId }
+                            orderIdsNeedingItems.forEach { ordId ->
+                                cachedOrderItemsByOrder[ordId] = groupedItems[ordId] ?: emptyList()
+                            }
+                        }
+
+                        val remoteItems = parentOrderIds.flatMap { ordId ->
+                            cachedOrderItemsByOrder[ordId] ?: emptyList()
                         }
 
                         val missingProdIds = remoteItems.map { it.productId }
@@ -619,13 +666,26 @@ class OrderRepositoryImpl(
                             } catch (_: Exception) {}
                         }
 
-                        val remoteParentOrders = try {
-                            postgrest.from("orders")
-                                .select { filter { isIn("id", parentOrderIds) } }
-                                .decodeList<RemoteOrderDto>()
-                        } catch (_: Exception) {
-                            emptyList()
+                        // Optimización 2: Cachear pedidos padre para evitar reconsultar órdenes completadas
+                        val orderIdsNeedingParent = parentOrderIds.filter { ordId ->
+                            val cached = cachedParentOrders[ordId]
+                            cached == null || cached.status in listOf("pending", "accepted", "preparing", "ready")
                         }
+
+                        if (orderIdsNeedingParent.isNotEmpty()) {
+                            val freshlyFetchedParentOrders = try {
+                                postgrest.from("orders")
+                                    .select { filter { isIn("id", orderIdsNeedingParent) } }
+                                    .decodeList<RemoteOrderDto>()
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                            for (po in freshlyFetchedParentOrders) {
+                                cachedParentOrders[po.id] = po
+                            }
+                        }
+
+                        val remoteParentOrders = parentOrderIds.mapNotNull { cachedParentOrders[it] }
                         val parentOrdersMap = remoteParentOrders.associateBy { it.id }
 
                         val missingBuyerIds = remoteParentOrders.map { it.buyerId }
@@ -683,14 +743,20 @@ class OrderRepositoryImpl(
                                 notes = parentOrder?.notes,
                                 isPaymentConfirmed = rso.isPaymentConfirmed,
                                 isDeliveryConfirmed = rso.isDeliveryConfirmed,
+                                deliveryCode = rso.deliveryCode,
                                 createdAt = rso.createdAt,
                                 updatedAt = rso.updatedAt
                             )
                         }
 
-                        sellerSubOrdersCache[sellerId] = mappedSubOrders
-                        emit(mappedSubOrders)
-                    } else {
+                        // Optimización 3: Deduplicación de emisiones para evitar recomposiciones cíclicas
+                        if (mappedSubOrders != previousEmitted) {
+                            previousEmitted = mappedSubOrders
+                            sellerSubOrdersCache[sellerId] = mappedSubOrders
+                            emit(mappedSubOrders)
+                        }
+                    } else if (previousEmitted != null && previousEmitted.isNotEmpty()) {
+                        previousEmitted = emptyList()
                         sellerSubOrdersCache[sellerId] = emptyList()
                         emit(emptyList())
                     }
@@ -698,7 +764,10 @@ class OrderRepositoryImpl(
             } catch (_: Exception) {
             }
 
-            delay(3000)
+            val hasActiveSubOrders = previousEmitted?.any { so ->
+                so.status in listOf(SubOrderStatus.PENDIENTE, SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION, SubOrderStatus.LISTO)
+            } ?: false
+            delay(if (hasActiveSubOrders) 3000L else 5000L)
         }
     }.flowOn(Dispatchers.IO)
 
@@ -707,9 +776,48 @@ class OrderRepositoryImpl(
         newStatus: SubOrderStatus,
         rejectionReason: String?
     ): Result<SubOrder> = withContext(Dispatchers.IO) {
+        val previousOrders = _ordersFlow.value
+        val previousSellerCache = sellerSubOrdersCache.toMap()
         try {
+            val currentSub = _ordersFlow.value.flatMap { it.subOrders }.firstOrNull { it.id == subOrderId }
+            val effectiveStatus = if (newStatus == SubOrderStatus.RECHAZADO && currentSub != null && currentSub.status != SubOrderStatus.PENDIENTE) {
+                SubOrderStatus.CANCELADO
+            } else {
+                newStatus
+            }
+
+            // Actualización optimista local en memoria (0ms latencia percibida)
+            var updated: SubOrder? = null
+            val currentOrders = _ordersFlow.value.toMutableList()
+            for (i in currentOrders.indices) {
+                val order = currentOrders[i]
+                val subIndex = order.subOrders.indexOfFirst { it.id == subOrderId }
+                if (subIndex >= 0) {
+                    val curSub = order.subOrders[subIndex]
+                    val isPayConfirmed = if (effectiveStatus == SubOrderStatus.COMPLETADO || effectiveStatus == SubOrderStatus.PAGO_CONFIRMADO) true else curSub.isPaymentConfirmed
+                    val isDelivConfirmed = if (effectiveStatus == SubOrderStatus.COMPLETADO) true else curSub.isDeliveryConfirmed
+                    val newSub = curSub.copy(
+                        status = effectiveStatus,
+                        rejectionReason = rejectionReason ?: curSub.rejectionReason,
+                        isPaymentConfirmed = isPayConfirmed,
+                        isDeliveryConfirmed = isDelivConfirmed
+                    )
+                    val recalculated = recalculateOrderUseCase(order, newSub)
+                    currentOrders[i] = recalculated
+                    updated = newSub
+                    break
+                }
+            }
+
+            if (updated != null) {
+                _ordersFlow.value = currentOrders
+                sellerSubOrdersCache.forEach { (sid, list) ->
+                    sellerSubOrdersCache[sid] = list.map { if (it.id == subOrderId) updated else it }
+                }
+            }
+
             if (postgrest != null && isValidUUID(subOrderId)) {
-                val remoteStatusStr = mapLocalStatusToRemote(newStatus)
+                val remoteStatusStr = mapLocalStatusToRemote(effectiveStatus)
 
                 val rpcResult = postgrest.rpc(
                     function = "update_suborder_status_atomic",
@@ -724,34 +832,15 @@ class OrderRepositoryImpl(
                 val response = jsonParser.decodeFromString<UpdateSuborderStatusResponseDto>(rpcResult.data)
 
                 if (!response.success) {
+                    // Rollback atómico en caso de fallo remoto
+                    _ordersFlow.value = previousOrders
+                    sellerSubOrdersCache.clear()
+                    sellerSubOrdersCache.putAll(previousSellerCache)
                     return@withContext Result.failure(Exception("No se pudo actualizar el estado del subpedido en el servidor."))
                 }
             }
 
-            var updated: SubOrder? = null
-            val currentOrders = _ordersFlow.value.toMutableList()
-            for (i in currentOrders.indices) {
-                val order = currentOrders[i]
-                val subIndex = order.subOrders.indexOfFirst { it.id == subOrderId }
-                if (subIndex >= 0) {
-                    val curSub = order.subOrders[subIndex]
-                    val isPayConfirmed = if (newStatus == SubOrderStatus.COMPLETADO || newStatus == SubOrderStatus.PAGO_CONFIRMADO) true else curSub.isPaymentConfirmed
-                    val isDelivConfirmed = if (newStatus == SubOrderStatus.COMPLETADO) true else curSub.isDeliveryConfirmed
-                    val newSub = curSub.copy(
-                        status = newStatus,
-                        rejectionReason = rejectionReason ?: curSub.rejectionReason,
-                        isPaymentConfirmed = isPayConfirmed,
-                        isDeliveryConfirmed = isDelivConfirmed
-                    )
-                    val recalculated = recalculateOrderUseCase(order, newSub)
-                    currentOrders[i] = recalculated
-                    updated = newSub
-                    break
-                }
-            }
-
             if (updated != null) {
-                _ordersFlow.value = currentOrders
                 Result.success(updated)
             } else {
                 val fallbackSub = SubOrder(
@@ -765,6 +854,11 @@ class OrderRepositoryImpl(
                 Result.success(fallbackSub)
             }
         } catch (e: Exception) {
+            // Rollback atómico en caso de excepción
+            _ordersFlow.value = previousOrders
+            sellerSubOrdersCache.clear()
+            sellerSubOrdersCache.putAll(previousSellerCache)
+
             val friendlyMsg = when {
                 e.message.orEmpty().contains("INVALID_TRANSITION", ignoreCase = true) -> {
                     e.message?.substringAfter("INVALID_TRANSITION:")?.substringBefore("\n")?.trim() ?: "Transición de estado no permitida."
@@ -779,20 +873,10 @@ class OrderRepositoryImpl(
     }
 
     override suspend fun cancelOrderByBuyer(orderId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val previousOrders = _ordersFlow.value
+        val previousSellerCache = sellerSubOrdersCache.toMap()
         try {
-            if (postgrest != null && isValidUUID(orderId)) {
-                val rpcResult = postgrest.rpc(
-                    function = "cancel_order_by_buyer_atomic",
-                    parameters = buildJsonObject {
-                        put("p_order_id", orderId)
-                    }
-                )
-                val response = jsonParser.decodeFromString<RpcActionResultDto>(rpcResult.data)
-                if (!response.success) {
-                    return@withContext Result.failure(Exception(response.message ?: "No se pudo cancelar el pedido."))
-                }
-            }
-
+            // Actualización optimista local inmediata
             val currentOrders = _ordersFlow.value.toMutableList()
             val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
             if (orderIdx >= 0) {
@@ -805,9 +889,37 @@ class OrderRepositoryImpl(
                     subOrders = cancelledSubs
                 )
                 _ordersFlow.value = currentOrders
+                sellerSubOrdersCache.forEach { (sid, list) ->
+                    sellerSubOrdersCache[sid] = list.map { sub ->
+                        if (sub.orderId == orderId && sub.status == SubOrderStatus.PENDIENTE) {
+                            sub.copy(status = SubOrderStatus.CANCELADO)
+                        } else sub
+                    }
+                }
             }
+
+            if (postgrest != null && isValidUUID(orderId)) {
+                val rpcResult = postgrest.rpc(
+                    function = "cancel_order_by_buyer_atomic",
+                    parameters = buildJsonObject {
+                        put("p_order_id", orderId)
+                    }
+                )
+                val response = jsonParser.decodeFromString<RpcActionResultDto>(rpcResult.data)
+                if (!response.success) {
+                    // Rollback atómico si el servidor rechaza la cancelación
+                    _ordersFlow.value = previousOrders
+                    sellerSubOrdersCache.clear()
+                    sellerSubOrdersCache.putAll(previousSellerCache)
+                    return@withContext Result.failure(Exception(response.message ?: "No se pudo cancelar el pedido."))
+                }
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
+            _ordersFlow.value = previousOrders
+            sellerSubOrdersCache.clear()
+            sellerSubOrdersCache.putAll(previousSellerCache)
             val friendlyMsg = when {
                 e.message.orEmpty().contains("ORDER_ALREADY_PROCESSED", ignoreCase = true) ->
                     "El pedido ya fue aceptado o procesado y no puede cancelarse."
@@ -820,32 +932,10 @@ class OrderRepositoryImpl(
     }
 
     override suspend fun markBuyerNoShow(subOrderId: String, reason: String?): Result<SubOrder> = withContext(Dispatchers.IO) {
+        val previousOrders = _ordersFlow.value
+        val previousSellerCache = sellerSubOrdersCache.toMap()
         try {
-            if (postgrest != null && isValidUUID(subOrderId)) {
-                val rpcResult = postgrest.rpc(
-                    function = "mark_suborder_no_show_atomic",
-                    parameters = buildJsonObject {
-                        put("p_sub_order_id", subOrderId)
-                        put("p_reported_by_seller", true)
-                        put("p_reason", reason ?: "Comprador no se presentó al punto de entrega")
-                    }
-                )
-                val response = jsonParser.decodeFromString<RpcActionResultDto>(rpcResult.data)
-                if (!response.success) {
-                    return@withContext Result.failure(Exception(response.message ?: "No se pudo reportar la ausencia del comprador."))
-                }
-                try {
-                    postgrest.from("order_incidents").insert(
-                        mapOf(
-                            "sub_order_id" to subOrderId,
-                            "incident_type" to "NO_SHOW_BUYER",
-                            "details" to (reason ?: "Comprador no se presentó al punto de entrega"),
-                            "status" to "PENDIENTE"
-                        )
-                    )
-                } catch (_: Exception) {}
-            }
-
+            // Actualización optimista local
             var updated: SubOrder? = null
             val currentOrders = _ordersFlow.value.toMutableList()
             for (i in currentOrders.indices) {
@@ -866,6 +956,40 @@ class OrderRepositoryImpl(
 
             if (updated != null) {
                 _ordersFlow.value = currentOrders
+                sellerSubOrdersCache.forEach { (sid, list) ->
+                    sellerSubOrdersCache[sid] = list.map { if (it.id == subOrderId) updated else it }
+                }
+            }
+
+            if (postgrest != null && isValidUUID(subOrderId)) {
+                val rpcResult = postgrest.rpc(
+                    function = "mark_suborder_no_show_atomic",
+                    parameters = buildJsonObject {
+                        put("p_sub_order_id", subOrderId)
+                        put("p_reported_by_seller", true)
+                        put("p_reason", reason ?: "Comprador no se presentó al punto de entrega")
+                    }
+                )
+                val response = jsonParser.decodeFromString<RpcActionResultDto>(rpcResult.data)
+                if (!response.success) {
+                    _ordersFlow.value = previousOrders
+                    sellerSubOrdersCache.clear()
+                    sellerSubOrdersCache.putAll(previousSellerCache)
+                    return@withContext Result.failure(Exception(response.message ?: "No se pudo reportar la ausencia del comprador."))
+                }
+                try {
+                    postgrest.from("order_incidents").insert(
+                        mapOf(
+                            "sub_order_id" to subOrderId,
+                            "incident_type" to "NO_SHOW_BUYER",
+                            "details" to (reason ?: "Comprador no se presentó al punto de entrega"),
+                            "status" to "PENDIENTE"
+                        )
+                    )
+                } catch (_: Exception) {}
+            }
+
+            if (updated != null) {
                 Result.success(updated)
             } else {
                 val fallbackSub = SubOrder(
@@ -879,6 +1003,9 @@ class OrderRepositoryImpl(
                 Result.success(fallbackSub)
             }
         } catch (e: Exception) {
+            _ordersFlow.value = previousOrders
+            sellerSubOrdersCache.clear()
+            sellerSubOrdersCache.putAll(previousSellerCache)
             Result.failure(e)
         }
     }

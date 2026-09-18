@@ -111,7 +111,6 @@ class SellerDashboardViewModel(
                         isLoading = false
                     )
                 }
-                loadProducts()
             }
         }
     }
@@ -148,8 +147,10 @@ class SellerDashboardViewModel(
             productRepository.getProductsBySeller(currentSellerId).onSuccess { prods ->
                 _uiState.update { it.copy(products = prods) }
             }
-            productRepository.getCategories().onSuccess { cats ->
-                _uiState.update { it.copy(categories = cats) }
+            if (_uiState.value.categories.isEmpty()) {
+                productRepository.getCategories().onSuccess { cats ->
+                    _uiState.update { it.copy(categories = cats) }
+                }
             }
         }
     }
@@ -363,12 +364,19 @@ class SellerDashboardViewModel(
 
     fun confirmRejection(subOrderId: String, reason: String) {
         viewModelScope.launch {
-            val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.RECHAZADO, reason)
+            val curSub = _uiState.value.subOrders.firstOrNull { it.id == subOrderId }
+            val targetStatus = if (curSub != null && curSub.status != SubOrderStatus.PENDIENTE) {
+                SubOrderStatus.CANCELADO
+            } else {
+                SubOrderStatus.RECHAZADO
+            }
+            val result = orderRepository.updateSubOrderStatus(subOrderId, targetStatus, reason)
             if (result.isFailure) {
-                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al rechazar el pedido.") }
+                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al procesar la cancelación.") }
             } else {
                 dismissRejectionDialog()
                 loadProducts()
+                _uiState.update { it.copy(successMessage = if (targetStatus == SubOrderStatus.CANCELADO) "Pedido cancelado correctamente. Stock devuelto a tu puesto." else "Subpedido rechazado.") }
             }
         }
     }

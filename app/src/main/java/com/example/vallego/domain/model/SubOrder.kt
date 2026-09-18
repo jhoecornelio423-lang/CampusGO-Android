@@ -33,6 +33,16 @@ data class SubOrder(
     @SerialName("notes") val notes: String? = null,
     @SerialName("is_payment_confirmed") val isPaymentConfirmed: Boolean = false,
     @SerialName("is_delivery_confirmed") val isDeliveryConfirmed: Boolean = false,
+    @SerialName("delivery_code") val deliveryCode: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
+
+/**
+ * Código de 4 dígitos de verificación para entrega segura en campus.
+ * Si no está grabado en la base de datos, se genera de forma determinística y consistente
+ * a partir del identificador único del subpedido (1000..9999).
+ */
+val SubOrder.verificationCode: String
+    get() = deliveryCode?.takeIf { it.isNotBlank() }
+        ?: (kotlin.math.abs(id.hashCode()) % 9000 + 1000).toString()

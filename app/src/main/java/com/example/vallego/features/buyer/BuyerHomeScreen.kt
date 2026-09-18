@@ -60,9 +60,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.VerifiedUser
 import com.example.vallego.domain.model.Category
 import com.example.vallego.domain.model.Product
 import com.example.vallego.domain.model.SubOrderStatus
+import com.example.vallego.domain.model.verificationCode
 import com.example.vallego.R
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
@@ -586,7 +588,9 @@ fun BuyerHomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // 0. Banner de aviso en tiempo real de pedidos listos para recoger
-                    val visibleReadyOrders = readyOrdersInfo.filter { it.third !in dismissedReadyAlerts }
+                    val visibleReadyOrders = remember(readyOrdersInfo, dismissedReadyAlerts) {
+                        readyOrdersInfo.filter { it.third !in dismissedReadyAlerts }
+                    }
                     visibleReadyOrders.forEach { (order, subOrder, alertKey) ->
                         Card(
                             modifier = Modifier
@@ -660,6 +664,46 @@ fun BuyerHomeScreen(
                                     color = Color(0xFF16324F),
                                     fontWeight = FontWeight.Medium
                                 )
+
+                                Surface(
+                                    color = Color(0xFFE0F2F1),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, Color(0xFF80CBC4)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.VerifiedUser,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00796B),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Código de Entrega:",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF004D40)
+                                            )
+                                        }
+                                        Text(
+                                            text = "#${subOrder.verificationCode}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 2.sp,
+                                            color = Color(0xFF004D40)
+                                        )
+                                    }
+                                }
 
                                 Button(
                                     onClick = { showTracking = true },

@@ -47,6 +47,9 @@ class ValleGoPushService : Service(), KoinComponent {
     private var isBuyerFirstRun = true
     private val productNameCache = ConcurrentHashMap<String, String>()
     private val sellerNameCache = ConcurrentHashMap<String, String>()
+    private val orderItemsSummaryCache = ConcurrentHashMap<String, String>()
+    private var cachedUserRole: Pair<String, String>? = null
+    private var userRoleCachedAt: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -92,6 +95,10 @@ class ValleGoPushService : Service(), KoinComponent {
     }
 
     private suspend fun getOrderItemsSummary(orderId: String, subOrderId: String? = null): String {
+        val cacheKey = subOrderId ?: orderId
+        val cached = orderItemsSummaryCache[cacheKey]
+        if (!cached.isNullOrBlank()) return cached
+
         return try {
             val items = if (subOrderId != null) {
                 val subItems = try {
@@ -138,10 +145,14 @@ class ValleGoPushService : Service(), KoinComponent {
                 }
             }
 
-            items.joinToString(", ") { item ->
+            val summary = items.joinToString(", ") { item ->
                 val name = productNameCache[item.productId] ?: "Producto"
                 "$name (x${item.quantity})"
             }
+            if (summary.isNotBlank()) {
+                orderItemsSummaryCache[cacheKey] = summary
+            }
+            summary
         } catch (e: Exception) {
             ""
         }
@@ -160,16 +171,22 @@ class ValleGoPushService : Service(), KoinComponent {
                     val user = auth.currentUserOrNull()
                     if (user != null) {
                         val userId = user.id
-                        // Determinar rol del usuario desde profiles
-                        val profile = runCatching {
-                            postgrest.from("profiles")
-                                .select {
-                                    filter { eq("id", userId) }
-                                }
-                                .decodeSingleOrNull<UserProfile>()
-                        }.getOrNull()
-
-                        val roleStr = profile?.role?.name?.lowercase() ?: "comprador"
+                        // Determinar rol con cache TTL de 5 minutos para no saturar Supabase con 15 requests/min
+                        val roleStr = if (cachedUserRole?.first == userId && (System.currentTimeMillis() - userRoleCachedAt < 5 * 60 * 1000L)) {
+                            cachedUserRole!!.second
+                        } else {
+                            val profile = runCatching {
+                                postgrest.from("profiles")
+                                    .select {
+                                        filter { eq("id", userId) }
+                                    }
+                                    .decodeSingleOrNull<UserProfile>()
+                            }.getOrNull()
+                            val resolved = profile?.role?.name?.lowercase() ?: "comprador"
+                            cachedUserRole = Pair(userId, resolved)
+                            userRoleCachedAt = System.currentTimeMillis()
+                            resolved
+                        }
 
                         if (roleStr == "emprendedor" || roleStr == "admin") {
                             monitorSellerOrders(userId)
@@ -270,7 +287,7 @@ class ValleGoPushService : Service(), KoinComponent {
     }
 
     private suspend fun monitorBuyerOrders(buyerId: String) {
-        val orders = try {
+        val rawOrders = try {
             postgrest.from("orders")
                 .select {
                     filter { eq("buyer_id", buyerId) }
@@ -279,6 +296,9 @@ class ValleGoPushService : Service(), KoinComponent {
         } catch (_: Exception) {
             emptyList()
         }
+
+        // Optimización: Limitar el escaneo a las últimas 20 órdenes para no saturar memoria ni red
+        val orders = rawOrders.sortedByDescending { it.createdAt }.take(20)
 
         val orderMap = orders.associateBy { it.id }
         val orderIds = orders.map { it.id }
@@ -363,11 +383,15 @@ class ValleGoPushService : Service(), KoinComponent {
                             )
                         }
                         "ready", "listo", "esperando_entrega" -> {
+                            val pinCode = sub.deliveryCode?.takeIf { it.isNotBlank() } ?: run {
+                                val hash = (sub.orderId + sub.id).hashCode()
+                                String.format(java.util.Locale.US, "%04d", kotlin.math.abs(hash % 10000))
+                            }
                             ValleGoNotificationHelper.showOrderNotification(
                                 context = this@ValleGoPushService,
                                 notificationId = sub.id.hashCode(),
                                 title = "¡Tu pedido está listo!",
-                                message = "Tu pedido de $storeName está listo. Acércate al punto de encuentro: $meetingPoint$schedule.",
+                                message = "Tu pedido de $storeName está listo. Acércate al punto de encuentro: $meetingPoint$schedule con tu PIN #$pinCode.",
                                 orderId = sub.orderId
                             )
                         }
