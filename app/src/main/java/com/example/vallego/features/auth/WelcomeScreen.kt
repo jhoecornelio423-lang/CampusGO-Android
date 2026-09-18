@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -51,6 +52,7 @@ fun WelcomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .clipToBounds()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
@@ -70,7 +72,7 @@ fun WelcomeScreen(
             modifier = Modifier
                 .size(460.dp)
                 .align(Alignment.TopEnd)
-                .offset(x = 85.dp, y = (-30).dp)
+                .offset(x = 85.dp, y = 0.dp)
                 .clip(CircleShape)
                 .background(Color(0x44000000))
         )
