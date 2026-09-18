@@ -58,6 +58,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +87,7 @@ fun AuthRoute(
     viewModel: AuthViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showWelcome by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(uiState.isSuccess, uiState.profile) {
         val profile = uiState.profile
@@ -94,18 +96,32 @@ fun AuthRoute(
         }
     }
 
-    AuthScreen(
-        uiState = uiState,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onFullNameChange = viewModel::onFullNameChange,
-        onPhoneChange = viewModel::onPhoneChange,
-        onRoleChange = viewModel::onRoleChange,
-        onTabSelected = viewModel::setLoginMode,
-        onSubmit = viewModel::submit,
-        onDismissError = viewModel::clearError,
-        modifier = modifier
-    )
+    if (showWelcome) {
+        WelcomeScreen(
+            onStartRegister = {
+                viewModel.setLoginMode(false)
+                showWelcome = false
+            },
+            onLogin = {
+                viewModel.setLoginMode(true)
+                showWelcome = false
+            },
+            modifier = modifier
+        )
+    } else {
+        AuthScreen(
+            uiState = uiState,
+            onEmailChange = viewModel::onEmailChange,
+            onPasswordChange = viewModel::onPasswordChange,
+            onFullNameChange = viewModel::onFullNameChange,
+            onPhoneChange = viewModel::onPhoneChange,
+            onRoleChange = viewModel::onRoleChange,
+            onTabSelected = viewModel::setLoginMode,
+            onSubmit = viewModel::submit,
+            onDismissError = viewModel::clearError,
+            modifier = modifier
+        )
+    }
 }
 
 @Composable
@@ -652,6 +668,10 @@ fun AuthScreen(
 
                     // Botón Principal Verde Esmeralda (#00A884)
                     val isButtonEnabled = uiState.canSubmit && (uiState.isLoginMode || termsAccepted)
+                    val shadowElevation by androidx.compose.animation.core.animateDpAsState(
+                        targetValue = if (isButtonEnabled) 6.dp else 0.dp,
+                        label = "buttonShadowElevation"
+                    )
                     Button(
                         onClick = {
                             focusManager.clearFocus()
@@ -661,7 +681,7 @@ fun AuthScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF00A884),
-                            disabledContainerColor = Color(0xFF00A884).copy(alpha = 0.55f),
+                            disabledContainerColor = Color(0xFF80D3C5),
                             contentColor = Color.White,
                             disabledContentColor = Color.White.copy(alpha = 0.85f)
                         ),
@@ -669,8 +689,9 @@ fun AuthScreen(
                             .fillMaxWidth()
                             .height(52.dp)
                             .shadow(
-                                elevation = 6.dp,
+                                elevation = shadowElevation,
                                 shape = RoundedCornerShape(16.dp),
+                                clip = false,
                                 spotColor = Color(0xFF00A884),
                                 ambientColor = Color(0x3300A884)
                             )
