@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun BetaBadgeOverlay(
-    versionName: String = "0.5.1",
+    versionName: String = "0.5.2",
     modifier: Modifier = Modifier
 ) {
     Box(

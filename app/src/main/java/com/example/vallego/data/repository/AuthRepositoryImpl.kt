@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -199,6 +200,15 @@ class AuthRepositoryImpl(
         return try {
             val profile = fetchProfile(user.id)
             _currentProfile.value = profile
+            Result.success(profile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getUserProfile(userId: String): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            val profile = fetchProfile(userId)
             Result.success(profile)
         } catch (e: Exception) {
             Result.failure(e)

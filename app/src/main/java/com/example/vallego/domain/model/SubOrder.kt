@@ -28,6 +28,7 @@ data class SubOrder(
     @SerialName("meeting_point_id") val meetingPointId: String? = null,
     @SerialName("meeting_point_name") val meetingPointName: String? = null,
     @SerialName("scheduled_time") val scheduledTime: String? = null,
+    @SerialName("buyer_id") val buyerId: String? = null,
     @SerialName("buyer_name") val buyerName: String? = null,
     @SerialName("buyer_phone") val buyerPhone: String? = null,
     @SerialName("notes") val notes: String? = null,

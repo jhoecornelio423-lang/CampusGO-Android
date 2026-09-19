@@ -18,10 +18,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import com.example.vallego.features.chat.ActiveChatSummary
+import com.example.vallego.features.chat.ActiveChatsSheet
+import com.example.vallego.features.chat.OrderChatBottomSheet
+import com.example.vallego.features.chat.OrderChatViewModel
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
@@ -98,6 +103,61 @@ fun SellerDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSellerProfile by remember { mutableStateOf(false) }
+    val chatViewModel: OrderChatViewModel = koinViewModel()
+    var activeChatSubOrder by remember { mutableStateOf<SubOrder?>(null) }
+    var showActiveChatsSheet by remember { mutableStateOf(false) }
+
+    if (activeChatSubOrder != null) {
+        OrderChatBottomSheet(
+            viewModel = chatViewModel,
+            onDismiss = {
+                activeChatSubOrder = null
+                chatViewModel.clearChat()
+            }
+        )
+        return
+    }
+
+    if (showActiveChatsSheet) {
+        val curProf = uiState.sellerProfile ?: profile
+        val activeSellerChatSummaries = remember(uiState.subOrders) {
+            uiState.subOrders
+                .filter { !it.status.isFinal }
+                .map { sub ->
+                    ActiveChatSummary(
+                        subOrderId = sub.id,
+                        otherUserId = sub.buyerId ?: "",
+                        otherUserName = sub.buyerName?.ifBlank { "Comprador Campus-Go" } ?: "Comprador Campus-Go",
+                        meetingPoint = sub.meetingPointName ?: "Punto por acordar",
+                        status = sub.status,
+                        subtotal = sub.subtotalAmount,
+                        itemsSummary = sub.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                        isBuyerPerspective = false
+                    )
+                }
+        }
+
+        ActiveChatsSheet(
+            chats = activeSellerChatSummaries,
+            onSelectChat = { summary ->
+                showActiveChatsSheet = false
+                val matchingSub = uiState.subOrders.find { it.id == summary.subOrderId }
+                if (matchingSub != null) {
+                    activeChatSubOrder = matchingSub
+                    chatViewModel.initChat(
+                        subOrderId = matchingSub.id,
+                        currentUserId = curProf.id,
+                        otherUserId = matchingSub.buyerId ?: "",
+                        otherUserName = matchingSub.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
+                        meetingPoint = matchingSub.meetingPointName ?: "Punto por convenir",
+                        subOrderStatus = matchingSub.status
+                    )
+                }
+            },
+            onClose = { showActiveChatsSheet = false }
+        )
+        return
+    }
 
     if (showSellerProfile) {
         SellerStoreProfileScreen(
@@ -1009,8 +1069,10 @@ fun SellerDashboardScreen(
     }
 
     if (uiState.selectedSubOrderForDetail != null) {
+        val selectedSub = uiState.selectedSubOrderForDetail!!
+        val curProf = uiState.sellerProfile ?: profile
         SellerOrderDetailDialog(
-            subOrder = uiState.selectedSubOrderForDetail!!,
+            subOrder = selectedSub,
             onDismiss = { viewModel.dismissSubOrderDetail() },
             onAccept = {
                 viewModel.acceptSubOrder(it)
@@ -1031,6 +1093,18 @@ fun SellerDashboardScreen(
             onOpenRejection = {
                 viewModel.dismissSubOrderDetail()
                 viewModel.openRejectionDialog(it)
+            },
+            onOpenChat = { subOrder ->
+                viewModel.dismissSubOrderDetail()
+                activeChatSubOrder = subOrder
+                chatViewModel.initChat(
+                    subOrderId = subOrder.id,
+                    currentUserId = curProf.id,
+                    otherUserId = subOrder.buyerId ?: "",
+                    otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
+                    meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
+                    subOrderStatus = subOrder.status
+                )
             }
         )
     }
@@ -1090,7 +1164,35 @@ fun SellerDashboardScreen(
                         }
                     }
                 },
-                actions = {}
+                actions = {
+                    val activeSubOrders = remember(uiState.subOrders) {
+                        uiState.subOrders.filter { !it.status.isFinal }
+                    }
+                    BadgedBox(
+                        badge = {
+                            if (activeSubOrders.isNotEmpty()) {
+                                Badge(
+                                    containerColor = Color(0xFF00A884),
+                                    contentColor = Color.White
+                                ) {
+                                    Text(
+                                        text = "${activeSubOrders.size}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        IconButton(onClick = { showActiveChatsSheet = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = "Chats Activos de Pedidos",
+                                tint = if (activeSubOrders.isNotEmpty()) Color(0xFF00A884) else Color(0xFF003366)
+                            )
+                        }
+                    }
+                }
             )
         },
         modifier = if (backgroundBlurRadius > 0.dp) modifier.blur(backgroundBlurRadius) else modifier
@@ -1342,7 +1444,18 @@ fun SellerDashboardScreen(
                                         onOpenRejection = { viewModel.openRejectionDialog(subOrder) },
                                         onOpenNoShow = { viewModel.openNoShowDialog(subOrder) },
                                         onExpired = { viewModel.onSubOrderExpired(subOrder.id) },
-                                        onOpenDetail = { viewModel.openSubOrderDetail(subOrder) }
+                                        onOpenDetail = { viewModel.openSubOrderDetail(subOrder) },
+                                        onOpenChat = {
+                                            activeChatSubOrder = subOrder
+                                            chatViewModel.initChat(
+                                                subOrderId = subOrder.id,
+                                                currentUserId = profile.id,
+                                                otherUserId = subOrder.buyerId ?: "",
+                                                otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
+                                                meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
+                                                subOrderStatus = subOrder.status
+                                            )
+                                        }
                                     )
                                 }
                             } else {
@@ -1418,7 +1531,19 @@ fun SellerDashboardScreen(
                                         onOpenRejection = { viewModel.openRejectionDialog(it) },
                                         onOpenNoShow = { viewModel.openNoShowDialog(it) },
                                         onExpired = { viewModel.onSubOrderExpired(it) },
-                                        onOpenDetail = { viewModel.openSubOrderDetail(it) }
+                                        onOpenDetail = { viewModel.openSubOrderDetail(it) },
+                                        onOpenChat = { subOrder ->
+                                            activeChatSubOrder = subOrder
+                                            val curProf = uiState.sellerProfile ?: profile
+                                            chatViewModel.initChat(
+                                                subOrderId = subOrder.id,
+                                                currentUserId = curProf.id,
+                                                otherUserId = subOrder.buyerId ?: "",
+                                                otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
+                                                meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
+                                                subOrderStatus = subOrder.status
+                                            )
+                                        }
                                     )
                                 }
                             }
@@ -1550,6 +1675,7 @@ fun SellerPastDayCard(
     onOpenNoShow: (SubOrder) -> Unit,
     onExpired: (String) -> Unit,
     onOpenDetail: (SubOrder) -> Unit = {},
+    onOpenChat: ((SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1627,7 +1753,8 @@ fun SellerPastDayCard(
                             onOpenRejection = { onOpenRejection(subOrder) },
                             onOpenNoShow = { onOpenNoShow(subOrder) },
                             onExpired = { onExpired(subOrder.id) },
-                            onOpenDetail = { onOpenDetail(subOrder) }
+                            onOpenDetail = { onOpenDetail(subOrder) },
+                            onOpenChat = if (onOpenChat != null) { { onOpenChat(subOrder) } } else null
                         )
                     }
                 }
@@ -1678,6 +1805,7 @@ fun SellerSubOrderCard(
     onOpenNoShow: () -> Unit,
     onExpired: () -> Unit,
     onOpenDetail: (() -> Unit)? = null,
+    onOpenChat: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isExpiredState by remember(subOrder.id, subOrder.createdAt) {
@@ -1886,7 +2014,22 @@ fun SellerSubOrderCard(
                                 )
                             }
                         } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (onOpenChat != null) {
+                                    FilledTonalIconButton(
+                                        onClick = onOpenChat,
+                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                            containerColor = Color(0xFFE6F4EA),
+                                            contentColor = Color(0xFF00A884)
+                                        ),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                    }
+                                }
                                 OutlinedButton(
                                     onClick = onOpenRejection,
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
@@ -1905,7 +2048,22 @@ fun SellerSubOrderCard(
                         }
                     }
                     SubOrderStatus.ACEPTADO -> {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (onOpenChat != null) {
+                                FilledTonalIconButton(
+                                    onClick = onOpenChat,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = Color(0xFFE6F4EA),
+                                        contentColor = Color(0xFF00A884)
+                                    ),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                }
+                            }
                             OutlinedButton(
                                 onClick = onOpenRejection,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
@@ -1923,7 +2081,22 @@ fun SellerSubOrderCard(
                         }
                     }
                     SubOrderStatus.EN_PREPARACION -> {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (onOpenChat != null) {
+                                FilledTonalIconButton(
+                                    onClick = onOpenChat,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = Color(0xFFE6F4EA),
+                                        contentColor = Color(0xFF00A884)
+                                    ),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                }
+                            }
                             OutlinedButton(
                                 onClick = onOpenRejection,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
@@ -1941,7 +2114,22 @@ fun SellerSubOrderCard(
                         }
                     }
                     SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (onOpenChat != null) {
+                                FilledTonalIconButton(
+                                    onClick = onOpenChat,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = Color(0xFFE6F4EA),
+                                        contentColor = Color(0xFF00A884)
+                                    ),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                }
+                            }
                             OutlinedButton(
                                 onClick = onOpenRejection,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
@@ -1960,48 +2148,103 @@ fun SellerSubOrderCard(
                     }
                     SubOrderStatus.COMPLETADO -> {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF2E7D32),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Entregado y Cobrado",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2E7D32),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Entregado y Cobrado",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
+                            if (onOpenChat != null) {
+                                FilledTonalIconButton(
+                                    onClick = onOpenChat,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = Color(0xFFF1F5F9),
+                                        contentColor = Color(0xFF64748B)
+                                    ),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
+                                }
+                            }
                         }
                     }
                     SubOrderStatus.RECHAZADO -> {
-                        Text(
-                            text = "Rechazado: ${subOrder.rejectionReason ?: "Sin motivo"}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFC8102E),
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Rechazado: ${subOrder.rejectionReason ?: "Sin motivo"}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFC8102E),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (onOpenChat != null) {
+                                FilledTonalIconButton(
+                                    onClick = onOpenChat,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = Color(0xFFF1F5F9),
+                                        contentColor = Color(0xFF64748B)
+                                    ),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
                     }
                     SubOrderStatus.NO_ENTREGADO -> {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PersonOff,
-                                contentDescription = null,
-                                tint = Color(0xFFC8102E),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "No entregado (Inasistencia)",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFC8102E)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PersonOff,
+                                    contentDescription = null,
+                                    tint = Color(0xFFC8102E),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "No entregado (Inasistencia)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFC8102E)
+                                )
+                            }
+                            if (onOpenChat != null) {
+                                FilledTonalIconButton(
+                                    onClick = onOpenChat,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = Color(0xFFF1F5F9),
+                                        contentColor = Color(0xFF64748B)
+                                    ),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
+                                }
+                            }
                         }
                     }
                     else -> {
@@ -3278,7 +3521,8 @@ fun SellerOrderDetailDialog(
     onStartPrep: (String) -> Unit,
     onMarkReady: (String) -> Unit,
     onOpenDelivery: (SubOrder) -> Unit,
-    onOpenRejection: (SubOrder) -> Unit
+    onOpenRejection: (SubOrder) -> Unit,
+    onOpenChat: ((SubOrder) -> Unit)? = null
 ) {
     val context = LocalContext.current
     AlertDialog(
@@ -3392,6 +3636,30 @@ fun SellerOrderDetailDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+
+                if (onOpenChat != null) {
+                    OutlinedButton(
+                        onClick = { onOpenChat(subOrder) },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (subOrder.status.isFinal) Color(0xFF64748B) else Color(0xFF00A884)
+                        ),
+                        border = BorderStroke(1.dp, if (subOrder.status.isFinal) Color(0xFFCBD5E1) else Color(0xFF00A884)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = null,
+                            tint = if (subOrder.status.isFinal) Color(0xFF64748B) else Color(0xFF00A884),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (subOrder.status.isFinal) "Chat con comprador (Cerrado)" else "Chat con comprador",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 

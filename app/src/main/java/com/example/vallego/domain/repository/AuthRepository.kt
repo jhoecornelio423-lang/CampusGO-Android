@@ -13,6 +13,7 @@ interface AuthRepository {
     suspend fun signUp(email: String, password: String, fullName: String, phone: String, role: UserRole = UserRole.COMPRADOR): Result<UserProfile>
     suspend fun signOut(): Result<Unit>
     suspend fun refreshProfile(): Result<UserProfile?>
+    suspend fun getUserProfile(userId: String): Result<UserProfile>
     fun isValidEmail(email: String): Boolean
     fun isValidInstitutionalEmail(email: String): Boolean = isValidEmail(email)
 }

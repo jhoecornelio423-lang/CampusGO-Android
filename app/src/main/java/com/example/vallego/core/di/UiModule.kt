@@ -3,6 +3,7 @@ package com.example.vallego.core.di
 import com.example.vallego.features.admin.AdminViewModel
 import com.example.vallego.features.auth.AuthViewModel
 import com.example.vallego.features.cart.CartViewModel
+import com.example.vallego.features.chat.OrderChatViewModel
 import com.example.vallego.features.seller.SellerDashboardViewModel
 import com.example.vallego.features.tracking.OrderTrackingViewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -14,4 +15,5 @@ val uiModule = module {
     viewModelOf(::SellerDashboardViewModel)
     viewModelOf(::OrderTrackingViewModel)
     viewModelOf(::AdminViewModel)
+    viewModelOf(::OrderChatViewModel)
 }

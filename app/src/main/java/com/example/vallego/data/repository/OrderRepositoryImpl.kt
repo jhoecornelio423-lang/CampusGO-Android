@@ -158,6 +158,7 @@ class OrderRepositoryImpl(
     private val sellerSubOrdersCache = ConcurrentHashMap<String, List<SubOrder>>()
     private val cachedOrderItemsByOrder = ConcurrentHashMap<String, List<RemoteOrderItemDto>>()
     private val cachedSubOrdersByOrder = ConcurrentHashMap<String, List<RemoteSubOrderDto>>()
+    private val cachedOrderUpdatedAt = ConcurrentHashMap<String, String>()
     private val cachedParentOrders = ConcurrentHashMap<String, RemoteOrderDto>()
     private val jsonParser = Json {
         ignoreUnknownKeys = true
@@ -171,6 +172,7 @@ class OrderRepositoryImpl(
         sellerSubOrdersCache.clear()
         cachedOrderItemsByOrder.clear()
         cachedSubOrdersByOrder.clear()
+        cachedOrderUpdatedAt.clear()
         cachedParentOrders.clear()
     }
 
@@ -332,9 +334,15 @@ class OrderRepositoryImpl(
                     if (remoteOrders.isNotEmpty()) {
                         val orderIds = remoteOrders.map { it.id }
 
-                        // Optimización 1: Solo consultar sub_orders para órdenes activas o no cacheadas
+                        // Optimización 1: Consultar sub_orders si no están en caché, si cambió updatedAt, o si los subpedidos aún no son finales (evita congelar estados como 'ready')
                         val orderIdsNeedingSubs = remoteOrders.filter { ro ->
-                            ro.status in listOf("pending", "accepted", "preparing", "ready") || !cachedSubOrdersByOrder.containsKey(ro.id)
+                            val cachedSubs = cachedSubOrdersByOrder[ro.id]
+                            val lastKnownUpdated = cachedOrderUpdatedAt[ro.id]
+                            val wasUpdated = lastKnownUpdated != ro.updatedAt
+                            val isAllFinal = !cachedSubs.isNullOrEmpty() && cachedSubs.all {
+                                it.status in listOf("completed", "cancelled", "rejected", "not_delivered")
+                            }
+                            !isAllFinal || wasUpdated
                         }.map { it.id }
 
                         if (orderIdsNeedingSubs.isNotEmpty()) {
@@ -352,6 +360,10 @@ class OrderRepositoryImpl(
                             val groupedSubs = freshlyFetchedSubs.groupBy { it.orderId }
                             orderIdsNeedingSubs.forEach { ordId ->
                                 cachedSubOrdersByOrder[ordId] = groupedSubs[ordId] ?: emptyList()
+                                val ro = remoteOrders.firstOrNull { it.id == ordId }
+                                if (ro?.updatedAt != null) {
+                                    cachedOrderUpdatedAt[ordId] = ro.updatedAt
+                                }
                             }
                         }
 
@@ -448,6 +460,7 @@ class OrderRepositoryImpl(
                                         meetingPointId = ro.meetingPointId,
                                         meetingPointName = meetingPlace,
                                         scheduledTime = schedule,
+                                        buyerId = ro.buyerId,
                                         buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
                                         buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
                                         notes = ro.notes,
@@ -486,6 +499,7 @@ class OrderRepositoryImpl(
                                         meetingPointId = ro.meetingPointId,
                                         meetingPointName = meetingPlace,
                                         scheduledTime = schedule,
+                                        buyerId = ro.buyerId,
                                         buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
                                         buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
                                         notes = ro.notes,
@@ -738,6 +752,7 @@ class OrderRepositoryImpl(
                                 meetingPointId = parentOrder?.meetingPointId,
                                 meetingPointName = meetingPlace,
                                 scheduledTime = scheduledTime,
+                                buyerId = buyerId,
                                 buyerName = buyerName,
                                 buyerPhone = buyerPhone,
                                 notes = parentOrder?.notes,
@@ -814,6 +829,8 @@ class OrderRepositoryImpl(
                 sellerSubOrdersCache.forEach { (sid, list) ->
                     sellerSubOrdersCache[sid] = list.map { if (it.id == subOrderId) updated else it }
                 }
+                cachedSubOrdersByOrder.remove(updated.orderId)
+                cachedOrderUpdatedAt.remove(updated.orderId)
             }
 
             if (postgrest != null && isValidUUID(subOrderId)) {

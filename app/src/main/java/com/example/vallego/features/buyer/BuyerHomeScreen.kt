@@ -85,6 +85,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import androidx.compose.material.icons.automirrored.filled.Chat
+import com.example.vallego.features.chat.ActiveChatSummary
+import com.example.vallego.features.chat.ActiveChatsSheet
+import com.example.vallego.features.chat.OrderChatBottomSheet
+import com.example.vallego.features.chat.OrderChatViewModel
 
 data class StoreCatalogGroup(
     val sellerId: String,
@@ -133,6 +138,33 @@ fun BuyerHomeScreen(
         }
     }
     var dismissedReadyAlerts by remember { mutableStateOf(setOf<String>()) }
+    var showActiveChatsSheet by remember { mutableStateOf(false) }
+    var activeChatSummary by remember { mutableStateOf<ActiveChatSummary?>(null) }
+    val chatViewModel: OrderChatViewModel = koinInject()
+
+    var realStoresWithProducts by remember { mutableStateOf<List<StoreCatalogGroup>>(emptyList()) }
+
+    val activeBuyerChats = remember(buyerOrders, realStoresWithProducts) {
+        buyerOrders.flatMap { order ->
+            order.subOrders
+                .filter { !it.status.isFinal }
+                .map { sub ->
+                    val store = realStoresWithProducts.find { it.sellerId == sub.sellerId }
+                    val sellerAvatar = store?.avatarUrl
+                    ActiveChatSummary(
+                        subOrderId = sub.id,
+                        otherUserId = sub.sellerId,
+                        otherUserName = sub.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus-Go" },
+                        meetingPoint = sub.meetingPointName ?: "Punto por convenir",
+                        status = sub.status,
+                        subtotal = sub.subtotalAmount,
+                        itemsSummary = sub.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                        isBuyerPerspective = true,
+                        otherUserAvatarUrl = sellerAvatar
+                    )
+                }
+        }
+    }
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryFilter by remember { mutableStateOf("TODOS") }
@@ -142,23 +174,28 @@ fun BuyerHomeScreen(
     var selectedProductForDetail by remember { mutableStateOf<Pair<Product, StoreCatalogGroup>?>(null) }
 
     // Manejo nativo del botón / gesto Atrás de Android
-    BackHandler(enabled = selectedProductForDetail != null) {
+    BackHandler(enabled = activeChatSummary != null) {
+        activeChatSummary = null
+    }
+    BackHandler(enabled = activeChatSummary == null && showActiveChatsSheet) {
+        showActiveChatsSheet = false
+    }
+    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail != null) {
         selectedProductForDetail = null
     }
-    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile != null) {
+    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile != null) {
         selectedStoreForProfile = null
     }
-    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile == null && showCart) {
+    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile == null && showCart) {
         showCart = false
     }
-    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && showTracking) {
+    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && showTracking) {
         showTracking = false
     }
-    BackHandler(enabled = selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && !showTracking && showProfile) {
+    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && !showTracking && showProfile) {
         showProfile = false
     }
 
-    var realStoresWithProducts by remember { mutableStateOf<List<StoreCatalogGroup>>(emptyList()) }
     var categoriesList by remember { mutableStateOf<List<Category>>(emptyList()) }
     var isLoadingCatalog by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
@@ -255,6 +292,38 @@ fun BuyerHomeScreen(
             },
             onSignOut = onSignOut,
             modifier = modifier
+        )
+        return
+    }
+
+    if (activeChatSummary != null) {
+        OrderChatBottomSheet(
+            viewModel = chatViewModel,
+            onDismiss = {
+                activeChatSummary = null
+                chatViewModel.clearChat()
+            }
+        )
+        return
+    }
+
+    if (showActiveChatsSheet) {
+        ActiveChatsSheet(
+            chats = activeBuyerChats,
+            onSelectChat = { selectedChat ->
+                showActiveChatsSheet = false
+                activeChatSummary = selectedChat
+                chatViewModel.initChat(
+                    subOrderId = selectedChat.subOrderId,
+                    currentUserId = profile.id,
+                    otherUserId = selectedChat.otherUserId,
+                    otherUserName = selectedChat.otherUserName,
+                    meetingPoint = selectedChat.meetingPoint,
+                    subOrderStatus = selectedChat.status,
+                    otherUserAvatarUrl = selectedChat.otherUserAvatarUrl
+                )
+            },
+            onClose = { showActiveChatsSheet = false }
         )
         return
     }
@@ -461,12 +530,42 @@ fun BuyerHomeScreen(
                                 }
                             }
 
-                            // Botones de acción a la derecha (Mis Pedidos y Carrito)
+                            // Botones de acción a la derecha (Chats Activos, Mis Pedidos y Carrito)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // 1. Mis Pedidos (Tracking)
+                                // 1. Chats Activos de Coordinación
+                                BadgedBox(
+                                    badge = {
+                                        if (activeBuyerChats.isNotEmpty()) {
+                                            Badge(
+                                                containerColor = Color(0xFF00A884),
+                                                contentColor = Color.White
+                                            ) {
+                                                Text(
+                                                    text = "${activeBuyerChats.size}",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    IconButton(
+                                        onClick = { showActiveChatsSheet = true },
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                                            contentDescription = "Chats Activos",
+                                            tint = if (activeBuyerChats.isNotEmpty()) Color(0xFF00A884) else Color(0xFF16324F),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // 2. Mis Pedidos (Tracking)
                                 IconButton(
                                     onClick = { showTracking = true },
                                     modifier = Modifier.size(38.dp)

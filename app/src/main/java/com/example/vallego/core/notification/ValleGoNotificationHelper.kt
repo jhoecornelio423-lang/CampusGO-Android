@@ -15,6 +15,7 @@ import com.example.vallego.R
 object ValleGoNotificationHelper {
 
     const val CHANNEL_ORDERS = "vallego_orders_channel"
+    const val CHANNEL_CHAT = "vallego_chat_channel"
     const val CHANNEL_SERVICE = "vallego_service_channel"
     const val SERVICE_NOTIFICATION_ID = 9001
 
@@ -36,6 +37,20 @@ object ValleGoNotificationHelper {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
+            // Canal para mensajes de chat (Alta prioridad tipo WhatsApp)
+            val chatChannel = NotificationChannel(
+                CHANNEL_CHAT,
+                "Mensajes de Chat Campus Go",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Mensajes de chat entre compradores y vendedores"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 200, 100, 200)
+                enableLights(true)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+
             // Canal para el servicio en segundo plano (Baja prioridad, silencioso)
             val serviceChannel = NotificationChannel(
                 CHANNEL_SERVICE,
@@ -47,6 +62,7 @@ object ValleGoNotificationHelper {
             }
 
             notificationManager.createNotificationChannel(orderChannel)
+            notificationManager.createNotificationChannel(chatChannel)
             notificationManager.createNotificationChannel(serviceChannel)
         }
     }
@@ -82,6 +98,47 @@ object ValleGoNotificationHelper {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            android.util.Log.e("ValleGoNotification", "Permiso de notificaciones denegado", e)
+        }
+    }
+
+    fun showChatNotification(
+        context: Context,
+        notificationId: Int,
+        senderName: String,
+        message: String,
+        subOrderId: String? = null
+    ) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (subOrderId != null) {
+                putExtra("sub_order_id", subOrderId)
+            }
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_CHAT)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(senderName)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText("Nuevo mensaje"))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
 

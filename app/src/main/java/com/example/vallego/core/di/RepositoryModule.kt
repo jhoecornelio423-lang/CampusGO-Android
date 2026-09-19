@@ -52,4 +52,11 @@ val repositoryModule = module {
             storage = getOrNull()
         )
     }
+
+    single<com.example.vallego.domain.repository.ChatRepository> {
+        com.example.vallego.data.repository.ChatRepositoryImpl(
+            postgrest = get(),
+            realtime = getOrNull()
+        )
+    }
 }

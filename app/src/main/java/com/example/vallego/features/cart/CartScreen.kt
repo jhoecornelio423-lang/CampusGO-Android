@@ -131,138 +131,25 @@ fun CartScreen(
         )
     }
 
-    // Diálogo de Éxito cuando se genera la orden y sus subpedidos
+    // Pantalla Completa de Resumen / Boleta cuando se genera la orden y sus subpedidos
     if (uiState.placedOrder != null) {
         val order = uiState.placedOrder!!
-        AlertDialog(
-            onDismissRequest = {
+        OrderSummaryReceiptScreen(
+            order = order,
+            onNavigateToTracking = {
+                viewModel.clearPlacedOrder()
+                onNavigateToTracking()
+            },
+            onOpenChat = {
+                viewModel.clearPlacedOrder()
+                onNavigateToTracking()
+            },
+            onNavigateBack = {
                 viewModel.clearPlacedOrder()
                 onNavigateBack()
-            },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = Color(0xFF2E7D32),
-                    modifier = Modifier.size(48.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = "¡Pedido Campus Go Confirmado!",
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Tu orden ha sido dividida automáticamente por cada emprendimiento involucrado:",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    HorizontalDivider()
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_meeting_point),
-                            contentDescription = null,
-                            tint = Color(0xFF003366),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Punto: ${order.meetingPointName}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_clock_modern),
-                            contentDescription = null,
-                            tint = Color(0xFF003366),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Hora: ${order.scheduledTime}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Subpedidos independientes:",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    order.subOrders.forEachIndexed { index, subOrder ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "${index + 1}. ${subOrder.sellerName}",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    Text(
-                                        text = "${subOrder.items.size} producto(s)",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    text = "S/ %.2f".format(subOrder.subtotalAmount),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF003366)
-                                )
-                            }
-                        }
-                    }
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("TOTAL GENERAL:", fontWeight = FontWeight.ExtraBold)
-                        Text(
-                            "S/ %.2f".format(order.totalAmount),
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF003366)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clearPlacedOrder()
-                        onNavigateToTracking()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
-                ) {
-                    Text("Ver Seguimiento")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.clearPlacedOrder()
-                        onNavigateBack()
-                    }
-                ) {
-                    Text("Seguir Comprando")
-                }
             }
         )
+        return
     }
 
     Box(modifier = modifier.fillMaxSize()) {

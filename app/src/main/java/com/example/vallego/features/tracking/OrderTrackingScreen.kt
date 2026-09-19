@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
+import com.example.vallego.features.chat.OrderChatBottomSheet
+import com.example.vallego.features.chat.OrderChatViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -135,12 +138,38 @@ fun OrderTrackingScreen(
     }
 
     var selectedOrderForDetail by remember { mutableStateOf<Order?>(null) }
+    val chatViewModel: OrderChatViewModel = koinViewModel()
+    var activeChatSubOrder by remember { mutableStateOf<Pair<Order, SubOrder>?>(null) }
+
+    if (activeChatSubOrder != null) {
+        OrderChatBottomSheet(
+            viewModel = chatViewModel,
+            onDismiss = {
+                activeChatSubOrder = null
+                chatViewModel.clearChat()
+            }
+        )
+        return
+    }
 
     if (selectedOrderForDetail != null) {
+        val detailOrder = selectedOrderForDetail!!
         BuyerOrderDetailDialog(
-            order = selectedOrderForDetail!!,
+            order = detailOrder,
             reviewedOrders = uiState.reviewedOrders,
             onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) },
+            onOpenChat = { subOrder ->
+                selectedOrderForDetail = null
+                activeChatSubOrder = Pair(detailOrder, subOrder)
+                chatViewModel.initChat(
+                    subOrderId = subOrder.id,
+                    currentUserId = buyerProfile.id,
+                    otherUserId = subOrder.sellerId,
+                    otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
+                    meetingPoint = subOrder.meetingPointName ?: detailOrder.meetingPointName,
+                    subOrderStatus = subOrder.status
+                )
+            },
             onDismiss = { selectedOrderForDetail = null }
         )
     }
@@ -269,7 +298,18 @@ fun OrderTrackingScreen(
                                 },
                                 onExpiredSubOrder = { viewModel.expirePendingOrders() },
                                 onOpenDetail = { selectedOrderForDetail = order },
-                                onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) }
+                                onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) },
+                                onOpenChat = { subOrder ->
+                                    activeChatSubOrder = Pair(order, subOrder)
+                                    chatViewModel.initChat(
+                                        subOrderId = subOrder.id,
+                                        currentUserId = buyerProfile.id,
+                                        otherUserId = subOrder.sellerId,
+                                        otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
+                                        meetingPoint = subOrder.meetingPointName ?: order.meetingPointName,
+                                        subOrderStatus = subOrder.status
+                                    )
+                                }
                             )
                         }
                     }
@@ -289,6 +329,7 @@ fun BuyerOrderCard(
     onExpiredSubOrder: (() -> Unit)? = null,
     onOpenDetail: (() -> Unit)? = null,
     onRateSeller: ((SubOrder) -> Unit)? = null,
+    onOpenChat: ((SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -435,7 +476,8 @@ fun BuyerOrderCard(
                     isOrderCompleted = order.status == OrderStatus.COMPLETADA,
                     ratingGiven = rating,
                     onExpired = onExpiredSubOrder,
-                    onRate = if (onRateSeller != null) { { onRateSeller(subOrder) } } else null
+                    onRate = if (onRateSeller != null) { { onRateSeller(subOrder) } } else null,
+                    onOpenChat = if (onOpenChat != null) { { onOpenChat(subOrder) } } else null
                 )
             }
 
@@ -532,7 +574,8 @@ fun SubOrderTrackingItem(
     isOrderCompleted: Boolean = false,
     ratingGiven: Int? = null,
     onExpired: (() -> Unit)? = null,
-    onRate: (() -> Unit)? = null
+    onRate: (() -> Unit)? = null,
+    onOpenChat: (() -> Unit)? = null
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -705,6 +748,34 @@ fun SubOrderTrackingItem(
                 }
             }
 
+            // Chat de Coordinación con el Vendedor (Activo o Cerrado si ya concluyó)
+            if (onOpenChat != null) {
+                val isFinalState = subOrder.status.isFinal || isOrderCompleted
+                OutlinedButton(
+                    onClick = onOpenChat,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (isFinalState) Color(0xFF64748B) else Color(0xFF00A884)
+                    ),
+                    border = BorderStroke(1.dp, if (isFinalState) Color(0xFFCBD5E1) else Color(0xFF00A884)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Chat,
+                        contentDescription = null,
+                        tint = if (isFinalState) Color(0xFF64748B) else Color(0xFF00A884),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isFinalState) "Chat con el vendedor (Cerrado)" else "Chat con el vendedor",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isFinalState) Color(0xFF64748B) else Color(0xFF00A884)
+                    )
+                }
+            }
+
             // Calificación al Vendedor
             val canRate = subOrder.status == SubOrderStatus.COMPLETADO ||
                           subOrder.status == SubOrderStatus.PAGO_CONFIRMADO ||
@@ -858,6 +929,7 @@ fun BuyerOrderDetailDialog(
     order: Order,
     reviewedOrders: Map<String, Int> = emptyMap(),
     onRateSeller: ((SubOrder) -> Unit)? = null,
+    onOpenChat: ((SubOrder) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1099,6 +1171,35 @@ fun BuyerOrderDetailDialog(
                                             color = Color(0xFFD97706)
                                         )
                                     }
+                                }
+                            }
+
+                            if (onOpenChat != null) {
+                                val isFinalSub = subOrder.status.isFinal || order.status == OrderStatus.COMPLETADA
+                                OutlinedButton(
+                                    onClick = { onOpenChat(subOrder) },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884)
+                                    ),
+                                    border = BorderStroke(1.dp, if (isFinalSub) Color(0xFFCBD5E1) else Color(0xFF00A884)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Chat,
+                                        contentDescription = null,
+                                        tint = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isFinalSub) "Chat con vendedor (Cerrado)" else "Chat con vendedor",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884)
+                                    )
                                 }
                             }
                         }

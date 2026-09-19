@@ -13,10 +13,14 @@ import android.util.Log
 import com.example.vallego.data.repository.RemoteOrderDto
 import com.example.vallego.data.repository.RemoteOrderItemDto
 import com.example.vallego.data.repository.RemoteSubOrderDto
+import com.example.vallego.data.repository.RemoteOrderMessageDto
+import com.example.vallego.data.repository.ProfileBasicDto
 import com.example.vallego.data.repository.ProductBasicDto
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.features.chat.ActiveChatSessionManager
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.query.Order
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +51,7 @@ class ValleGoPushService : Service(), KoinComponent {
     private var isBuyerFirstRun = true
     private val productNameCache = ConcurrentHashMap<String, String>()
     private val sellerNameCache = ConcurrentHashMap<String, String>()
+    private val profileNameCache = ConcurrentHashMap<String, String>()
     private val orderItemsSummaryCache = ConcurrentHashMap<String, String>()
     private var cachedUserRole: Pair<String, String>? = null
     private var userRoleCachedAt: Long = 0L
@@ -193,6 +198,7 @@ class ValleGoPushService : Service(), KoinComponent {
                         } else {
                             monitorBuyerOrders(userId)
                         }
+                        monitorChatMessages(userId)
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Error durante chequeo de pedidos: ${e.message}")
@@ -475,6 +481,69 @@ class ValleGoPushService : Service(), KoinComponent {
                 }
             }
             lastKnownBuyerStatuses[order.id] = currentStatus
+        }
+    }
+
+    private suspend fun monitorChatMessages(currentUserId: String) {
+        try {
+            val unreadRemote = postgrest.from("order_messages")
+                .select {
+                    filter {
+                        eq("receiver_id", currentUserId)
+                        eq("is_read", false)
+                    }
+                    order("created_at", Order.DESCENDING)
+                    limit(15)
+                }
+                .decodeList<RemoteOrderMessageDto>()
+
+            if (unreadRemote.isEmpty()) return
+
+            for (msg in unreadRemote) {
+                val eventKey = "chat_msg_${msg.id}"
+                if (isAlreadyNotified(eventKey)) continue
+
+                // REGLA CLAVE: Si el usuario tiene la interfaz de conversación abierta con este remitente / subpedido,
+                // silenciar la notificación local del sistema.
+                val isChatOpenWithSender = ActiveChatSessionManager.isChatActiveWith(
+                    subOrderId = msg.subOrderId,
+                    senderId = msg.senderId
+                )
+
+                if (isChatOpenWithSender) {
+                    markAsNotified(eventKey)
+                    continue
+                }
+
+                val senderName = getSenderName(msg.senderId)
+                markAsNotified(eventKey)
+
+                ValleGoNotificationHelper.showChatNotification(
+                    context = this@ValleGoPushService,
+                    notificationId = msg.id.hashCode(),
+                    senderName = senderName,
+                    message = msg.content,
+                    subOrderId = msg.subOrderId
+                )
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Chequeo de mensajes de chat omitido: ${e.message}")
+        }
+    }
+
+    private suspend fun getSenderName(senderId: String): String {
+        val cached = profileNameCache[senderId]
+        if (!cached.isNullOrBlank()) return cached
+
+        return try {
+            val profile = postgrest.from("profiles")
+                .select { filter { eq("id", senderId) } }
+                .decodeSingleOrNull<ProfileBasicDto>()
+            val name = profile?.fullName?.takeIf { it.isNotBlank() } ?: "Usuario de Campus Go"
+            profileNameCache[senderId] = name
+            name
+        } catch (_: Exception) {
+            "Usuario de Campus Go"
         }
     }
 
