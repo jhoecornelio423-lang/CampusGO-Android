@@ -1,9 +1,12 @@
 package com.example.vallego.features.chat
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -39,8 +42,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
+import com.example.vallego.core.notification.ValleGoNotificationHelper
+import com.example.vallego.theme.DarkBlue
+import com.example.vallego.theme.TurquoiseGreen
+import com.example.vallego.theme.WarmYellow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +71,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+
+// Azul Campus amigable y luminoso (no oscuro)
+private val CampusBlue = Color(0xFF1976D2)
 
 /**
  * Pantalla completa de Chat Temporal de Coordinación (Estilo WhatsApp).
@@ -79,11 +95,27 @@ fun OrderChatBottomSheet(
     var enlargedPhotoRole by remember { mutableStateOf("Campus Go") }
     var isEnlargedBanner by remember { mutableStateOf(false) }
 
+    // Asegurar iconos blancos en la barra de estado mientras el chat esté abierto
+    val view = LocalView.current
+    val window = (view.context as? Activity)?.window
+    DisposableEffect(window) {
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+        val prevLightStatus = insetsController?.isAppearanceLightStatusBars ?: true
+        insetsController?.isAppearanceLightStatusBars = false
+        onDispose {
+            insetsController?.isAppearanceLightStatusBars = prevLightStatus
+        }
+    }
+
+    val context = LocalContext.current
+
     // Registrar en memoria la conversación activa para que ValleGoPushService
-    // suprima las notificaciones locales emergentes de ESTA misma conversación.
+    // suprima las notificaciones locales emergentes de ESTA misma conversación,
+    // y cancelar inmediatamente cualquier notificación pendiente en la barra de estado.
     DisposableEffect(uiState.subOrderId, uiState.otherUserId) {
         if (uiState.subOrderId.isNotBlank()) {
             ActiveChatSessionManager.activeSubOrderId = uiState.subOrderId
+            ValleGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
         }
         if (uiState.otherUserId.isNotBlank()) {
             ActiveChatSessionManager.activeOtherUserId = uiState.otherUserId
@@ -94,9 +126,19 @@ fun OrderChatBottomSheet(
         }
     }
 
-    // Auto-scroll al último mensaje
+    // Auto-scroll al último mensaje y asegurar que no queden notificaciones en la barra
     LaunchedEffect(uiState.messages.size) {
+        if (uiState.subOrderId.isNotBlank()) {
+            ValleGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
+        }
         if (uiState.messages.isNotEmpty()) {
+            listState.animateScrollToItem(uiState.messages.size - 1)
+        }
+    }
+
+    val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    LaunchedEffect(isImeVisible) {
+        if (isImeVisible && uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
     }
@@ -135,77 +177,90 @@ fun OrderChatBottomSheet(
         modifier = Modifier.fillMaxSize(),
         color = Color.White
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .background(Color(0xFFEFEAE2))
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // 1. TOP BAR ESTILO WHATSAPP (Aislado dentro de la app, con avatar real e interactivo)
-            WhatsAppTopBar(
-                otherUserName = uiState.otherUserName,
-                otherUserAvatarUrl = uiState.otherUserAvatarUrl,
-                meetingPoint = uiState.meetingPoint,
-                onBack = onDismiss,
-                onOpenProfile = { showFullScreenProfile = true }
+            // 1. FONDO DE CHAT FIJO E INMÓVIL (Cubre 100% de la pantalla, no se mueve al abrir el teclado)
+            Image(
+                painter = painterResource(id = R.drawable.fondo_de_chat),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
 
-            // 2. AVISO DE PRIVACIDAD EFÍMERO
-            ChatPrivacyCard(isFinished = uiState.isFinished)
-
-            // 3. ZONA PRINCIPAL DE MENSAJES
-            Box(
+            // 2. CAPA DE INTERFAZ DEL CHAT (Se ajusta dinámicamente con el teclado sobre el fondo fijo)
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .background(Color(0xFFEFEAE2))
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
             ) {
-                if (uiState.isLoading && uiState.messages.isEmpty()) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .align(Alignment.Center),
-                        color = Color(0xFF00A884),
-                        strokeWidth = 3.dp
-                    )
-                } else if (uiState.messages.isEmpty()) {
-                    EmptyChatState(
-                        otherUserName = uiState.otherUserName,
-                        otherUserAvatarUrl = uiState.otherUserAvatarUrl,
-                        modifier = Modifier.align(Alignment.Center),
-                        onOpenProfile = { showFullScreenProfile = true }
-                    )
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        items(uiState.messages, key = { it.id }) { message ->
-                            WhatsAppMessageBubble(message = message)
+                // A. TOP BAR ESTILO CAMPUS GO (Azul amigable y luminoso, no oscuro)
+                CampusGoTopBar(
+                    otherUserName = uiState.otherUserName,
+                    otherUserAvatarUrl = uiState.otherUserAvatarUrl,
+                    meetingPoint = uiState.meetingPoint,
+                    onBack = onDismiss,
+                    onOpenProfile = { showFullScreenProfile = true }
+                )
+
+                // B. AVISO DE PRIVACIDAD EFÍMERO (Flota directamente sobre el fondo de chat, sin fondo blanco)
+                ChatPrivacyCard(isFinished = uiState.isFinished)
+
+                // C. ZONA PRINCIPAL DE MENSAJES (Transparente para mostrar el wallpaper fijo)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    if (uiState.isLoading && uiState.messages.isEmpty()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .align(Alignment.Center),
+                            color = TurquoiseGreen,
+                            strokeWidth = 3.dp
+                        )
+                    } else if (uiState.messages.isEmpty()) {
+                        EmptyChatState(
+                            otherUserName = uiState.otherUserName,
+                            otherUserAvatarUrl = uiState.otherUserAvatarUrl,
+                            modifier = Modifier.align(Alignment.Center),
+                            onOpenProfile = { showFullScreenProfile = true }
+                        )
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(uiState.messages, key = { it.id }) { message ->
+                                CampusGoMessageBubble(message = message)
+                            }
                         }
                     }
                 }
-            }
 
-            // 4. ACCIONES RÁPIDAS Y ENTRADA DE TEXTO
-            if (!uiState.isFinished) {
-                QuickRepliesRow(
-                    onReplySelected = { text ->
-                        viewModel.sendQuickMessage(text)
-                    }
-                )
+                // D. ACCIONES RÁPIDAS (Píldoras flotantes directamente sobre el wallpaper)
+                if (!uiState.isFinished) {
+                    QuickRepliesRow(
+                        onReplySelected = { text ->
+                            viewModel.sendQuickMessage(text)
+                        }
+                    )
+                }
 
-                WhatsAppInputBar(
-                    text = uiState.inputText,
-                    onTextChange = viewModel::onInputTextChanged,
-                    onSend = viewModel::sendMessage,
-                    isSending = uiState.isSending
-                )
-            } else {
-                FinishedOrderChatNotice()
+                // E. BARRA DE ENTRADA DE TEXTO (Flota al ras del teclado o la barra de navegación)
+                if (!uiState.isFinished) {
+                    CampusGoInputBar(
+                        text = uiState.inputText,
+                        onTextChange = viewModel::onInputTextChanged,
+                        onSend = viewModel::sendMessage,
+                        isSending = uiState.isSending
+                    )
+                } else {
+                    FinishedOrderChatNotice()
+                }
             }
         }
 
@@ -228,7 +283,7 @@ fun OrderChatBottomSheet(
 }
 
 @Composable
-private fun WhatsAppTopBar(
+private fun CampusGoTopBar(
     otherUserName: String,
     otherUserAvatarUrl: String?,
     meetingPoint: String,
@@ -236,78 +291,84 @@ private fun WhatsAppTopBar(
     onOpenProfile: () -> Unit
 ) {
     Surface(
-        color = Color(0xFF075E54), // Verde oscuro WhatsApp clásico
-        shadowElevation = 3.dp,
+        color = CampusBlue, // Azul amigable, fresco y luminoso (no oscuro)
+        shadowElevation = 4.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(58.dp)
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .statusBarsPadding()
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Regresar",
-                    tint = Color.White
-                )
-            }
-
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onOpenProfile() }
-                    .padding(vertical = 4.dp, horizontal = 2.dp),
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ValleGoUserAvatar(
-                    avatarUrl = otherUserAvatarUrl,
-                    name = otherUserName,
-                    size = 40.dp
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = otherUserName.ifBlank { "Contacto de Pedido" },
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Regresar",
+                        tint = Color.White
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Color(0xFFFFD54F),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
+                }
+
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenProfile() }
+                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ValleGoUserAvatar(
+                        avatarUrl = otherUserAvatarUrl,
+                        name = otherUserName,
+                        size = 40.dp
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
-                            text = meetingPoint.ifBlank { "Punto por convenir" },
-                            fontSize = 11.5.sp,
-                            color = Color(0xFFE0E0E0),
+                            text = otherUserName.ifBlank { "Contacto de Pedido" },
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = WarmYellow, // Amarillo cálido oficial (#F4B942)
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = meetingPoint.ifBlank { "Punto por convenir" },
+                                fontSize = 11.5.sp,
+                                color = Color.White.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
-            }
 
-            IconButton(onClick = onOpenProfile) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "Ver Perfil",
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(22.dp)
-                )
+                IconButton(onClick = onOpenProfile) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Ver Perfil",
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }
@@ -318,12 +379,13 @@ private fun ChatPrivacyCard(isFinished: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = if (isFinished) Color(0xFFE2E8F0) else Color(0xFFFFF9C4), // Amarillo suave tipo aviso WhatsApp
+            shape = RoundedCornerShape(10.dp),
+            color = if (isFinished) Color(0xFFF1F5F9) else Color(0xFFFEF3C7),
+            border = BorderStroke(0.5.dp, if (isFinished) Color(0xFFCBD5E1) else WarmYellow.copy(alpha = 0.5f)),
             shadowElevation = 1.dp
         ) {
             Row(
@@ -334,7 +396,7 @@ private fun ChatPrivacyCard(isFinished: Boolean) {
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = null,
-                    tint = if (isFinished) Color(0xFF64748B) else Color(0xFF856404),
+                    tint = if (isFinished) Color(0xFF64748B) else Color(0xFFB45309),
                     modifier = Modifier.size(13.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -342,10 +404,10 @@ private fun ChatPrivacyCard(isFinished: Boolean) {
                     text = if (isFinished) {
                         "Pedido finalizado. Mensajes eliminados de la base de datos."
                     } else {
-                        "Chat temporal: los mensajes se autodestruyen al entregar el pedido."
+                        "Chat temporal: los mensajes se eliminan al entregar el pedido."
                     },
                     fontSize = 11.sp,
-                    color = if (isFinished) Color(0xFF475569) else Color(0xFF664D03),
+                    color = if (isFinished) Color(0xFF475569) else Color(0xFF78350F),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Medium
                 )
@@ -355,16 +417,16 @@ private fun ChatPrivacyCard(isFinished: Boolean) {
 }
 
 @Composable
-private fun WhatsAppMessageBubble(message: ChatMessage) {
+private fun CampusGoMessageBubble(message: ChatMessage) {
     val isFromMe = message.isFromMe
-    val bubbleColor = if (isFromMe) Color(0xFFD9FDD3) else Color.White // Verde claro WhatsApp para emisor, blanco para receptor
-    val textColor = Color(0xFF111B21)
-    val timeColor = Color(0xFF667781)
+    val bubbleColor = if (isFromMe) Color(0xFFD7F5EE) else Color.White
+    val textColor = DarkBlue
+    val timeColor = Color(0xFF64748B)
 
     val shape = if (isFromMe) {
-        RoundedCornerShape(topStart = 12.dp, topEnd = 2.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+        RoundedCornerShape(topStart = 14.dp, topEnd = 3.dp, bottomStart = 14.dp, bottomEnd = 14.dp)
     } else {
-        RoundedCornerShape(topStart = 2.dp, topEnd = 12.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+        RoundedCornerShape(topStart = 3.dp, topEnd = 14.dp, bottomStart = 14.dp, bottomEnd = 14.dp)
     }
 
     Row(
@@ -374,11 +436,12 @@ private fun WhatsAppMessageBubble(message: ChatMessage) {
         Surface(
             shape = shape,
             color = bubbleColor,
-            shadowElevation = 1.dp,
+            border = if (isFromMe) BorderStroke(0.5.dp, TurquoiseGreen.copy(alpha = 0.25f)) else BorderStroke(0.5.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 1.5.dp,
             modifier = Modifier.widthIn(max = 290.dp)
         ) {
             Column(
-                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp)
+                modifier = Modifier.padding(start = 11.dp, end = 11.dp, top = 7.dp, bottom = 5.dp)
             ) {
                 Text(
                     text = message.content,
@@ -401,7 +464,7 @@ private fun WhatsAppMessageBubble(message: ChatMessage) {
                         Icon(
                             imageVector = if (message.isRead) Icons.Default.DoneAll else Icons.Default.Check,
                             contentDescription = if (message.isRead) "Leído" else "Enviado",
-                            tint = if (message.isRead) Color(0xFF53BDEB) else Color(0xFF8696A0),
+                            tint = if (message.isRead) TurquoiseGreen else Color(0xFF94A3B8),
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -424,83 +487,80 @@ private fun QuickRepliesRow(onReplySelected: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFEFEAE2))
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         quickOptions.forEach { option ->
-            SuggestionChip(
+            Surface(
                 onClick = { onReplySelected(option) },
-                label = {
-                    Text(
-                        text = option,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF075E54)
-                    )
-                },
-                colors = SuggestionChipDefaults.suggestionChipColors(
-                    containerColor = Color.White
-                ),
-                border = SuggestionChipDefaults.suggestionChipBorder(
-                    enabled = true,
-                    borderColor = Color(0xFFB2DFDB),
-                    borderWidth = 1.dp
-                ),
-                shape = RoundedCornerShape(16.dp)
-            )
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White.copy(alpha = 0.95f),
+                border = BorderStroke(1.dp, TurquoiseGreen.copy(alpha = 0.4f)),
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = option,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1E293B),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun WhatsAppInputBar(
+private fun CampusGoInputBar(
     text: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     isSending: Boolean
 ) {
-    Surface(
-        color = Color(0xFFF0F2F5),
-        shadowElevation = 6.dp,
-        modifier = Modifier.fillMaxWidth()
+    // Flota directamente sobre el fondo del chat sin barra ni franja blanca rectangular
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            placeholder = {
+                Text("Escribe un mensaje...", fontSize = 14.sp, color = Color(0xFF94A3B8))
+            },
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = TurquoiseGreen,
+                unfocusedBorderColor = Color(0xFFCBD5E1),
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                focusedTextColor = Color(0xFF0F172A),
+                unfocusedTextColor = Color(0xFF0F172A)
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { onSend() }),
             modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                placeholder = {
-                    Text("Mensaje...", fontSize = 14.5.sp, color = Color(0xFF8696A0))
-                },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { onSend() }),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
-                maxLines = 4
-            )
+                .weight(1f)
+                .shadow(2.dp, RoundedCornerShape(24.dp))
+                .padding(end = 8.dp),
+            maxLines = 4
+        )
 
+        Surface(
+            shape = CircleShape,
+            color = if (text.isNotBlank() && !isSending) TurquoiseGreen else Color(0xFFE2E8F0),
+            shadowElevation = 2.dp
+        ) {
             IconButton(
                 onClick = onSend,
                 enabled = text.isNotBlank() && !isSending,
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color(0xFF00A884), // Verde WhatsApp oficial de botón de enviar
+                    containerColor = Color.Transparent,
                     contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFE2E8F0),
+                    disabledContainerColor = Color.Transparent,
                     disabledContentColor = Color(0xFF94A3B8)
                 ),
                 modifier = Modifier.size(46.dp)
@@ -525,20 +585,26 @@ private fun WhatsAppInputBar(
 
 @Composable
 private fun FinishedOrderChatNotice() {
-    Surface(
-        color = Color(0xFFE2E8F0),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "El pedido ha sido completado. El chat temporal concluyó y el historial ha sido eliminado por privacidad.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF475569),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(14.dp)
-        )
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFFF1F5F9).copy(alpha = 0.95f),
+            border = BorderStroke(0.5.dp, Color(0xFFCBD5E1)),
+            shadowElevation = 2.dp
+        ) {
+            Text(
+                text = "El pedido ha sido completado. El chat temporal concluyó y el historial ha sido eliminado por privacidad.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF475569),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            )
+        }
     }
 }
 
@@ -549,71 +615,80 @@ private fun EmptyChatState(
     modifier: Modifier = Modifier,
     onOpenProfile: () -> Unit
 ) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White.copy(alpha = 0.94f),
+        shadowElevation = 2.dp,
+        modifier = modifier
+            .padding(24.dp)
+            .widthIn(max = 340.dp)
     ) {
-        Box(
-            modifier = Modifier.clickable { onOpenProfile() },
-            contentAlignment = Alignment.BottomEnd
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ValleGoUserAvatar(
-                avatarUrl = otherUserAvatarUrl,
-                name = otherUserName,
-                size = 72.dp
-            )
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFF00A884),
-                border = BorderStroke(1.5.dp, Color.White),
-                modifier = Modifier.size(24.dp)
+            Box(
+                modifier = Modifier.clickable { onOpenProfile() },
+                contentAlignment = Alignment.BottomEnd
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(13.dp)
-                    )
+                ValleGoUserAvatar(
+                    avatarUrl = otherUserAvatarUrl,
+                    name = otherUserName,
+                    size = 72.dp
+                )
+                Surface(
+                    shape = CircleShape,
+                    color = TurquoiseGreen,
+                    border = BorderStroke(1.5.dp, Color.White),
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
                 }
             }
-        }
 
-        Text(
-            text = "Coordinación con $otherUserName",
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            color = Color(0xFF1E293B),
-            textAlign = TextAlign.Center
-        )
-
-        Text(
-            text = "Escribe aquí para acordar los detalles de entrega en el punto de encuentro. Los mensajes se eliminarán al finalizar el pedido.",
-            fontSize = 12.5.sp,
-            color = Color(0xFF64748B),
-            textAlign = TextAlign.Center,
-            lineHeight = 17.sp
-        )
-
-        OutlinedButton(
-            onClick = onOpenProfile,
-            shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, Color(0xFF00A884)),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00A884)),
-            modifier = Modifier.height(38.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "Ver perfil de usuario",
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold
+                text = "Coordinación con $otherUserName",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFF0F172A),
+                textAlign = TextAlign.Center
             )
+
+            Text(
+                text = "Escribe aquí para acordar los detalles de entrega en el punto de encuentro. Los mensajes se eliminarán al finalizar el pedido.",
+                fontSize = 12.5.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center,
+                lineHeight = 17.sp
+            )
+
+            OutlinedButton(
+                onClick = onOpenProfile,
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, TurquoiseGreen),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseGreen),
+                modifier = Modifier.height(38.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Ver perfil de usuario",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
@@ -799,7 +874,7 @@ private fun ChatUserProfileFullScreen(
                                     )
                                     Surface(
                                         shape = CircleShape,
-                                        color = Color(0xFF00A884),
+                                        color = TurquoiseGreen,
                                         border = BorderStroke(2.dp, Color.White),
                                         modifier = Modifier.size(28.dp)
                                     ) {
@@ -823,14 +898,14 @@ private fun ChatUserProfileFullScreen(
                                 )
 
                                 Surface(
-                                    color = Color(0xFFE8F5E9),
+                                    color = Color(0xFFE6F6F3),
                                     shape = RoundedCornerShape(20.dp)
                                 ) {
                                     Text(
                                         text = "🏪 Emprendedor Autorizado",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F5132),
+                                        color = Color(0xFF0D5C4C),
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                                     )
                                 }
@@ -1037,14 +1112,14 @@ private fun ChatUserProfileFullScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFE8F5E9),
+                                color = Color(0xFFE6F6F3),
                                 modifier = Modifier.size(42.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.LocationOn,
                                         contentDescription = null,
-                                        tint = Color(0xFF00A884),
+                                        tint = TurquoiseGreen,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -1073,8 +1148,8 @@ private fun ChatUserProfileFullScreen(
                 OutlinedButton(
                     onClick = onBack,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFF00A884)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00A884)),
+                    border = BorderStroke(1.dp, TurquoiseGreen),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseGreen),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)

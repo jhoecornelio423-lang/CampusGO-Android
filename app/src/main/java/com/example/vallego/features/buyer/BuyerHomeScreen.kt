@@ -176,6 +176,8 @@ fun BuyerHomeScreen(
     // Manejo nativo del botón / gesto Atrás de Android
     BackHandler(enabled = activeChatSummary != null) {
         activeChatSummary = null
+        chatViewModel.clearChat()
+        showActiveChatsSheet = true
     }
     BackHandler(enabled = activeChatSummary == null && showActiveChatsSheet) {
         showActiveChatsSheet = false
@@ -302,6 +304,7 @@ fun BuyerHomeScreen(
             onDismiss = {
                 activeChatSummary = null
                 chatViewModel.clearChat()
+                showActiveChatsSheet = true
             }
         )
         return

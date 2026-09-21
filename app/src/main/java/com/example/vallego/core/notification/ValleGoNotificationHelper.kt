@@ -122,9 +122,12 @@ object ValleGoNotificationHelper {
             }
         }
 
+        val resolvedNotifId = if (!subOrderId.isNullOrBlank()) Math.abs(subOrderId.hashCode()) else Math.abs(notificationId)
+        val tag = if (!subOrderId.isNullOrBlank()) "chat_$subOrderId" else null
+
         val pendingIntent = PendingIntent.getActivity(
             context,
-            notificationId,
+            resolvedNotifId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -143,9 +146,53 @@ object ValleGoNotificationHelper {
             .build()
 
         try {
-            NotificationManagerCompat.from(context).notify(notificationId, notification)
+            if (tag != null) {
+                NotificationManagerCompat.from(context).notify(tag, resolvedNotifId, notification)
+            } else {
+                NotificationManagerCompat.from(context).notify(resolvedNotifId, notification)
+            }
         } catch (e: SecurityException) {
             android.util.Log.e("ValleGoNotification", "Permiso de notificaciones denegado", e)
+        }
+    }
+
+    /**
+     * Cancela y descarta las notificaciones de chat de la barra de estado de Android
+     * cuando el usuario abre la conversación.
+     */
+    fun cancelChatNotifications(context: Context, subOrderId: String? = null) {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+
+            if (!subOrderId.isNullOrBlank()) {
+                val notifId = Math.abs(subOrderId.hashCode())
+                notificationManager.cancel(notifId)
+                notificationManager.cancel("chat_$subOrderId", notifId)
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val activeList = notificationManager.activeNotifications
+                for (statusBarNotif in activeList) {
+                    if (statusBarNotif.id == SERVICE_NOTIFICATION_ID) continue
+
+                    val tag = statusBarNotif.tag
+                    val id = statusBarNotif.id
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (statusBarNotif.notification.channelId == CHANNEL_CHAT) {
+                            if (subOrderId.isNullOrBlank() || tag == "chat_$subOrderId" || id == Math.abs(subOrderId.hashCode())) {
+                                notificationManager.cancel(tag, id)
+                            }
+                        }
+                    } else {
+                        if (tag == "chat_$subOrderId" || (subOrderId != null && id == Math.abs(subOrderId.hashCode()))) {
+                            notificationManager.cancel(tag, id)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ValleGoNotification", "Error cancelando notificaciones de chat", e)
         }
     }
 

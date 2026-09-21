@@ -29,7 +29,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
@@ -126,7 +125,6 @@ fun AuthRoute(
             onTabSelected = viewModel::setLoginMode,
             onSubmit = viewModel::submit,
             onDismissError = viewModel::clearError,
-            onBackToWelcome = { showWelcome = true },
             modifier = modifier
         )
     }
@@ -143,7 +141,6 @@ fun AuthScreen(
     onTabSelected: (Boolean) -> Unit,
     onSubmit: () -> Unit,
     onDismissError: () -> Unit,
-    onBackToWelcome: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
@@ -214,41 +211,14 @@ fun AuthScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // SECCIÓN SUPERIOR: HEADER CON BOTÓN VOLVER Y LOGO OFICIAL DEL PROTOTIPO
+            // SECCIÓN SUPERIOR: HEADER CON LOGO OFICIAL DEL PROTOTIPO
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 20.dp, end = 24.dp, top = 16.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Botón volver a pantalla de bienvenida
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    IconButton(
-                        onClick = onBackToWelcome,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(Color.White.copy(alpha = 0.15f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver a la bienvenida",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Volver al inicio",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
                 // Logo Oficial Completo con letras blancas para fondo oscuro
                 Column(
                     horizontalAlignment = Alignment.Start,
