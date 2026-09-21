@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,12 +71,12 @@ import kotlin.math.roundToInt
  * Jetpack Compose translation of React Bits <SlideCommit /> component.
  *
  * Provides a responsive, physics-based horizontal slide-to-confirm button with:
- * - Rounded pill track
- * - Draggable thumb/handle with return bounce animation (customizable via returnBounce)
- * - Text label with fade-out during travel
- * - Loading indicator during isSubmitting
- * - Done and Error feedback states
- * - Haptic tactile feedback on commit threshold
+ * - Pixel-perfect vertical centering for handle and direction arrow.
+ * - Dynamic color palette: sleek deep midnight navy in idle state, vibrant gradient trail
+ *   (Tech Blue -> Emerald) while dragging, and rich emerald green upon completion.
+ * - Text label with smooth fade-out during travel.
+ * - Physics spring bounce-back upon release before threshold.
+ * - Haptic tactile feedback on commit threshold.
  */
 @Composable
 fun SlideCommit(
@@ -92,13 +91,13 @@ fun SlideCommit(
     hasError: Boolean = false,
     isDone: Boolean = false,
     enabled: Boolean = true,
-    trackColor: Color = Color(0xFF003366),
-    handleColor: Color = Color(0xFFF8FAFC),
-    successColor: Color = Color(0xFF16A085),
-    dangerColor: Color = Color(0xFFE5484D),
+    trackColor: Color = Color(0xFF0F1E36),
+    handleColor: Color = Color(0xFFFFFFFF),
+    successColor: Color = Color(0xFF059669),
+    dangerColor: Color = Color(0xFFDC2626),
     width: Dp? = null,
-    height: Dp = 56.dp,
-    radius: Dp = 28.dp,
+    height: Dp = 54.dp,
+    radius: Dp = 27.dp,
     returnBounce: Float = 0.38f,
     landingDip: Float = 0.026f,
     holdMs: Long = 1500L
@@ -116,25 +115,13 @@ fun SlideCommit(
     val trackShape = RoundedCornerShape(radius)
     val handleShape = CircleShape
 
-    // Dynamic track color based on state
-    val targetTrackColor = when {
-        isDone -> successColor
-        hasError -> dangerColor
-        else -> trackColor
-    }
-    val animatedTrackColor by animateColorAsState(
-        targetValue = targetTrackColor,
-        animationSpec = tween(350),
-        label = "animatedTrackColor"
-    )
-
-    // Gentle shimmer effect for guiding arrows when idle
-    val infiniteTransition = rememberInfiniteTransition(label = "slideHint")
+    // Subtle pulsating glow for directional chevrons in idle state
+    val infiniteTransition = rememberInfiniteTransition(label = "slideHintTransition")
     val hintAlpha by infiniteTransition.animateFloat(
         initialValue = 0.35f,
-        targetValue = 0.90f,
+        targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1100, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "hintAlpha"
@@ -142,8 +129,11 @@ fun SlideCommit(
 
     // Landing dip scale animation when dragging
     val handleScale by animateFloatAsState(
-        targetValue = if (isDragging) (1f - landingDip * 2f).coerceAtLeast(0.92f) else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        targetValue = if (isDragging) (1f - landingDip * 2.2f).coerceAtLeast(0.94f) else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "handleScale"
     )
 
@@ -153,17 +143,35 @@ fun SlideCommit(
         modifier.fillMaxWidth().height(height)
     }
 
+    // Dynamic background brush according to current state
+    val baseTrackBrush = when {
+        isDone -> Brush.horizontalGradient(
+            listOf(Color(0xFF047857), Color(0xFF10B981))
+        )
+        hasError -> Brush.horizontalGradient(
+            listOf(Color(0xFF991B1B), Color(0xFFDC2626))
+        )
+        else -> Brush.horizontalGradient(
+            listOf(Color(0xFF0F1E36), Color(0xFF091424))
+        )
+    }
+
+    val trackBorderColor by animateColorAsState(
+        targetValue = when {
+            isDone -> Color(0xFF34D399).copy(alpha = 0.8f)
+            hasError -> Color(0xFFF87171).copy(alpha = 0.8f)
+            isDragging -> Color(0xFF38BDF8).copy(alpha = 0.6f)
+            else -> Color(0xFF1E3A5F).copy(alpha = 0.7f)
+        },
+        animationSpec = tween(300),
+        label = "trackBorderColor"
+    )
+
     BoxWithConstraints(
         modifier = baseModifier
             .clip(trackShape)
-            .background(animatedTrackColor)
-            .border(
-                BorderStroke(
-                    1.dp,
-                    if (isDone) successColor.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.15f)
-                ),
-                trackShape
-            )
+            .background(baseTrackBrush)
+            .border(BorderStroke(1.dp, trackBorderColor), trackShape)
             .alpha(if (enabled) 1f else 0.45f),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -185,7 +193,7 @@ fun SlideCommit(
             }
         }
 
-        // React to isDone: animate to end and notify onDone
+        // React to isDone: snap to end and notify onDone
         LaunchedEffect(isDone) {
             if (isDone) {
                 offsetX.snapTo(maxTravelPx)
@@ -223,29 +231,32 @@ fun SlideCommit(
 
         val progress = if (maxTravelPx > 0f) (offsetX.value / maxTravelPx).coerceIn(0f, 1f) else 0f
 
-        // Highlight trail following the handle
-        val activeFillWidthDp = with(density) {
-            (paddingPx * 2 + handleSizePx + offsetX.value).toDp()
-        }
-        Box(
-            modifier = Modifier
-                .width(activeFillWidthDp)
-                .fillMaxHeight()
-                .clip(trackShape)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.18f),
-                            Color.White.copy(alpha = 0.06f)
+        // Energetic glowing trail following the handle as it slides
+        if (progress > 0.01f && !isDone && !hasError) {
+            val activeFillWidthDp = with(density) {
+                (paddingPx * 2 + handleSizePx + offsetX.value).toDp()
+            }
+            Box(
+                modifier = Modifier
+                    .width(activeFillWidthDp)
+                    .fillMaxHeight()
+                    .clip(trackShape)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF0284C7).copy(alpha = 0.45f),
+                                Color(0xFF0EA5E9).copy(alpha = 0.75f),
+                                Color(0xFF10B981).copy(alpha = 0.90f)
+                            )
                         )
                     )
-                )
-        )
+            )
+        }
 
-        // Centered text label that fades out as the handle slides
+        // Centered text label that smoothly fades out as the handle slides forward
         val textAlpha = when {
             isDone || hasError || isSubmitting -> 1f
-            else -> (1f - progress * 1.8f).coerceIn(0f, 1f)
+            else -> (1f - progress * 2.2f).coerceIn(0f, 1f)
         }
 
         val displayText = when {
@@ -258,49 +269,68 @@ fun SlideCommit(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = handleSize + 8.dp)
+                .padding(start = handleSize + 12.dp, end = 16.dp)
                 .alpha(textAlpha),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = displayText,
-                color = Color.White,
+                color = Color(0xFFF1F5F9),
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.3.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Idle direction hints (chevrons)
-            if (!isSubmitting && !isDone && !hasError && progress < 0.2f) {
+            // Dynamic direction hint chevrons when idle
+            if (!isSubmitting && !isDone && !hasError && progress < 0.15f) {
                 Spacer(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = hintAlpha),
-                    modifier = Modifier.size(16.dp)
+                Text(
+                    text = "›››",
+                    color = Color(0xFF38BDF8).copy(alpha = hintAlpha),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.sp
                 )
             }
         }
 
-        // Draggable Handle / Thumb
+        // Draggable Handle / Thumb (Centered vertically with pixel precision: y = 0)
         val canDrag = enabled && !isSubmitting && !isDone && !hasError
+
+        val handleBorderColor by animateColorAsState(
+            targetValue = when {
+                isDone || progress >= 0.78f -> Color(0xFF10B981)
+                isDragging -> Color(0xFF38BDF8)
+                else -> Color(0xFFE2E8F0)
+            },
+            animationSpec = tween(200),
+            label = "handleBorderColor"
+        )
 
         Box(
             modifier = Modifier
+                .align(Alignment.CenterStart)
                 .offset {
                     IntOffset(
                         x = (paddingPx + offsetX.value).roundToInt(),
-                        y = paddingPx.roundToInt()
+                        y = 0 // Exactly centered vertically with equal top/bottom padding!
                     )
                 }
                 .size(handleSize)
                 .scale(handleScale)
-                .shadow(elevation = 4.dp, shape = handleShape)
+                .shadow(
+                    elevation = 6.dp,
+                    shape = handleShape,
+                    ambientColor = Color.Black.copy(alpha = 0.35f),
+                    spotColor = Color.Black.copy(alpha = 0.45f)
+                )
                 .clip(handleShape)
                 .background(handleColor)
+                .border(BorderStroke(1.5.dp, handleBorderColor), handleShape)
                 .pointerInput(canDrag, maxTravelPx) {
                     if (!canDrag) return@pointerInput
 
@@ -312,10 +342,10 @@ fun SlideCommit(
                             isDragging = false
                             coroutineScope.launch {
                                 val currentOffset = offsetX.value
-                                val commitThreshold = maxTravelPx * 0.82f
+                                val commitThreshold = maxTravelPx * 0.80f
 
                                 if (currentOffset >= commitThreshold) {
-                                    // Committed! Haptic vibration + snap to end + trigger confirm
+                                    // Committed! Haptic vibration + smooth snap to end + trigger onConfirm
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     offsetX.animateTo(
                                         targetValue = maxTravelPx,
@@ -326,7 +356,7 @@ fun SlideCommit(
                                     )
                                     onConfirm()
                                 } else {
-                                    // Release before threshold: bounce back to 0
+                                    // Released before threshold: bouncy return to 0
                                     offsetX.animateTo(
                                         targetValue = 0f,
                                         animationSpec = spring(
@@ -360,12 +390,22 @@ fun SlideCommit(
                 },
             contentAlignment = Alignment.Center
         ) {
+            val arrowTint by animateColorAsState(
+                targetValue = when {
+                    progress >= 0.78f -> Color(0xFF059669) // turns green when nearing commit threshold
+                    isDragging -> Color(0xFF0284C7)        // tech blue while sliding
+                    else -> Color(0xFF0F1E36)              // deep navy when idle
+                },
+                animationSpec = tween(150),
+                label = "arrowTint"
+            )
+
             when {
                 isSubmitting -> {
                     CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
                         strokeWidth = 2.5.dp,
-                        color = trackColor
+                        color = Color(0xFF0284C7)
                     )
                 }
                 isDone -> {
@@ -387,8 +427,8 @@ fun SlideCommit(
                 else -> {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Deslizar",
-                        tint = trackColor,
+                        contentDescription = "Deslizar para confirmar",
+                        tint = arrowTint,
                         modifier = Modifier.size(22.dp)
                     )
                 }
