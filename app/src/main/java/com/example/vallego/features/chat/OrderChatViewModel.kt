@@ -53,6 +53,10 @@ class OrderChatViewModel(
         subOrderStatus: SubOrderStatus,
         otherUserAvatarUrl: String? = null
     ) {
+        // Registrar de inmediato la conversación activa para silenciar notificaciones locales
+        ActiveChatSessionManager.activeSubOrderId = subOrderId
+        ActiveChatSessionManager.activeOtherUserId = otherUserId
+
         val isFinished = subOrderStatus.isFinal
         _uiState.update {
             it.copy(
@@ -69,6 +73,13 @@ class OrderChatViewModel(
                 isLoading = true,
                 isLoadingProfile = true
             )
+        }
+
+        // Marcar mensajes como leídos de inmediato en base de datos para no dejar notificaciones pendientes
+        if (subOrderId.isNotBlank() && currentUserId.isNotBlank()) {
+            viewModelScope.launch {
+                chatRepository.markMessagesAsRead(subOrderId, currentUserId)
+            }
         }
 
         // Cargar perfil del interlocutor (avatar real y datos completos para visor de perfil)
@@ -222,6 +233,8 @@ class OrderChatViewModel(
 
     fun clearChat() {
         messageObservationJob?.cancel()
+        ActiveChatSessionManager.activeSubOrderId = null
+        ActiveChatSessionManager.activeOtherUserId = null
         _uiState.value = OrderChatUiState()
     }
 

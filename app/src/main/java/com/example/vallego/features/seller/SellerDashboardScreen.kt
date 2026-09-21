@@ -113,6 +113,7 @@ fun SellerDashboardScreen(
             onDismiss = {
                 activeChatSubOrder = null
                 chatViewModel.clearChat()
+                showActiveChatsSheet = true
             }
         )
         return
@@ -192,8 +193,18 @@ fun SellerDashboardScreen(
         return
     }
 
+    // Navegación nativa de retroceso para chat y lista de chats activos del vendedor
+    BackHandler(enabled = activeChatSubOrder != null) {
+        activeChatSubOrder = null
+        chatViewModel.clearChat()
+        showActiveChatsSheet = true
+    }
+    BackHandler(enabled = activeChatSubOrder == null && showActiveChatsSheet) {
+        showActiveChatsSheet = false
+    }
+
     // Regresar a la pestaña principal de Pedidos antes de salir de la app
-    BackHandler(enabled = uiState.selectedTab != SellerTab.PEDIDOS) {
+    BackHandler(enabled = activeChatSubOrder == null && !showActiveChatsSheet && uiState.selectedTab != SellerTab.PEDIDOS) {
         viewModel.setSelectedTab(SellerTab.PEDIDOS)
     }
 
