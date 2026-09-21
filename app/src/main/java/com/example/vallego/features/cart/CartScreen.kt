@@ -812,16 +812,6 @@ fun CartScreen(
                                                     modifier = Modifier.fillMaxWidth()
                                                 )
                                             }
-
-                                            OutlinedButton(
-                                                onClick = { currentStep = CartCheckoutStep.PRODUCTS },
-                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
-                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Text("Modificar productos del carrito")
-                                            }
                                         }
                                     }
                                 }
@@ -1199,16 +1189,6 @@ fun CartScreen(
                                                         fontSize = 16.sp
                                                     )
                                                 }
-                                            }
-
-                                            OutlinedButton(
-                                                onClick = { currentStep = CartCheckoutStep.DELIVERY },
-                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
-                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Text("Volver a Entrega")
                                             }
                                         }
                                     }
