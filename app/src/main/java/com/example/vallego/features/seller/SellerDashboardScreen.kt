@@ -90,7 +90,9 @@ import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import com.example.vallego.ui.components.ValleGoBusinessBanner
 import com.example.vallego.ui.components.ValleGoProductImage
 import com.example.vallego.ui.components.ValleGoUserAvatar
+import com.example.vallego.domain.repository.ChatRepository
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +105,11 @@ fun SellerDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSellerProfile by remember { mutableStateOf(false) }
+    val chatRepository: ChatRepository = koinInject()
+    val curProf = uiState.sellerProfile ?: profile
+    val unreadChatCount by remember(curProf.id) {
+        chatRepository.observeUnreadCount(curProf.id)
+    }.collectAsState(initial = 0)
     val chatViewModel: OrderChatViewModel = koinViewModel()
     var activeChatSubOrder by remember { mutableStateOf<SubOrder?>(null) }
     var showActiveChatsSheet by remember { mutableStateOf(false) }
@@ -1181,13 +1188,13 @@ fun SellerDashboardScreen(
                     }
                     BadgedBox(
                         badge = {
-                            if (activeSubOrders.isNotEmpty()) {
+                            if (unreadChatCount > 0) {
                                 Badge(
-                                    containerColor = Color(0xFF00A884),
+                                    containerColor = Color(0xFFEF4444), // Rojo para indicar mensajes no leídos
                                     contentColor = Color.White
                                 ) {
                                     Text(
-                                        text = "${activeSubOrders.size}",
+                                        text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1199,7 +1206,7 @@ fun SellerDashboardScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Chat,
                                 contentDescription = "Chats Activos de Pedidos",
-                                tint = if (activeSubOrders.isNotEmpty()) Color(0xFF00A884) else Color(0xFF003366)
+                                tint = if (unreadChatCount > 0) Color(0xFFEF4444) else if (activeSubOrders.isNotEmpty()) Color(0xFF00A884) else Color(0xFF003366)
                             )
                         }
                     }

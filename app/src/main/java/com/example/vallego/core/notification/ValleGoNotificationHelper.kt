@@ -165,29 +165,35 @@ object ValleGoNotificationHelper {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
             if (!subOrderId.isNullOrBlank()) {
-                val notifId = Math.abs(subOrderId.hashCode())
-                notificationManager.cancel(notifId)
-                notificationManager.cancel("chat_$subOrderId", notifId)
+                val absId = Math.abs(subOrderId.hashCode())
+                val rawId = subOrderId.hashCode()
+                notificationManager.cancel(absId)
+                notificationManager.cancel(rawId)
+                notificationManager.cancel("chat_$subOrderId", absId)
+                notificationManager.cancel("chat_$subOrderId", rawId)
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val activeList = notificationManager.activeNotifications
+                val activeList = notificationManager.activeNotifications ?: emptyArray()
                 for (statusBarNotif in activeList) {
                     if (statusBarNotif.id == SERVICE_NOTIFICATION_ID) continue
 
                     val tag = statusBarNotif.tag
                     val id = statusBarNotif.id
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (statusBarNotif.notification.channelId == CHANNEL_CHAT) {
-                            if (subOrderId.isNullOrBlank() || tag == "chat_$subOrderId" || id == Math.abs(subOrderId.hashCode())) {
-                                notificationManager.cancel(tag, id)
-                            }
-                        }
-                    } else {
-                        if (tag == "chat_$subOrderId" || (subOrderId != null && id == Math.abs(subOrderId.hashCode()))) {
-                            notificationManager.cancel(tag, id)
-                        }
+                    val isChatChannel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        statusBarNotif.notification.channelId == CHANNEL_CHAT
+                    } else false
+
+                    val matchesSubOrder = !subOrderId.isNullOrBlank() && (
+                        tag == "chat_$subOrderId" ||
+                        id == Math.abs(subOrderId.hashCode()) ||
+                        id == subOrderId.hashCode()
+                    )
+
+                    // Al abrir el chat, descartar de la barra de estado cualquier notificación de chat activa
+                    if (isChatChannel || matchesSubOrder) {
+                        notificationManager.cancel(tag, id)
                     }
                 }
             }

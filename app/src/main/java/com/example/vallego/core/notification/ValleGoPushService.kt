@@ -512,6 +512,7 @@ class ValleGoPushService : Service(), KoinComponent {
 
                 if (isChatOpenWithSender) {
                     markAsNotified(eventKey)
+                    ValleGoNotificationHelper.cancelChatNotifications(this@ValleGoPushService, msg.subOrderId)
                     continue
                 }
 

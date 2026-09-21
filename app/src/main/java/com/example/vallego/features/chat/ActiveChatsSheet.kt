@@ -16,10 +16,13 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import com.example.vallego.core.notification.ValleGoNotificationHelper
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,6 +55,11 @@ fun ActiveChatsSheet(
     onClose: () -> Unit
 ) {
     BackHandler(onBack = onClose)
+
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        ValleGoNotificationHelper.cancelChatNotifications(context)
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -94,14 +102,14 @@ fun ActiveChatsSheet(
                         )
                     }
                     Surface(
-                        shape = CircleShape,
-                        color = if (chats.isNotEmpty()) Color(0xFFE8F5E9) else Color(0xFFF1F5F9)
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF1F5F9)
                     ) {
                         Text(
-                            text = "${chats.size}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = if (chats.isNotEmpty()) Color(0xFF2E7D32) else Color(0xFF64748B),
+                            text = "${chats.size} activo${if (chats.size != 1) "s" else ""}",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color(0xFF475569),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }

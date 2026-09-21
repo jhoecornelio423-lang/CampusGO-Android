@@ -36,6 +36,11 @@ data class InsertOrderMessageDto(
     val content: String
 )
 
+@Serializable
+data class UpdateMessageReadDto(
+    @SerialName("is_read") val isRead: Boolean = true
+)
+
 class ChatRepositoryImpl(
     private val postgrest: Postgrest,
     private val realtime: Realtime? = null
@@ -158,23 +163,74 @@ class ChatRepositoryImpl(
 
     override suspend fun markMessagesAsRead(subOrderId: String, currentUserId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            if (isValidUUID(subOrderId) && isValidUUID(currentUserId)) {
-                postgrest["order_messages"]
-                    .update({
-                        set("is_read", true)
-                    }) {
+            // 1. Actualización inmediata en caché local en memoria
+            val list = localMessagesCache[subOrderId]
+            if (list != null) {
+                synchronized(list) {
+                    for (i in list.indices) {
+                        if (!list[i].isFromMe) {
+                            list[i] = list[i].copy(isRead = true)
+                        }
+                    }
+                }
+            }
+
+            // 2. Persistencia en Supabase
+            if (isValidUUID(subOrderId)) {
+                try {
+                    postgrest.from("order_messages").update(
+                        mapOf("is_read" to true)
+                    ) {
                         filter {
                             eq("sub_order_id", subOrderId)
-                            eq("receiver_id", currentUserId)
                             eq("is_read", false)
                         }
                     }
+                } catch (e1: Exception) {
+                    Log.w("ChatRepositoryImpl", "Update con mapOf falló: ${e1.message}, intentando con DTO")
+                    try {
+                        postgrest.from("order_messages").update(
+                            UpdateMessageReadDto(isRead = true)
+                        ) {
+                            filter {
+                                eq("sub_order_id", subOrderId)
+                                eq("is_read", false)
+                            }
+                        }
+                    } catch (e2: Exception) {
+                        Log.e("ChatRepositoryImpl", "Update con DTO también falló: ${e2.message}")
+                    }
+                }
             }
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("ChatRepositoryImpl", "Error en markMessagesAsRead para subOrderId $subOrderId: ${e.message}", e)
             Result.failure(e)
         }
     }
+
+    override fun observeUnreadCount(userId: String): Flow<Int> = flow {
+        while (true) {
+            try {
+                if (isValidUUID(userId)) {
+                    val unread = postgrest["order_messages"]
+                        .select {
+                            filter {
+                                eq("receiver_id", userId)
+                                eq("is_read", false)
+                            }
+                        }
+                        .decodeList<RemoteOrderMessageDto>()
+                    emit(unread.size)
+                } else {
+                    emit(0)
+                }
+            } catch (e: Exception) {
+                emit(0)
+            }
+            delay(3500L)
+        }
+    }.flowOn(Dispatchers.IO)
 
     override suspend fun deleteMessagesForSubOrder(subOrderId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {

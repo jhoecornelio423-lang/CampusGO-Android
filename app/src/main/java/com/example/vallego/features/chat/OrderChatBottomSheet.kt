@@ -109,6 +109,11 @@ fun OrderChatBottomSheet(
 
     val context = LocalContext.current
 
+    // Cancelar notificaciones de inmediato al montar la pantalla
+    LaunchedEffect(Unit) {
+        ValleGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
+    }
+
     // Registrar en memoria la conversación activa para que ValleGoPushService
     // suprima las notificaciones locales emergentes de ESTA misma conversación,
     // y cancelar inmediatamente cualquier notificación pendiente en la barra de estado.

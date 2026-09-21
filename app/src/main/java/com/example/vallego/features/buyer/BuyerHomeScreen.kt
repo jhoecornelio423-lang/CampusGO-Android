@@ -70,6 +70,7 @@ import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
 import com.example.vallego.domain.repository.AdminRepository
 import com.example.vallego.domain.repository.CartRepository
+import com.example.vallego.domain.repository.ChatRepository
 import com.example.vallego.domain.repository.OrderRepository
 import com.example.vallego.domain.repository.ProductRepository
 import com.example.vallego.features.cart.CartScreen
@@ -120,9 +121,13 @@ fun BuyerHomeScreen(
     cartRepository: CartRepository = koinInject(),
     productRepository: ProductRepository = koinInject(),
     adminRepository: AdminRepository = koinInject(),
-    orderRepository: OrderRepository = koinInject()
+    orderRepository: OrderRepository = koinInject(),
+    chatRepository: ChatRepository = koinInject()
 ) {
     var currentProfile by remember { mutableStateOf(profile) }
+    val unreadChatCount by remember(profile.id) {
+        chatRepository.observeUnreadCount(profile.id)
+    }.collectAsState(initial = 0)
     var showProfile by remember { mutableStateOf(false) }
     var showCart by remember { mutableStateOf(false) }
     var showTracking by remember { mutableStateOf(false) }
@@ -541,13 +546,13 @@ fun BuyerHomeScreen(
                                 // 1. Chats Activos de Coordinación
                                 BadgedBox(
                                     badge = {
-                                        if (activeBuyerChats.isNotEmpty()) {
+                                        if (unreadChatCount > 0) {
                                             Badge(
-                                                containerColor = Color(0xFF00A884),
+                                                containerColor = Color(0xFFEF4444), // Rojo para indicar mensajes pendientes no leídos
                                                 contentColor = Color.White
                                             ) {
                                                 Text(
-                                                    text = "${activeBuyerChats.size}",
+                                                    text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -562,7 +567,7 @@ fun BuyerHomeScreen(
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Chat,
                                             contentDescription = "Chats Activos",
-                                            tint = if (activeBuyerChats.isNotEmpty()) Color(0xFF00A884) else Color(0xFF16324F),
+                                            tint = if (unreadChatCount > 0) Color(0xFFEF4444) else if (activeBuyerChats.isNotEmpty()) Color(0xFF00A884) else Color(0xFF16324F),
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
