@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
@@ -14,6 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import com.example.vallego.ui.components.ValleGoDialogContainerColor
+import com.example.vallego.ui.components.ValleGoDialogShape
+import com.example.vallego.ui.components.ValleGoDialogTonalElevation
+import com.example.vallego.ui.components.valleGoDialogStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -35,16 +40,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.platform.LocalContext
 import com.example.vallego.R
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.ui.components.PaymentMethodLogo
+import com.example.vallego.ui.components.getPaymentMethodLogoRes
 import com.example.vallego.ui.components.SlideCommit
 import org.koin.androidx.compose.koinViewModel
 
@@ -64,6 +79,8 @@ fun CartScreen(
     viewModel: CartViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var disabledPaymentNotice by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshMeetingPoints()
@@ -87,53 +104,89 @@ fun CartScreen(
         }
     }
 
-    val isOrderConfirmed = uiState.placedOrder != null
+    var showClearCartDialog by remember { mutableStateOf(false) }
+    val isAnyModalOpen = showClearCartDialog
     val backgroundBlurRadius by animateDpAsState(
-        targetValue = if (isOrderConfirmed) 20.dp else 0.dp,
+        targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
+        animationSpec = tween(280),
         label = "cart_dialog_blur"
     )
-
-    var showClearCartDialog by remember { mutableStateOf(false) }
 
     if (showClearCartDialog) {
         AlertDialog(
             onDismissRequest = { showClearCartDialog = false },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             icon = {
-                Icon(
-                    imageVector = Icons.Default.DeleteSweep,
-                    contentDescription = null,
-                    tint = Color(0xFFC8102E),
-                    modifier = Modifier.size(36.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFEBEE)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_delete_custom),
+                        contentDescription = null,
+                        tint = Color(0xFFC8102E),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
             },
             title = {
                 Text(
                     text = "¿Vaciar el carrito?",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF003366),
+                    textAlign = TextAlign.Center
                 )
             },
             text = {
                 Text(
                     text = "¿Estás seguro de que deseas eliminar todos los productos seleccionados?",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF64748B),
+                    textAlign = TextAlign.Center
                 )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clearCart()
-                        showClearCartDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Sí, vaciar")
+                    OutlinedButton(
+                        onClick = { showClearCartDialog = false },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF64748B)),
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    ) {
+                        Text("Cancelar", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.clearCart()
+                            showClearCartDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Sí, vaciar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
                 }
             },
-            dismissButton = {
-                OutlinedButton(onClick = { showClearCartDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
+            dismissButton = null
         )
     }
 
@@ -206,7 +259,7 @@ fun CartScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ShoppingCart,
+                            painter = painterResource(id = R.drawable.ic_cart_custom),
                             contentDescription = null,
                             modifier = Modifier.size(72.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -290,7 +343,7 @@ fun CartScreen(
                                                 colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC8102E))
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.DeleteOutline,
+                                                    painter = painterResource(id = R.drawable.ic_delete_custom),
                                                     contentDescription = null,
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -328,7 +381,7 @@ fun CartScreen(
                                                             modifier = Modifier.weight(1f, fill = false)
                                                         ) {
                                                             Icon(
-                                                                painter = painterResource(id = R.drawable.ic_store_modern),
+                                                                painter = painterResource(id = R.drawable.ic_store_custom),
                                                                 contentDescription = null,
                                                                 tint = Color(0xFF003366),
                                                                 modifier = Modifier.size(18.dp)
@@ -380,11 +433,20 @@ fun CartScreen(
                                                                     onClick = { viewModel.decrementItem(cartItem.product.id) },
                                                                     modifier = Modifier.size(32.dp)
                                                                 ) {
-                                                                    Icon(
-                                                                        imageVector = if (cartItem.quantity == 1) Icons.Default.Delete else Icons.Default.Remove,
-                                                                        contentDescription = "Disminuir",
-                                                                        tint = if (cartItem.quantity == 1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                                                                    )
+                                                                    if (cartItem.quantity == 1) {
+                                                                        Icon(
+                                                                            painter = painterResource(id = R.drawable.ic_delete_custom),
+                                                                            contentDescription = "Eliminar",
+                                                                            tint = MaterialTheme.colorScheme.error,
+                                                                            modifier = Modifier.size(17.dp)
+                                                                        )
+                                                                    } else {
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.Remove,
+                                                                            contentDescription = "Disminuir",
+                                                                            tint = MaterialTheme.colorScheme.onSurface
+                                                                        )
+                                                                    }
                                                                 }
 
                                                                 Text(
@@ -515,7 +577,7 @@ fun CartScreen(
                                                     modifier = Modifier.weight(1f)
                                                 ) {
                                                     Icon(
-                                                        imageVector = Icons.Default.ShoppingCart,
+                                                        painter = painterResource(id = R.drawable.ic_cart_custom),
                                                         contentDescription = null,
                                                         tint = Color(0xFF1D4ED8),
                                                         modifier = Modifier.size(18.dp)
@@ -564,9 +626,10 @@ fun CartScreen(
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
-                                                        imageVector = Icons.Default.LocationOn,
+                                                        painter = painterResource(id = R.drawable.ic_location_custom),
                                                         contentDescription = null,
-                                                        tint = Color(0xFFC8102E)
+                                                        tint = Color(0xFFC8102E),
+                                                        modifier = Modifier.size(20.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
@@ -588,7 +651,7 @@ fun CartScreen(
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
                                                             Icon(
-                                                                imageVector = Icons.Default.Info,
+                                                                painter = painterResource(id = R.drawable.ic_info_custom),
                                                                 contentDescription = null,
                                                                 tint = Color(0xFFD97706),
                                                                 modifier = Modifier.size(20.dp)
@@ -682,7 +745,7 @@ fun CartScreen(
                                                 // Horario de Entrega (Intervalos de 30 min)
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
-                                                        imageVector = Icons.Default.Schedule,
+                                                        painter = painterResource(id = R.drawable.ic_alarm_custom),
                                                         contentDescription = null,
                                                         tint = Color(0xFF003366)
                                                     )
@@ -706,7 +769,7 @@ fun CartScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Default.Info,
+                                                            painter = painterResource(id = R.drawable.ic_info_custom),
                                                             contentDescription = null,
                                                             tint = if (uiState.isCampusClosedNow) Color(0xFFE65100) else Color(0xFF2E7D32),
                                                             modifier = Modifier.size(18.dp)
@@ -855,7 +918,7 @@ fun CartScreen(
                                                         modifier = Modifier.weight(1f, fill = false)
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Default.LocationOn,
+                                                            painter = painterResource(id = R.drawable.ic_location_custom),
                                                             contentDescription = null,
                                                             tint = Color(0xFFC8102E),
                                                             modifier = Modifier.size(20.dp)
@@ -968,7 +1031,7 @@ fun CartScreen(
                                                     modifier = Modifier.weight(1f)
                                                 ) {
                                                     Icon(
-                                                        imageVector = Icons.Default.ShoppingCart,
+                                                        painter = painterResource(id = R.drawable.ic_cart_custom),
                                                         contentDescription = null,
                                                         tint = Color(0xFF1D4ED8),
                                                         modifier = Modifier.size(18.dp)
@@ -1043,7 +1106,7 @@ fun CartScreen(
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
                                                             Icon(
-                                                                imageVector = Icons.Default.Info,
+                                                                painter = painterResource(id = R.drawable.ic_info_custom),
                                                                 contentDescription = null,
                                                                 tint = Color(0xFFDC2626),
                                                                 modifier = Modifier.size(20.dp)
@@ -1058,45 +1121,126 @@ fun CartScreen(
                                                     }
                                                 }
 
-                                                if (uiState.availablePaymentMethods.isNotEmpty()) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                    ) {
-                                                        uiState.availablePaymentMethods.forEach { method ->
-                                                            val (label, containerColor) = when (method) {
-                                                                PaymentMethod.YAPE -> "Yape" to Color(0xFF6A1B9A)
-                                                                PaymentMethod.PLIN -> "Plin" to Color(0xFF00796B)
-                                                                PaymentMethod.EFECTIVO -> "Efectivo" to Color(0xFF003366)
-                                                                PaymentMethod.TRANSFERENCIA -> "Transferencia" to Color(0xFF0284C7)
-                                                                PaymentMethod.OTRO -> "Otro" to Color(0xFF475569)
-                                                            }
-                                                            val isSelected = uiState.selectedPaymentMethod == method
-                                                            FilterChip(
-                                                                selected = isSelected,
-                                                                onClick = { viewModel.selectPaymentMethod(method) },
-                                                                label = {
-                                                                    Text(
-                                                                        label,
-                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                val standardPaymentMethods = listOf(
+                                                    PaymentMethod.YAPE to ("Yape" to Color(0xFF6A1B9A)),
+                                                    PaymentMethod.PLIN to ("Plin" to Color(0xFF00796B)),
+                                                    PaymentMethod.EFECTIVO to ("Efectivo" to Color(0xFF003366))
+                                                )
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    standardPaymentMethods.forEach { (method, info) ->
+                                                        val (label, containerColor) = info
+                                                        val isAvailable = method in uiState.availablePaymentMethods
+                                                        val isSelected = isAvailable && uiState.selectedPaymentMethod == method
+
+                                                        Surface(
+                                                            onClick = {
+                                                                if (isAvailable) {
+                                                                    disabledPaymentNotice = null
+                                                                    viewModel.selectPaymentMethod(method)
+                                                                } else {
+                                                                    val notice = "El método de pago $label no está disponible para este pedido porque el vendedor lo tiene deshabilitado."
+                                                                    disabledPaymentNotice = notice
+                                                                    Toast.makeText(context, "El vendedor no acepta $label actualmente", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            },
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            color = when {
+                                                                !isAvailable -> Color(0xFFF1F5F9)
+                                                                isSelected -> containerColor
+                                                                else -> Color.White
+                                                            },
+                                                            border = BorderStroke(
+                                                                width = if (isSelected) 1.5.dp else 1.dp,
+                                                                color = when {
+                                                                    !isAvailable -> Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                                                    isSelected -> containerColor
+                                                                    else -> Color(0xFFCBD5E1)
+                                                                }
+                                                            ),
+                                                            modifier = Modifier.weight(1f)
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .padding(horizontal = 4.dp, vertical = 9.dp),
+                                                                horizontalArrangement = Arrangement.Center,
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                PaymentMethodLogo(
+                                                                    method = method,
+                                                                    size = 16.dp,
+                                                                    enabled = isAvailable
+                                                                )
+                                                                Spacer(modifier = Modifier.width(5.dp))
+                                                                Text(
+                                                                    text = label,
+                                                                    style = MaterialTheme.typography.labelMedium,
+                                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                    color = when {
+                                                                        !isAvailable -> Color(0xFF94A3B8)
+                                                                        isSelected -> Color.White
+                                                                        else -> Color(0xFF1E293B)
+                                                                    },
+                                                                    maxLines = 1
+                                                                )
+                                                                if (isSelected) {
+                                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Check,
+                                                                        contentDescription = null,
+                                                                        tint = Color.White,
+                                                                        modifier = Modifier.size(13.dp)
                                                                     )
-                                                                },
-                                                                leadingIcon = if (isSelected) {
-                                                                    {
-                                                                        Icon(
-                                                                            Icons.Default.CheckCircle,
-                                                                            contentDescription = null,
-                                                                            modifier = Modifier.size(16.dp)
-                                                                        )
-                                                                    }
-                                                                } else null,
-                                                                colors = FilterChipDefaults.filterChipColors(
-                                                                    selectedContainerColor = containerColor,
-                                                                    selectedLabelColor = Color.White,
-                                                                    selectedLeadingIconColor = Color.White
-                                                                ),
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // Notificación cuando se presiona un método deshabilitado
+                                                AnimatedVisibility(
+                                                    visible = disabledPaymentNotice != null,
+                                                    enter = fadeIn() + expandVertically(),
+                                                    exit = fadeOut() + shrinkVertically()
+                                                ) {
+                                                    Surface(
+                                                        color = Color(0xFFFFF7ED),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        border = BorderStroke(1.dp, Color(0xFFFFEDD5)),
+                                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.ic_warning_custom),
+                                                                contentDescription = null,
+                                                                tint = Color(0xFFEA580C),
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text(
+                                                                text = disabledPaymentNotice.orEmpty(),
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = Color(0xFF9A3412),
                                                                 modifier = Modifier.weight(1f)
                                                             )
+                                                            IconButton(
+                                                                onClick = { disabledPaymentNotice = null },
+                                                                modifier = Modifier.size(18.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Close,
+                                                                    contentDescription = "Cerrar",
+                                                                    tint = Color(0xFFC2410C),
+                                                                    modifier = Modifier.size(12.dp)
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1105,18 +1249,25 @@ fun CartScreen(
                                                     color = Color(0xFFF8FAFC),
                                                     shape = RoundedCornerShape(8.dp),
                                                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                                    modifier = Modifier.fillMaxWidth()
+                                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                                                 ) {
-                                                    Text(
-                                                        text = when (uiState.selectedPaymentMethod) {
-                                                            PaymentMethod.YAPE, PaymentMethod.PLIN -> "Pagas al vendedor mediante código QR o número de celular al momento de la entrega en el campus."
-                                                            PaymentMethod.EFECTIVO -> "Pagas en efectivo exacto al vendedor al recibir tus productos."
-                                                            else -> "Coordinas el pago directamente con el vendedor al recibir tu entrega."
-                                                        },
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = Color(0xFF475569),
-                                                        modifier = Modifier.padding(10.dp)
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier.padding(10.dp),
+                                                        verticalAlignment = Alignment.Top
+                                                    ) {
+                                                        PaymentMethodLogo(method = uiState.selectedPaymentMethod, size = 15.dp)
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text(
+                                                            text = when (uiState.selectedPaymentMethod) {
+                                                                PaymentMethod.YAPE -> "Pagas al vendedor mediante código QR o número de celular al momento de la entrega en el campus."
+                                                                PaymentMethod.PLIN -> "Pagas al vendedor mediante código QR o número de celular al momento de la entrega en el campus."
+                                                                PaymentMethod.EFECTIVO -> "Pagas en efectivo exacto al vendedor al recibir tus productos."
+                                                                else -> "Coordinas el pago directamente con el vendedor al recibir tu entrega."
+                                                            },
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = Color(0xFF475569)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -1134,7 +1285,7 @@ fun CartScreen(
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Icon(
-                                                        imageVector = Icons.Default.Warning,
+                                                        painter = painterResource(id = R.drawable.ic_warning_custom),
                                                         contentDescription = null,
                                                         tint = Color(0xFFDC2626),
                                                         modifier = Modifier.size(20.dp)
@@ -1176,11 +1327,23 @@ fun CartScreen(
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
-                                                    Text(
-                                                        text = "Pago: ${uiState.selectedPaymentMethod.name.lowercase().replaceFirstChar { it.uppercase() }}",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Pago:",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                        PaymentMethodLogo(method = uiState.selectedPaymentMethod, size = 13.dp)
+                                                        Text(
+                                                            text = uiState.selectedPaymentMethod.name.lowercase().replaceFirstChar { it.uppercase() },
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
                                                 }
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
@@ -1219,14 +1382,15 @@ fun CartScreen(
 
         // Overlay elegante desenfocado / scrim para el diálogo emergente
         AnimatedVisibility(
-            visible = isOrderConfirmed,
-            enter = fadeIn(),
-            exit = fadeOut()
+            visible = isAnyModalOpen,
+            enter = fadeIn(tween(250)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF001A33).copy(alpha = 0.55f))
+                    .background(Color(0xFF0F172A).copy(alpha = 0.35f))
             )
         }
     }
@@ -1341,31 +1505,39 @@ private fun CartStepChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Surface(
-                shape = CircleShape,
-                color = when {
-                    isActive -> Color.White
-                    isDone -> Color(0xFF16A085)
-                    else -> Color(0xFF94A3B8)
-                },
-                modifier = Modifier.size(18.dp)
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isActive -> Color.White
+                            isDone -> Color(0xFF16A085)
+                            else -> Color(0xFF94A3B8)
+                        }
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (isDone) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(11.dp)
-                        )
-                    } else {
-                        Text(
-                            text = "$stepNumber",
-                            color = if (isActive) Color(0xFF003366) else Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                if (isDone) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                } else {
+                    Text(
+                        text = "$stepNumber",
+                        color = if (isActive) Color(0xFF003366) else Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        style = TextStyle(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                            lineHeight = 11.sp
+                        ),
+                        modifier = Modifier.offset(y = (-1).dp)
+                    )
                 }
             }
             Text(

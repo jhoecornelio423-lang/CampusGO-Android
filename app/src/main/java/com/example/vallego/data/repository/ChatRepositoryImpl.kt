@@ -211,6 +211,11 @@ class ChatRepositoryImpl(
 
     override fun observeUnreadCount(userId: String): Flow<Int> = flow {
         while (true) {
+            val localUnread = localMessagesCache.values.sumOf { list ->
+                synchronized(list) {
+                    list.count { it.receiverId == userId && !it.isRead && !it.isFromMe }
+                }
+            }
             try {
                 if (isValidUUID(userId)) {
                     val unread = postgrest["order_messages"]
@@ -221,14 +226,15 @@ class ChatRepositoryImpl(
                             }
                         }
                         .decodeList<RemoteOrderMessageDto>()
-                    emit(unread.size)
+                    emit(maxOf(unread.size, localUnread))
                 } else {
-                    emit(0)
+                    emit(localUnread)
                 }
             } catch (e: Exception) {
-                emit(0)
+                Log.d("ChatRepositoryImpl", "observeUnreadCount fallback local: ${e.message}")
+                emit(localUnread)
             }
-            delay(3500L)
+            delay(2500L)
         }
     }.flowOn(Dispatchers.IO)
 

@@ -82,6 +82,7 @@ import com.example.vallego.ui.components.ValleGoBusinessBanner
 import com.example.vallego.ui.components.ValleGoProductImage
 import com.example.vallego.ui.components.ValleGoUserAvatar
 import com.example.vallego.ui.components.compressImageUri
+import com.example.vallego.ui.components.formatAccountCreationDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -544,30 +545,30 @@ fun BuyerHomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 // 1. Chats Activos de Coordinación
-                                BadgedBox(
-                                    badge = {
-                                        if (unreadChatCount > 0) {
-                                            Badge(
-                                                containerColor = Color(0xFFEF4444), // Rojo para indicar mensajes pendientes no leídos
-                                                contentColor = Color.White
-                                            ) {
-                                                Text(
-                                                    text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                IconButton(
+                                    onClick = { showActiveChatsSheet = true },
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (unreadChatCount > 0) {
+                                                Badge(
+                                                    containerColor = Color(0xFFEF4444), // Rojo para indicar mensajes pendientes no leídos
+                                                    contentColor = Color.White
+                                                ) {
+                                                    Text(
+                                                        text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
-                                    }
-                                ) {
-                                    IconButton(
-                                        onClick = { showActiveChatsSheet = true },
-                                        modifier = Modifier.size(38.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                                            painter = painterResource(id = R.drawable.ic_chat_custom),
                                             contentDescription = "Chats Activos",
-                                            tint = if (unreadChatCount > 0) Color(0xFFEF4444) else if (activeBuyerChats.isNotEmpty()) Color(0xFF00A884) else Color(0xFF16324F),
+                                            tint = if (unreadChatCount > 0) Color(0xFFEF4444) else Color(0xFF16324F),
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
@@ -579,14 +580,14 @@ fun BuyerHomeScreen(
                                     modifier = Modifier.size(38.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Schedule,
+                                        painter = painterResource(id = R.drawable.ic_orders_bag),
                                         contentDescription = "Mis Pedidos",
                                         tint = Color(0xFF16324F),
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
 
-                                // 2. Carrito Destacado
+                                // 3. Carrito Destacado
                                 if (cartCalculation.totalItemCount > 0) {
                                     Surface(
                                         onClick = { showCart = true },
@@ -601,10 +602,10 @@ fun BuyerHomeScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.ShoppingCart,
+                                                painter = painterResource(id = R.drawable.ic_cart_custom),
                                                 contentDescription = "Carrito",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(17.dp)
                                             )
                                             Text(
                                                 text = "${cartCalculation.totalItemCount} • S/ %.2f".format(cartCalculation.grandTotal),
@@ -620,7 +621,7 @@ fun BuyerHomeScreen(
                                         modifier = Modifier.size(38.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.ShoppingCart,
+                                            painter = painterResource(id = R.drawable.ic_cart_custom),
                                             contentDescription = "Carrito",
                                             tint = Color(0xFF16324F),
                                             modifier = Modifier.size(22.dp)
@@ -821,7 +822,7 @@ fun BuyerHomeScreen(
                                         .height(42.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.LocationOn,
+                                        painter = painterResource(id = R.drawable.ic_location_custom),
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
                                         tint = Color.White
@@ -895,7 +896,7 @@ fun BuyerHomeScreen(
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
-                                                imageVector = Icons.Default.Store,
+                                                painter = painterResource(id = R.drawable.ic_store_custom),
                                                 contentDescription = "Todos",
                                                 tint = if (isAllSelected) Color.White else Color(0xFF64748B),
                                                 modifier = Modifier.size(24.dp)
@@ -1090,7 +1091,7 @@ fun BuyerHomeScreen(
                                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                                 ) {
                                                     Icon(
-                                                        painter = painterResource(id = R.drawable.ic_meeting_point),
+                                                        painter = painterResource(id = R.drawable.ic_location_custom),
                                                         contentDescription = null,
                                                         tint = Color(0xFF00A884),
                                                         modifier = Modifier.size(12.dp)
@@ -1143,7 +1144,7 @@ fun BuyerHomeScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Store,
+                                                painter = painterResource(id = R.drawable.ic_store_custom),
                                                 contentDescription = null,
                                                 tint = Color(0xFF00A884),
                                                 modifier = Modifier.size(16.dp)
@@ -1211,7 +1212,7 @@ fun BuyerHomeScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Store,
+                                        painter = painterResource(id = R.drawable.ic_store_custom),
                                         contentDescription = null,
                                         modifier = Modifier.size(30.dp),
                                         tint = Color(0xFF94A3B8)
@@ -1460,7 +1461,11 @@ fun BuyerProfileScreen(
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_edit_user_custom),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Editar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
@@ -1490,7 +1495,7 @@ fun BuyerProfileScreen(
                                 val updated = profile.copy(
                                     fullName = fullName.trim().ifBlank { profile.fullName },
                                     phone = phone.trim(),
-                                    studentCode = studentCode.trim().takeIf { it.isNotBlank() },
+                                    studentCode = profile.studentCode,
                                     campus = campus.trim().ifBlank { profile.campus },
                                     avatarUrl = avatarUrl
                                 )
@@ -1535,7 +1540,7 @@ fun BuyerProfileScreen(
                                 .height(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                painter = painterResource(id = R.drawable.ic_logout_custom),
                                 contentDescription = null,
                                 tint = Color(0xFFDC2626),
                                 modifier = Modifier.size(18.dp)
@@ -1678,37 +1683,41 @@ fun BuyerProfileScreen(
 
                     if (!isEditMode) {
                         ProfileDetailRow(
-                            icon = Icons.Default.Badge,
-                            label = "Código Universitario",
-                            value = studentCode.ifBlank { "No registrado" }
+                            iconPainter = painterResource(id = R.drawable.ic_user_circle_custom),
+                            label = "Nombre Completo",
+                            value = fullName.ifBlank { "No registrado" }
                         )
                         HorizontalDivider(color = Color(0xFFF1F5F9))
                         ProfileDetailRow(
-                            icon = Icons.Default.Phone,
-                            label = "Teléfono / WhatsApp",
+                            iconPainter = painterResource(id = R.drawable.ic_phone_custom),
+                            label = "Teléfono",
                             value = phone.ifBlank { "No registrado" }
                         )
                         HorizontalDivider(color = Color(0xFFF1F5F9))
                         ProfileDetailRow(
-                            icon = Icons.Default.LocationOn,
+                            iconPainter = painterResource(id = R.drawable.ic_location_custom),
                             label = "Campus Universitario",
                             value = "Campus $campus"
+                        )
+                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        ProfileDetailRow(
+                            iconPainter = painterResource(id = R.drawable.ic_account_created_custom),
+                            label = "Fecha de Creación de Cuenta",
+                            value = formatAccountCreationDate(profile.createdAt)
                         )
                     } else {
                         OutlinedTextField(
                             value = fullName,
                             onValueChange = { fullName = it },
                             label = { Text("Nombre Completo") },
-                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF00A884)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        OutlinedTextField(
-                            value = studentCode,
-                            onValueChange = { studentCode = it },
-                            label = { Text("Código de Estudiante") },
-                            leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = Color(0xFF00A884)) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_user_circle_custom),
+                                    contentDescription = null,
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
@@ -1716,8 +1725,15 @@ fun BuyerProfileScreen(
                         OutlinedTextField(
                             value = phone,
                             onValueChange = { phone = it },
-                            label = { Text("Teléfono / WhatsApp") },
-                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF00A884)) },
+                            label = { Text("Teléfono") },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_phone_custom),
+                                    contentDescription = null,
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
@@ -1726,7 +1742,14 @@ fun BuyerProfileScreen(
                             value = campus,
                             onValueChange = { campus = it },
                             label = { Text("Campus") },
-                            leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF00A884)) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_location_custom),
+                                    contentDescription = null,
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
@@ -1749,7 +1772,8 @@ fun BuyerProfileScreen(
 
 @Composable
 private fun ProfileDetailRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     label: String,
     value: String
 ) {
@@ -1757,13 +1781,26 @@ private fun ProfileDetailRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Color(0xFF00A884),
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        if (iconPainter != null) {
+            Icon(
+                painter = iconPainter,
+                contentDescription = null,
+                tint = Color(0xFF00A884),
+                modifier = Modifier
+                    .size(24.dp)
+                    .offset(y = 1.dp)
+            )
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF00A884),
+                modifier = Modifier
+                    .size(24.dp)
+                    .offset(y = 1.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -1853,7 +1890,7 @@ private fun BuyerProductGridCard(
                         )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Store,
+                        painter = painterResource(id = R.drawable.ic_store_custom),
                         contentDescription = null,
                         tint = Color(0xFF00A884),
                         modifier = Modifier.size(12.dp)
@@ -1904,12 +1941,21 @@ private fun BuyerProductGridCard(
                         modifier = Modifier.size(28.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (isAvailable) Icons.Default.Add else Icons.Default.Block,
-                                contentDescription = "Agregar",
-                                tint = if (isAvailable) Color.White else Color(0xFF94A3B8),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            if (isAvailable) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_add_to_cart_custom),
+                                    contentDescription = "Agregar al carrito",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Block,
+                                    contentDescription = "No disponible",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }

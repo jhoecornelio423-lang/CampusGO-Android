@@ -53,6 +53,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.example.vallego.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -639,7 +640,7 @@ fun AuthScreen(
                                 )
                                 RoleCardButton(
                                     title = "Vendedor",
-                                    icon = Icons.Default.Storefront,
+                                    iconPainter = painterResource(id = R.drawable.ic_store_custom),
                                     isSelected = uiState.selectedRole == UserRole.EMPRENDEDOR,
                                     onClick = { onRoleChange(UserRole.EMPRENDEDOR) },
                                     modifier = Modifier.weight(1f)
@@ -818,7 +819,8 @@ fun AuthScreen(
 @Composable
 private fun RoleCardButton(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -838,12 +840,21 @@ private fun RoleCardButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) Color(0xFF00A884) else Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-            )
+            if (iconPainter != null) {
+                Icon(
+                    painter = iconPainter,
+                    contentDescription = null,
+                    tint = if (isSelected) Color(0xFF00A884) else Color(0xFF64748B),
+                    modifier = Modifier.size(18.dp)
+                )
+            } else if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isSelected) Color(0xFF00A884) else Color(0xFF64748B),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = title,

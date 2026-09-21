@@ -1,13 +1,37 @@
 package com.example.vallego.features.admin
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.vallego.ui.components.ValleGoDialogContainerColor
+import com.example.vallego.ui.components.ValleGoDialogShape
+import com.example.vallego.ui.components.ValleGoDialogTonalElevation
+import com.example.vallego.ui.components.valleGoDialogStyle
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
@@ -69,6 +93,16 @@ fun AdminHomeScreen(
         }
     }
 
+    val isAnyModalOpen = uiState.showCreateMeetingPointDialog ||
+            uiState.selectedApplicationForRejection != null ||
+            uiState.selectedSellerForSuspension != null
+
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
+        animationSpec = tween(280),
+        label = "admin_dialog_blur"
+    )
+
     // Modal Crear Punto de Encuentro
     if (uiState.showCreateMeetingPointDialog) {
         var pointName by remember { mutableStateOf("") }
@@ -77,6 +111,10 @@ fun AdminHomeScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissCreateMeetingPointDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Nuevo Punto de Encuentro Oficial", fontWeight = FontWeight.Bold, color = Color(0xFF003366))
             },
@@ -140,6 +178,10 @@ fun AdminHomeScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissRejectionDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Rechazar Solicitud", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
             },
@@ -160,7 +202,7 @@ fun AdminHomeScreen(
                                 selected = reasonSelected == reason,
                                 onClick = { reasonSelected = reason }
                             )
-                            Text(text = reason, style = MaterialTheme.typography.bodySmall)
+                            Text(text = reason, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -194,6 +236,10 @@ fun AdminHomeScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissSuspensionDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Suspender Puesto de Venta", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
             },
@@ -235,9 +281,11 @@ fun AdminHomeScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            modifier = if (backgroundBlurRadius > 0.dp) Modifier.fillMaxSize().blur(backgroundBlurRadius) else Modifier.fillMaxSize(),
+            topBar = {
             TopAppBar(
                 title = {
                     Column {
@@ -256,58 +304,24 @@ fun AdminHomeScreen(
                 actions = {
                     IconButton(onClick = onSignOut) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            painter = painterResource(id = R.drawable.ic_logout_custom),
                             contentDescription = "Cerrar sesión"
                         )
                     }
                 }
             )
-        },
-        modifier = modifier
+        }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tabs Principales del Administrador
-            PrimaryTabRow(
-                selectedTabIndex = uiState.selectedTab.ordinal,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Tab(
-                    selected = uiState.selectedTab == AdminTab.MEETING_POINTS,
-                    onClick = { viewModel.setTab(AdminTab.MEETING_POINTS) },
-                    text = { Text("Puntos (${uiState.meetingPoints.size})") },
-                    icon = { Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                )
-                Tab(
-                    selected = uiState.selectedTab == AdminTab.SELLER_APPLICATIONS,
-                    onClick = { viewModel.setTab(AdminTab.SELLER_APPLICATIONS) },
-                    text = {
-                        val pending = uiState.sellerApplications.count { it.status == ApplicationStatus.PENDIENTE }
-                        Text(if (pending > 0) "Solicitudes ($pending)" else "Solicitudes")
-                    },
-                    icon = { Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                )
-                Tab(
-                    selected = uiState.selectedTab == AdminTab.SELLERS_DIRECTORY,
-                    onClick = { viewModel.setTab(AdminTab.SELLERS_DIRECTORY) },
-                    text = { Text("Puestos (${uiState.sellers.size})") },
-                    icon = { Icon(Icons.Default.Store, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                )
-                Tab(
-                    selected = uiState.selectedTab == AdminTab.CAMPUS_METRICS,
-                    onClick = { viewModel.setTab(AdminTab.CAMPUS_METRICS) },
-                    text = { Text("Métricas") },
-                    icon = { Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                )
-            }
-
+            // Contenido de la sección seleccionada (con espacio inferior para no solaparse con el Dock flotante)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp)
             ) {
                 when (uiState.selectedTab) {
                     AdminTab.MEETING_POINTS -> {
@@ -339,8 +353,32 @@ fun AdminHomeScreen(
                     }
                 }
             }
+
+            // Barra de Navegación Dock Liquid Glass flotante en la parte inferior
+            AdminLiquidGlassDock(
+                selectedTab = uiState.selectedTab,
+                onSelectTab = { viewModel.setTab(it) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 12.dp)
+            )
         }
     }
+
+    // Overlay elegante desenfocado / scrim para enfocar la ventana emergente activa
+    AnimatedVisibility(
+        visible = isAnyModalOpen,
+        enter = fadeIn(tween(250)),
+        exit = fadeOut(tween(200)),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0F172A).copy(alpha = 0.35f))
+        )
+    }
+}
 }
 
 @Composable
@@ -386,7 +424,7 @@ fun MeetingPointsTabContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Place,
+                        painter = painterResource(id = R.drawable.ic_location_custom),
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -445,7 +483,7 @@ fun CampusMeetingPointItemCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Place,
+                        painter = painterResource(id = R.drawable.ic_location_custom),
                         contentDescription = null,
                         tint = if (point.isActive) Color(0xFF003366) else Color.Gray,
                         modifier = Modifier.size(22.dp)
@@ -461,7 +499,7 @@ fun CampusMeetingPointItemCard(
                     point.pavilion?.let {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Place,
+                                painter = painterResource(id = R.drawable.ic_location_custom),
                                 contentDescription = null,
                                 tint = Color(0xFF003366),
                                 modifier = Modifier.size(14.dp)
@@ -606,7 +644,7 @@ fun SellerApplicationCard(
                 if (!application.proposedLocation.isNullOrBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Place,
+                            painter = painterResource(id = R.drawable.ic_location_custom),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
@@ -693,7 +731,7 @@ fun SellersDirectoryTabContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Store,
+                        painter = painterResource(id = R.drawable.ic_store_custom),
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -977,7 +1015,7 @@ fun CampusMetricsTabContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
+                            painter = painterResource(id = R.drawable.ic_warning_custom),
                             contentDescription = null,
                             tint = Color(0xFFE65100),
                             modifier = Modifier.size(22.dp)
@@ -1061,5 +1099,236 @@ fun ApplicationStatusBadge(status: ApplicationStatus) {
             color = textColor,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
+    }
+}
+
+/**
+ * Estructura de datos para un ítem del Dock estilo React Bits
+ */
+private data class AdminDockItemData(
+    val tab: AdminTab,
+    val label: String,
+    val iconResId: Int? = null,
+    val iconVector: ImageVector? = null
+)
+
+/**
+ * Dock Navigation Bar estilo React Bits con efecto Liquid Glass translúcido / blur para el Panel de Administración.
+ * - Fondo de cristal líquido translúcido claro con reflejo especular en bordes y brillo satinado
+ * - Ítems con animación Spring elástica física (magnificación y elevación)
+ * - Sin etiqueta superior y sin números de notificación (diseño ultra limpio y minimalista)
+ */
+@Composable
+fun AdminLiquidGlassDock(
+    selectedTab: AdminTab,
+    onSelectTab: (AdminTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val items = remember {
+        listOf(
+            AdminDockItemData(
+                tab = AdminTab.MEETING_POINTS,
+                label = "Puntos",
+                iconResId = R.drawable.ic_location_custom
+            ),
+            AdminDockItemData(
+                tab = AdminTab.SELLER_APPLICATIONS,
+                label = "Solicitudes",
+                iconVector = Icons.Default.VerifiedUser
+            ),
+            AdminDockItemData(
+                tab = AdminTab.SELLERS_DIRECTORY,
+                label = "Puestos",
+                iconResId = R.drawable.ic_store_custom
+            ),
+            AdminDockItemData(
+                tab = AdminTab.CAMPUS_METRICS,
+                label = "Métricas",
+                iconVector = Icons.AutoMirrored.Filled.TrendingUp
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Panel del Dock (React Bits .dock-panel) con efecto Liquid Glass translúcido / blur
+        Box(
+            modifier = Modifier
+                .wrapContentWidth()
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(32.dp),
+                    spotColor = Color(0x33003366),
+                    ambientColor = Color(0x1F000000)
+                )
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    // Liquid Glass Translucent Frosted (vidrio líquido claro translúcido)
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color(0xCCFFFFFF), // Cristal líquido frosted con alta transparencia
+                            Color(0xAAFFFFFF)  // Base translúcida satinada
+                        )
+                    )
+                )
+                .border(
+                    width = 1.3.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color(0xF0FFFFFF), // Reflejo especular blanco puro en borde superior
+                            Color(0x80FFFFFF), // Difusión intermedia del cristal
+                            Color(0x30FFFFFF)  // Borde inferior sutil
+                        )
+                    ),
+                    shape = RoundedCornerShape(32.dp)
+                )
+        ) {
+            // Capa de brillo satinado del cristal líquido (Gloss Sheen)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color(0x66FFFFFF),
+                                Color(0x1AFFFFFF),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            // Fila de ítems del Dock con espaciado elástico y altura cómoda
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { item ->
+                    AdminDockItem(
+                        item = item,
+                        isSelected = selectedTab == item.tab,
+                        onClick = { onSelectTab(item.tab) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Ítem individual del Dock (React Bits <DockItem>) con animación de resorte (spring),
+ * centrado vertical cómodo y feedback de cristal líquido translúcido.
+ */
+@Composable
+private fun AdminDockItem(
+    item: AdminDockItemData,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    // Spring physics para magnificación suave y balanceada
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "dock_item_scale"
+    )
+
+    val itemWidth by animateDpAsState(
+        targetValue = if (isSelected) 74.dp else 48.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "dock_item_width"
+    )
+
+    Box(
+        modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .width(itemWidth)
+            .height(48.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = if (isSelected) {
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0x330284C7), // Cristal cian / azul activo
+                            Color(0x1A003366)
+                        )
+                    )
+                } else {
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0x14000000), // Vidrio reposado suave
+                            Color(0x08000000)
+                        )
+                    )
+                }
+            )
+            .border(
+                width = if (isSelected) 1.3.dp else 0.8.dp,
+                brush = if (isSelected) {
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF0284C7), Color(0x66003366))
+                    )
+                } else {
+                    Brush.verticalGradient(
+                        listOf(Color(0x40FFFFFF), Color(0x15FFFFFF))
+                    )
+                },
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 4.dp)
+        ) {
+            val iconTint = if (isSelected) Color(0xFF003366) else Color(0xFF475569)
+            val iconModifier = Modifier.size(20.dp)
+
+            if (item.iconResId != null) {
+                Icon(
+                    painter = painterResource(id = item.iconResId),
+                    contentDescription = item.label,
+                    tint = iconTint,
+                    modifier = iconModifier
+                )
+            } else if (item.iconVector != null) {
+                Icon(
+                    imageVector = item.iconVector,
+                    contentDescription = item.label,
+                    tint = iconTint,
+                    modifier = iconModifier
+                )
+            }
+
+            // Si está seleccionado, mostrar etiqueta compacta en color corporativo
+            if (isSelected) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = item.label,
+                    color = Color(0xFF003366),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }

@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
@@ -418,7 +420,7 @@ fun SlideCommit(
                 }
                 hasError -> {
                     Icon(
-                        imageVector = Icons.Default.Warning,
+                        painter = painterResource(id = R.drawable.ic_warning_custom),
                         contentDescription = "Error",
                         tint = dangerColor,
                         modifier = Modifier.size(22.dp)

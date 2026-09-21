@@ -54,10 +54,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vallego.ui.components.PaymentMethodLogoByName
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.CartCalculationResult
 import com.example.vallego.domain.model.Product
@@ -155,7 +158,7 @@ fun BuyerSellerProfileScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ShoppingCart,
+                                painter = painterResource(id = R.drawable.ic_cart_custom),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -204,12 +207,12 @@ fun BuyerSellerProfileScreen(
                             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                         )
 
-                        // Avatar superpuesto
+                        // Avatar superpuesto estilo Facebook
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
                                 .padding(start = 16.dp)
-                                .offset(y = 28.dp)
+                                .offset(y = 38.dp)
                                 .clip(CircleShape)
                                 .clickable {
                                     enlargedPhotoUrl = store.avatarUrl
@@ -221,19 +224,19 @@ fun BuyerSellerProfileScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                border = BorderStroke(3.dp, Color.White),
-                                shadowElevation = 4.dp
+                                border = BorderStroke(3.5.dp, Color.White),
+                                shadowElevation = 5.dp
                             ) {
                                 ValleGoBusinessAvatar(
                                     avatarUrl = store.avatarUrl,
                                     storeName = store.sellerName,
-                                    size = 64.dp
+                                    size = 76.dp
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(34.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Datos del Puesto
                     Column(
@@ -258,7 +261,7 @@ fun BuyerSellerProfileScreen(
                             StoreStatusBadge(status = store.businessStatus, acceptingOrders = store.acceptingOrders)
                         }
 
-                        // Reputación y Categoría
+                        // Reputación, Categoría y Emprendedor Autorizado
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -299,6 +302,30 @@ fun BuyerSellerProfileScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
+                            }
+
+                            Surface(
+                                color = Color(0xFFE6F6F3),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
+                                        contentDescription = null,
+                                        tint = Color(0xFF0D5C4C),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = "Emprendedor Autorizado",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF0D5C4C),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
 
@@ -374,13 +401,19 @@ fun BuyerSellerProfileScreen(
                                                 color = pillBg,
                                                 shape = RoundedCornerShape(4.dp)
                                             ) {
-                                                Text(
-                                                    text = pillText,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = pillTint,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                                ) {
+                                                    PaymentMethodLogoByName(name = method, size = 11.dp)
+                                                    Text(
+                                                        text = pillText,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = pillTint
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -395,12 +428,12 @@ fun BuyerSellerProfileScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
+                                 Row(
                                     modifier = Modifier.padding(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Info,
+                                        painter = painterResource(id = R.drawable.ic_info_custom),
                                         contentDescription = null,
                                         tint = Color(0xFFD97706),
                                         modifier = Modifier.size(18.dp)
@@ -424,7 +457,7 @@ fun BuyerSellerProfileScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Info,
+                                        painter = painterResource(id = R.drawable.ic_info_custom),
                                         contentDescription = null,
                                         tint = Color(0xFF64748B),
                                         modifier = Modifier.size(18.dp)
@@ -461,7 +494,7 @@ fun BuyerSellerProfileScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Store,
+                            painter = painterResource(id = R.drawable.ic_store_custom),
                             contentDescription = null,
                             tint = Color(0xFF003366),
                             modifier = Modifier.size(18.dp)
@@ -501,7 +534,7 @@ fun BuyerSellerProfileScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.LocationOn,
+                            painter = painterResource(id = R.drawable.ic_location_custom),
                             contentDescription = null,
                             tint = Color(0xFFC8102E),
                             modifier = Modifier.size(18.dp)
@@ -780,7 +813,7 @@ private fun SellerProductItemCard(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            painter = painterResource(id = R.drawable.ic_add_to_cart_custom),
                             contentDescription = "Agregar al Carrito",
                             modifier = Modifier.size(18.dp)
                         )

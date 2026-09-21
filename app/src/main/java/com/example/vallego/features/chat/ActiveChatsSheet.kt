@@ -26,6 +26,8 @@ import com.example.vallego.core.notification.ValleGoNotificationHelper
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.domain.model.SubOrderStatus
@@ -40,7 +42,8 @@ data class ActiveChatSummary(
     val subtotal: Double,
     val itemsSummary: String,
     val isBuyerPerspective: Boolean = true,
-    val otherUserAvatarUrl: String? = null
+    val otherUserAvatarUrl: String? = null,
+    val unreadCount: Int = 0
 )
 
 /**
@@ -136,7 +139,7 @@ fun ActiveChatsSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = null,
                                 tint = Color(0xFF64748B),
                                 modifier = Modifier.size(32.dp)
@@ -208,15 +211,34 @@ private fun ActiveChatItemCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = chat.otherUserName.ifBlank { "Contacto de Pedido" },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF1E293B),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        Text(
+                            text = chat.otherUserName.ifBlank { "Contacto de Pedido" },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF1E293B),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (chat.unreadCount > 0) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFEF4444)
+                            ) {
+                                Text(
+                                    text = if (chat.unreadCount > 9) "+9" else "${chat.unreadCount}",
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = "S/ %.2f".format(chat.subtotal),
                         fontWeight = FontWeight.Bold,
@@ -229,7 +251,7 @@ private fun ActiveChatItemCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.LocationOn,
+                        painter = painterResource(id = R.drawable.ic_location_custom),
                         contentDescription = null,
                         tint = Color(0xFFE59A00),
                         modifier = Modifier.size(13.dp)
@@ -290,7 +312,7 @@ private fun ActiveChatItemCard(
                             color = Color(0xFF00A884)
                         )
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            painter = painterResource(id = R.drawable.ic_chat_custom),
                             contentDescription = null,
                             tint = Color(0xFF00A884),
                             modifier = Modifier.size(14.dp)

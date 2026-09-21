@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import com.example.vallego.R
+import com.example.vallego.ui.components.formatAccountCreationDate
 import com.example.vallego.core.notification.ValleGoNotificationHelper
 import com.example.vallego.theme.DarkBlue
 import com.example.vallego.theme.TurquoiseGreen
@@ -349,7 +350,7 @@ private fun CampusGoTopBar(
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.LocationOn,
+                                painter = painterResource(id = R.drawable.ic_location_custom),
                                 contentDescription = null,
                                 tint = WarmYellow, // Amarillo cálido oficial (#F4B942)
                                 modifier = Modifier.size(12.dp)
@@ -368,7 +369,7 @@ private fun CampusGoTopBar(
 
                 IconButton(onClick = onOpenProfile) {
                     Icon(
-                        imageVector = Icons.Default.Info,
+                        painter = painterResource(id = R.drawable.ic_info_custom),
                         contentDescription = "Ver Perfil",
                         tint = Color.White.copy(alpha = 0.9f),
                         modifier = Modifier.size(22.dp)
@@ -820,26 +821,31 @@ private fun ChatUserProfileFullScreen(
                 } else if (isSeller) {
                     // PERFIL DEL VENDEDOR / TIENDA (Visto exclusivamente por el Comprador)
 
-                    // Tarjeta Principal del Emprendimiento (Banner + Logo + Nombre)
+                    // Tarjeta Principal del Emprendimiento (Banner + Logo + Nombre) estilo Facebook
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Portada del Puesto (tocable para ampliar foto)
-                            if (!otherProfile.bannerUrl.isNullOrBlank()) {
+                            // Cabecera estilo Facebook: Portada con Avatar superpuesto
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(185.dp)
+                            ) {
+                                // Portada del Puesto (tocable para ampliar foto)
                                 ValleGoBusinessBanner(
                                     bannerUrl = otherProfile.bannerUrl,
                                     storeName = otherProfile.displayStoreName,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(130.dp)
-                                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                                        .height(140.dp)
+                                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                                         .clickable {
                                             onOpenEnlargedPhoto(
                                                 otherProfile.bannerUrl,
@@ -849,19 +855,12 @@ private fun ChatUserProfileFullScreen(
                                             )
                                         }
                                 )
-                            }
 
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                // Avatar con indicador de zoom (tocable directamente para ampliar foto)
+                                // Avatar superpuesto (Estilo Facebook: centrado y traslapado sobre la portada)
                                 Box(
                                     contentAlignment = Alignment.BottomEnd,
                                     modifier = Modifier
+                                        .align(Alignment.BottomCenter)
                                         .clip(CircleShape)
                                         .clickable {
                                             onOpenEnlargedPhoto(
@@ -872,28 +871,44 @@ private fun ChatUserProfileFullScreen(
                                             )
                                         }
                                 ) {
-                                    ValleGoBusinessAvatar(
-                                        avatarUrl = otherProfile.avatarUrl ?: otherUserAvatarUrl,
-                                        storeName = otherProfile.displayStoreName,
-                                        size = 92.dp
-                                    )
+                                    Surface(
+                                        shape = CircleShape,
+                                        border = BorderStroke(3.5.dp, Color.White),
+                                        shadowElevation = 4.dp
+                                    ) {
+                                        ValleGoBusinessAvatar(
+                                            avatarUrl = otherProfile.avatarUrl ?: otherUserAvatarUrl,
+                                            storeName = otherProfile.displayStoreName,
+                                            size = 90.dp
+                                        )
+                                    }
                                     Surface(
                                         shape = CircleShape,
                                         color = TurquoiseGreen,
                                         border = BorderStroke(2.dp, Color.White),
-                                        modifier = Modifier.size(28.dp)
+                                        shadowElevation = 2.dp,
+                                        modifier = Modifier.size(26.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Default.ZoomIn,
                                                 contentDescription = "Ampliar foto",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(15.dp)
                                             )
                                         }
                                     }
                                 }
+                            }
 
+                            // Datos del Puesto
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Text(
                                     text = otherProfile.displayStoreName,
                                     fontWeight = FontWeight.Bold,
@@ -906,13 +921,26 @@ private fun ChatUserProfileFullScreen(
                                     color = Color(0xFFE6F6F3),
                                     shape = RoundedCornerShape(20.dp)
                                 ) {
-                                    Text(
-                                        text = "🏪 Emprendedor Autorizado",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0D5C4C),
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
+                                            contentDescription = null,
+                                            tint = Color(0xFF0D5C4C),
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .offset(y = 1.dp)
+                                        )
+                                        Text(
+                                            text = "Emprendedor Autorizado",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0D5C4C)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -946,7 +974,7 @@ private fun ChatUserProfileFullScreen(
 
                             if (!otherProfile.businessLocation.isNullOrBlank()) {
                                 ProfileDetailRow(
-                                    icon = Icons.Default.LocationOn,
+                                    iconPainter = painterResource(id = R.drawable.ic_location_custom),
                                     label = "Ubicación del Puesto",
                                     value = otherProfile.businessLocation
                                 )
@@ -954,10 +982,10 @@ private fun ChatUserProfileFullScreen(
 
                             if (!otherProfile.openTime.isNullOrBlank() || !otherProfile.closeTime.isNullOrBlank()) {
                                 ProfileDetailRow(
-                                    icon = Icons.Default.Schedule,
+                                    iconPainter = painterResource(id = R.drawable.ic_alarm_custom),
                                     label = "Horario de Atención",
                                     value = "${otherProfile.openTime ?: "08:00"} - ${otherProfile.closeTime ?: "18:00"}"
-                                )
+                                 )
                             }
 
                             if (otherProfile.effectivePaymentMethods.isNotEmpty()) {
@@ -965,13 +993,13 @@ private fun ChatUserProfileFullScreen(
                                     icon = Icons.Default.Payments,
                                     label = "Métodos de Pago Aceptados",
                                     value = otherProfile.effectivePaymentMethods.joinToString(", ")
-                                )
+                                 )
                             }
 
                             val businessDesc = otherProfile.displayBusinessDescription
                             if (!businessDesc.isNullOrBlank()) {
                                 ProfileDetailRow(
-                                    icon = Icons.Default.Info,
+                                    iconPainter = painterResource(id = R.drawable.ic_info_custom),
                                     label = "Descripción del Negocio",
                                     value = businessDesc
                                 )
@@ -1080,18 +1108,22 @@ private fun ChatUserProfileFullScreen(
 
                             HorizontalDivider(color = Color(0xFFF1F5F9))
 
-                            if (!otherProfile.studentCode.isNullOrBlank()) {
-                                ProfileDetailRow(
-                                    icon = Icons.Default.Badge,
-                                    label = "Código Universitario",
-                                    value = otherProfile.studentCode
-                                )
-                            }
+                            ProfileDetailRow(
+                                iconPainter = painterResource(id = R.drawable.ic_user_circle_custom),
+                                label = "Nombre Completo",
+                                value = otherProfile.fullName.ifBlank { "No registrado" }
+                            )
 
                             ProfileDetailRow(
-                                icon = Icons.Default.LocationOn,
+                                iconPainter = painterResource(id = R.drawable.ic_location_custom),
                                 label = "Campus Universitario",
                                 value = otherProfile.campus
+                            )
+
+                            ProfileDetailRow(
+                                iconPainter = painterResource(id = R.drawable.ic_account_created_custom),
+                                label = "Fecha de Creación de Cuenta",
+                                value = formatAccountCreationDate(otherProfile.createdAt)
                             )
 
                             ProfileDetailRow(
@@ -1122,7 +1154,7 @@ private fun ChatUserProfileFullScreen(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Default.LocationOn,
+                                        painter = painterResource(id = R.drawable.ic_location_custom),
                                         contentDescription = null,
                                         tint = TurquoiseGreen,
                                         modifier = Modifier.size(22.dp)
@@ -1180,23 +1212,35 @@ private fun ChatUserProfileFullScreen(
 
 @Composable
 private fun ProfileDetailRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     label: String,
     value: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Color(0xFF003366),
-            modifier = Modifier
-                .size(16.dp)
-                .padding(top = 2.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
+        if (iconPainter != null) {
+            Icon(
+                painter = iconPainter,
+                contentDescription = null,
+                tint = Color(0xFF003366),
+                modifier = Modifier
+                    .size(22.dp)
+                    .offset(y = 1.dp)
+            )
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF003366),
+                modifier = Modifier
+                    .size(22.dp)
+                    .offset(y = 1.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
                 text = label,
