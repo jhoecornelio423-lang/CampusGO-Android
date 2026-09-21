@@ -45,6 +45,7 @@ import com.example.vallego.R
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.ui.components.SlideCommit
 import org.koin.androidx.compose.koinViewModel
 
 enum class CartCheckoutStep {
@@ -1190,28 +1191,22 @@ fun CartScreen(
                                                 )
                                             }
 
-                                            Button(
-                                                onClick = { viewModel.confirmOrder(buyerProfile) },
+                                            SlideCommit(
+                                                onConfirm = { viewModel.confirmOrder(buyerProfile) },
                                                 enabled = uiState.canCheckout,
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color(0xFF16A085),
-                                                    disabledContainerColor = Color(0xFF64748B).copy(alpha = 0.4f)
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(52.dp)
-                                            ) {
-                                                if (uiState.isSubmitting) {
-                                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                                                } else {
-                                                    Text(
-                                                        text = "Confirmar Pedido Campus Go",
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 16.sp
-                                                    )
-                                                }
-                                            }
+                                                isSubmitting = uiState.isSubmitting,
+                                                hasError = uiState.errorMessage != null,
+                                                isDone = uiState.placedOrder != null,
+                                                label = "Desliza para confirmar pedido",
+                                                doneLabel = "¡Pedido confirmado!",
+                                                errorLabel = "Error al procesar pedido",
+                                                trackColor = Color(0xFF003366),
+                                                handleColor = Color(0xFFF8FAFC),
+                                                successColor = Color(0xFF16A085),
+                                                dangerColor = Color(0xFFDC2626),
+                                                height = 54.dp,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
                                         }
                                     }
                                 }
