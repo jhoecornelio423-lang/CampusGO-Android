@@ -49,7 +49,8 @@ import org.koin.androidx.compose.koinViewModel
 
 enum class CartCheckoutStep {
     PRODUCTS,
-    DELIVERY_AND_PAYMENT
+    DELIVERY,
+    PAYMENT
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,8 +78,12 @@ fun CartScreen(
     }
 
     // Manejo del botón Atrás de Android
-    BackHandler(enabled = currentStep == CartCheckoutStep.DELIVERY_AND_PAYMENT) {
-        currentStep = CartCheckoutStep.PRODUCTS
+    BackHandler(enabled = currentStep != CartCheckoutStep.PRODUCTS) {
+        currentStep = when (currentStep) {
+            CartCheckoutStep.PAYMENT -> CartCheckoutStep.DELIVERY
+            CartCheckoutStep.DELIVERY -> CartCheckoutStep.PRODUCTS
+            CartCheckoutStep.PRODUCTS -> CartCheckoutStep.PRODUCTS
+        }
     }
 
     val isOrderConfirmed = uiState.placedOrder != null
@@ -158,7 +163,11 @@ fun CartScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = if (currentStep == CartCheckoutStep.PRODUCTS) "Mi Carrito" else "Entrega y Pago",
+                            text = when (currentStep) {
+                                CartCheckoutStep.PRODUCTS -> "Mi Carrito"
+                                CartCheckoutStep.DELIVERY -> "Punto de Entrega"
+                                CartCheckoutStep.PAYMENT -> "Método de Pago"
+                            },
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF003366)
                         )
@@ -166,10 +175,10 @@ fun CartScreen(
                     navigationIcon = {
                         IconButton(
                             onClick = {
-                                if (currentStep == CartCheckoutStep.DELIVERY_AND_PAYMENT) {
-                                    currentStep = CartCheckoutStep.PRODUCTS
-                                } else {
-                                    onNavigateBack()
+                                when (currentStep) {
+                                    CartCheckoutStep.PAYMENT -> currentStep = CartCheckoutStep.DELIVERY
+                                    CartCheckoutStep.DELIVERY -> currentStep = CartCheckoutStep.PRODUCTS
+                                    CartCheckoutStep.PRODUCTS -> onNavigateBack()
                                 }
                             }
                         ) {
@@ -225,10 +234,23 @@ fun CartScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
+                    val canProceedToPayment = uiState.selectedMeetingPoint != null && uiState.meetingPointWarning == null
+
                     // Barra de progreso interactiva por secciones
                     CartStepIndicator(
                         currentStep = currentStep,
-                        onStepClick = { step -> currentStep = step }
+                        canProceedToPayment = canProceedToPayment,
+                        onStepClick = { step ->
+                            when (step) {
+                                CartCheckoutStep.PRODUCTS -> currentStep = CartCheckoutStep.PRODUCTS
+                                CartCheckoutStep.DELIVERY -> currentStep = CartCheckoutStep.DELIVERY
+                                CartCheckoutStep.PAYMENT -> {
+                                    if (canProceedToPayment) {
+                                        currentStep = CartCheckoutStep.PAYMENT
+                                    }
+                                }
+                            }
+                        }
                     )
 
                     Crossfade(
@@ -435,7 +457,7 @@ fun CartScreen(
                                             }
 
                                             Button(
-                                                onClick = { currentStep = CartCheckoutStep.DELIVERY_AND_PAYMENT },
+                                                onClick = { currentStep = CartCheckoutStep.DELIVERY },
                                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
                                                 shape = RoundedCornerShape(12.dp),
                                                 modifier = Modifier
@@ -443,7 +465,7 @@ fun CartScreen(
                                                     .height(52.dp)
                                             ) {
                                                 Text(
-                                                    text = "Continuar a Entrega y Pago",
+                                                    text = "Continuar a Entrega",
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 16.sp
                                                 )
@@ -459,7 +481,8 @@ fun CartScreen(
                                 }
                             }
 
-                            CartCheckoutStep.DELIVERY_AND_PAYMENT -> {
+                            // Paso 2: Entrega
+                            CartCheckoutStep.DELIVERY -> {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -521,7 +544,7 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Sección Checkout: Punto de Encuentro
+                                    // Sección: Punto de Encuentro en Campus
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(16.dp),
@@ -706,12 +729,310 @@ fun CartScreen(
                                                 }
                                             }
 
-                                            // Método de Pago
-                                            Text(
-                                                text = "Método de Pago (Contra entrega)",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold
+                                            // Indicaciones opcionales para la entrega
+                                            OutlinedTextField(
+                                                value = uiState.orderNotes,
+                                                onValueChange = viewModel::onNotesChange,
+                                                label = { Text("Notas para la entrega (opcional)") },
+                                                placeholder = { Text("Ej: Estoy con casaca azul cerca a la puerta") },
+                                                modifier = Modifier.fillMaxWidth()
                                             )
+                                        }
+                                    }
+
+                                    // Botón para avanzar a Pago
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF003366))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column {
+                                                    Text(
+                                                        text = "Total a pagar:",
+                                                        color = Color.White.copy(alpha = 0.85f),
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                    Text(
+                                                        text = uiState.selectedMeetingPoint?.let { "Entrega: ${it.name}" } ?: "Selecciona punto de entrega",
+                                                        color = Color.White.copy(alpha = 0.65f),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "S/ %.2f".format(uiState.calculation.grandTotal),
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.headlineSmall,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            }
+
+                                            Button(
+                                                onClick = { currentStep = CartCheckoutStep.PAYMENT },
+                                                enabled = canProceedToPayment,
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFF16A085),
+                                                    disabledContainerColor = Color(0xFF64748B).copy(alpha = 0.5f)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(50.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Continuar a Pago",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            if (!canProceedToPayment) {
+                                                Text(
+                                                    text = "Selecciona un punto de entrega válido para continuar",
+                                                    color = Color(0xFFFCA5A5),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = { currentStep = CartCheckoutStep.PRODUCTS },
+                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text("Modificar productos del carrito")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Paso 3: Pago
+                            CartCheckoutStep.PAYMENT -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    // Resumen de la Entrega seleccionada
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f, fill = false)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.LocationOn,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFC8102E),
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = "Datos de Entrega",
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF003366)
+                                                    )
+                                                }
+                                                TextButton(
+                                                    onClick = { currentStep = CartCheckoutStep.DELIVERY },
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1D4ED8))
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Cambiar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                }
+                                            }
+
+                                            HorizontalDivider()
+
+                                            // Punto de encuentro
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.Top
+                                            ) {
+                                                Text(
+                                                    text = "Punto:",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.width(64.dp)
+                                                )
+                                                Text(
+                                                    text = uiState.selectedMeetingPoint?.let { pt ->
+                                                        val zone = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " (Exterior)" else " (Interior)"
+                                                        "${pt.name}$zone"
+                                                    } ?: "No seleccionado",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+
+                                            // Horario
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Horario:",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.width(64.dp)
+                                                )
+                                                Text(
+                                                    text = uiState.selectedTimeSlot,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFF003366)
+                                                )
+                                            }
+
+                                            // Notas si existen
+                                            if (uiState.orderNotes.isNotBlank()) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.Top
+                                                ) {
+                                                    Text(
+                                                        text = "Notas:",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.width(64.dp)
+                                                    )
+                                                    Text(
+                                                        text = uiState.orderNotes,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Resumen rápido de productos con acceso a modificarlos
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                                        border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ShoppingCart,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF1D4ED8),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Column {
+                                                    Text(
+                                                        text = "${uiState.calculation.totalItemCount} producto(s) • Total: S/ %.2f".format(uiState.calculation.grandTotal),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF1E3A8A)
+                                                    )
+                                                    Text(
+                                                        text = "${uiState.calculation.storeGroups.size} puesto(s) seleccionado(s)",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Color(0xFF3B82F6)
+                                                    )
+                                                }
+                                            }
+                                            TextButton(
+                                                onClick = { currentStep = CartCheckoutStep.PRODUCTS },
+                                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1D4ED8))
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Modificar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            }
+                                        }
+                                    }
+
+                                    // Sección: Método de Pago (Contra entrega)
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF003366),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Método de Pago (Contra entrega)",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF003366)
+                                                )
+                                            }
 
                                             if (uiState.paymentMethodWarning != null) {
                                                 Surface(
@@ -783,14 +1104,23 @@ fun CartScreen(
                                                 }
                                             }
 
-                                            // Indicaciones opcionales
-                                            OutlinedTextField(
-                                                value = uiState.orderNotes,
-                                                onValueChange = viewModel::onNotesChange,
-                                                label = { Text("Notas para los vendedores (opcional)") },
-                                                placeholder = { Text("Ej: Estoy con casaca azul cerca a la puerta") },
+                                            Surface(
+                                                color = Color(0xFFF8FAFC),
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                                 modifier = Modifier.fillMaxWidth()
-                                            )
+                                            ) {
+                                                Text(
+                                                    text = when (uiState.selectedPaymentMethod) {
+                                                        PaymentMethod.YAPE, PaymentMethod.PLIN -> "Pagas al vendedor mediante código QR o número de celular al momento de la entrega en el campus."
+                                                        PaymentMethod.EFECTIVO -> "Pagas en efectivo exacto al vendedor al recibir tus productos."
+                                                        else -> "Coordinas el pago directamente con el vendedor al recibir tu entrega."
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color(0xFF475569),
+                                                    modifier = Modifier.padding(10.dp)
+                                                )
+                                            }
                                         }
                                     }
 
@@ -872,13 +1202,13 @@ fun CartScreen(
                                             }
 
                                             OutlinedButton(
-                                                onClick = { currentStep = CartCheckoutStep.PRODUCTS },
+                                                onClick = { currentStep = CartCheckoutStep.DELIVERY },
                                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
                                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                                                 shape = RoundedCornerShape(12.dp),
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                Text("Modificar productos del carrito")
+                                                Text("Volver a Entrega")
                                             }
                                         }
                                     }
@@ -908,6 +1238,7 @@ fun CartScreen(
 @Composable
 private fun CartStepIndicator(
     currentStep: CartCheckoutStep,
+    canProceedToPayment: Boolean,
     onStepClick: (CartCheckoutStep) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -919,107 +1250,138 @@ private fun CartStepIndicator(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            // Paso 1: Productos
+            // Paso 1: Producto
             val isStep1Active = currentStep == CartCheckoutStep.PRODUCTS
-            val isStep1Done = currentStep == CartCheckoutStep.DELIVERY_AND_PAYMENT
+            val isStep1Done = currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isStep1Active) Color(0xFF003366) else Color(0xFFE2E8F0),
+            CartStepChip(
+                stepNumber = 1,
+                label = "Producto",
+                isActive = isStep1Active,
+                isDone = isStep1Done,
                 onClick = { onStepClick(CartCheckoutStep.PRODUCTS) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = when {
-                            isStep1Active -> Color.White
-                            isStep1Done -> Color(0xFF16A085)
-                            else -> Color(0xFF64748B)
-                        },
-                        modifier = Modifier.size(20.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            if (isStep1Done) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = "1",
-                                    color = if (isStep1Active) Color(0xFF003366) else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                    Text(
-                        text = "Productos",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isStep1Active) Color.White else Color(0xFF334155)
-                    )
-                }
-            }
+            )
 
-            // Línea de conexión
+            // Conector 1 -> 2
             Box(
                 modifier = Modifier
-                    .width(36.dp)
+                    .width(18.dp)
                     .height(2.dp)
-                    .padding(horizontal = 4.dp)
+                    .padding(horizontal = 2.dp)
                     .background(
-                        if (currentStep == CartCheckoutStep.DELIVERY_AND_PAYMENT) Color(0xFF16A085)
+                        if (currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT) Color(0xFF16A085)
                         else Color(0xFFCBD5E1)
                     )
             )
 
-            // Paso 2: Entrega y Pago
-            val isStep2Active = currentStep == CartCheckoutStep.DELIVERY_AND_PAYMENT
+            // Paso 2: Entrega
+            val isStep2Active = currentStep == CartCheckoutStep.DELIVERY
+            val isStep2Done = currentStep == CartCheckoutStep.PAYMENT
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isStep2Active) Color(0xFF003366) else Color(0xFFF1F5F9),
-                onClick = { onStepClick(CartCheckoutStep.DELIVERY_AND_PAYMENT) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isStep2Active) Color.White else Color(0xFF94A3B8),
-                        modifier = Modifier.size(20.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "2",
-                                color = if (isStep2Active) Color(0xFF003366) else Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Text(
-                        text = "Entrega y Pago",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isStep2Active) Color.White else Color(0xFF64748B)
+            CartStepChip(
+                stepNumber = 2,
+                label = "Entrega",
+                isActive = isStep2Active,
+                isDone = isStep2Done,
+                onClick = { onStepClick(CartCheckoutStep.DELIVERY) }
+            )
+
+            // Conector 2 -> 3
+            Box(
+                modifier = Modifier
+                    .width(18.dp)
+                    .height(2.dp)
+                    .padding(horizontal = 2.dp)
+                    .background(
+                        if (currentStep == CartCheckoutStep.PAYMENT) Color(0xFF16A085)
+                        else Color(0xFFCBD5E1)
                     )
+            )
+
+            // Paso 3: Pago
+            val isStep3Active = currentStep == CartCheckoutStep.PAYMENT
+
+            CartStepChip(
+                stepNumber = 3,
+                label = "Pago",
+                isActive = isStep3Active,
+                isDone = false,
+                onClick = {
+                    if (canProceedToPayment) {
+                        onStepClick(CartCheckoutStep.PAYMENT)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CartStepChip(
+    stepNumber: Int,
+    label: String,
+    isActive: Boolean,
+    isDone: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = when {
+            isActive -> Color(0xFF003366)
+            isDone -> Color(0xFFE2E8F0)
+            else -> Color(0xFFF1F5F9)
+        },
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = when {
+                    isActive -> Color.White
+                    isDone -> Color(0xFF16A085)
+                    else -> Color(0xFF94A3B8)
+                },
+                modifier = Modifier.size(18.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (isDone) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(11.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "$stepNumber",
+                            color = if (isActive) Color(0xFF003366) else Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    isActive -> Color.White
+                    isDone -> Color(0xFF16A085)
+                    else -> Color(0xFF64748B)
+                },
+                fontSize = 12.sp
+            )
         }
     }
 }
