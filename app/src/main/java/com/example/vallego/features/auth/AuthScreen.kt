@@ -182,50 +182,14 @@ fun AuthScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF03333D), // Azul verdoso oscuro superior profundo
-                        Color(0xFF064D57), // Verde azulado intermedio
-                        Color(0xFF0A756F)  // Verde esmeralda / turquesa inferior
-                    )
-                )
-            )
     ) {
         val totalScreenHeight = maxHeight
 
-        // Círculo grande decorativo translúcido en la esquina superior derecha
-        Box(
-            modifier = Modifier
-                .size(420.dp)
-                .align(Alignment.TopEnd)
-                .offset(x = 110.dp, y = (-70).dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0x22FFFFFF),
-                            Color(0x0EFFFFFF)
-                        )
-                    )
-                )
-        )
-
-        // Círculo decorativo translúcido en el costado izquierdo (detrás del card)
-        Box(
-            modifier = Modifier
-                .size(280.dp)
-                .align(Alignment.TopStart)
-                .offset(x = (-140).dp, y = 260.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0x20FFFFFF),
-                            Color(0x06FFFFFF)
-                        )
-                    )
-                )
+        Image(
+            painter = painterResource(id = R.drawable.fondo_login_register),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
         )
 
         Column(

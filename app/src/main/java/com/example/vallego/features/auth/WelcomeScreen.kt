@@ -55,38 +55,12 @@ fun WelcomeScreen(
         modifier = modifier
             .fillMaxSize()
             .clipToBounds()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF022B34), // Verde azulado oscuro superior
-                        Color(0xFF044550), // Verde azulado medio
-                        Color(0xFF09726D)  // Esmeralda inferior
-                    )
-                )
-            )
     ) {
-        // =========================================================================
-        // CÍRCULOS TRANSLÚCIDOS DE FONDO CON RELLENO (SIN CONTORNOS BLANCOS)
-        // =========================================================================
-
-        // 1. Círculo grande superior derecho (relleno oscuro translúcido que pasa detrás del birrete)
-        Box(
-            modifier = Modifier
-                .size(460.dp)
-                .align(Alignment.TopEnd)
-                .offset(x = 85.dp, y = 0.dp)
-                .clip(CircleShape)
-                .background(Color(0x44000000))
-        )
-
-        // 2. Círculo lateral izquierdo (relleno translúcido detrás de alas y mochila)
-        Box(
-            modifier = Modifier
-                .size(390.dp)
-                .align(Alignment.CenterStart)
-                .offset(x = (-130).dp, y = (-20).dp)
-                .clip(CircleShape)
-                .background(Color(0x30000000))
+        Image(
+            painter = painterResource(id = R.drawable.fondo_bienvenida),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
         )
 
         // =========================================================================
