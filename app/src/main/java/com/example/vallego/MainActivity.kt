@@ -54,12 +54,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = androidx.compose.ui.graphics.Color.White
                 ) {
-                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
-                        MainNavigation()
-                        com.example.vallego.ui.components.BetaBadgeOverlay(
-                            versionName = BuildConfig.VERSION_NAME.removeSuffix("-beta")
-                        )
-                    }
+                    MainNavigation()
                 }
             }
         }

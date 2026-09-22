@@ -30,6 +30,7 @@ import androidx.compose.ui.res.painterResource
 import com.example.vallego.R
 import com.example.vallego.domain.model.Product
 import com.example.vallego.ui.components.ValleGoProductImage
+import com.example.vallego.ui.components.resolveCategoryVisualTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,7 +111,7 @@ fun ProductDetailBottomSheet(
                             )
                     ) {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_store_modern),
+                            painter = painterResource(id = R.drawable.ic_store_custom),
                             contentDescription = null,
                             tint = if (onStoreClick != null) Color(0xFF00A884) else Color(0xFF16324F),
                             modifier = Modifier.size(16.dp)
@@ -135,16 +136,28 @@ fun ProductDetailBottomSheet(
                         }
                     }
                     if (!categoryName.isNullOrBlank()) {
+                        val catTheme = resolveCategoryVisualTheme(categoryName)
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(6.dp)
                         ) {
-                            Text(
-                                text = categoryName,
+                            Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = catTheme.iconResId),
+                                    contentDescription = null,
+                                    tint = catTheme.contentColor,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = categoryName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -205,7 +218,7 @@ fun ProductDetailBottomSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.WarningAmber,
+                                painter = painterResource(id = R.drawable.ic_warning_custom),
                                 contentDescription = null,
                                 tint = Color(0xFFE65100),
                                 modifier = Modifier.size(22.dp)
@@ -327,11 +340,19 @@ fun ProductDetailBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (canAdd) Icons.Default.ShoppingBag else Icons.Default.Block,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        if (canAdd) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_add_to_cart_custom),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Block,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = buttonLabel,

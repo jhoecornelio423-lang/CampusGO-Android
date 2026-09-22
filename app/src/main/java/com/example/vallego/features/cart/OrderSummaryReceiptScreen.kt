@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -122,7 +124,7 @@ fun OrderSummaryReceiptScreen(
                                 .height(46.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -229,7 +231,7 @@ fun OrderSummaryReceiptScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.LocationOn,
+                            painter = painterResource(id = R.drawable.ic_location_custom),
                             contentDescription = null,
                             tint = Color(0xFFE59A00),
                             modifier = Modifier.size(20.dp)
@@ -254,7 +256,7 @@ fun OrderSummaryReceiptScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Schedule,
+                            painter = painterResource(id = R.drawable.ic_alarm_custom),
                             contentDescription = null,
                             tint = Color(0xFF003366),
                             modifier = Modifier.size(20.dp)
@@ -327,7 +329,7 @@ fun OrderSummaryReceiptScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = Icons.Default.Store,
+                                            painter = painterResource(id = R.drawable.ic_store_custom),
                                             contentDescription = null,
                                             tint = Color(0xFF003366),
                                             modifier = Modifier.size(16.dp)

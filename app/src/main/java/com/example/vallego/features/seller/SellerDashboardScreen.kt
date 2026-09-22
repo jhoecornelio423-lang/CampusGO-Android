@@ -17,6 +17,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -62,6 +64,8 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import com.example.vallego.ui.components.compressImageUri
 import com.example.vallego.ui.components.isSubOrderExpired
+import com.example.vallego.ui.components.PaymentMethodLogo
+import com.example.vallego.ui.components.PaymentMethodLogoByName
 import java.util.UUID
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -90,7 +94,13 @@ import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import com.example.vallego.ui.components.ValleGoBusinessBanner
 import com.example.vallego.ui.components.ValleGoProductImage
 import com.example.vallego.ui.components.ValleGoUserAvatar
+import com.example.vallego.domain.repository.ChatRepository
+import com.example.vallego.ui.components.ValleGoDialogContainerColor
+import com.example.vallego.ui.components.ValleGoDialogShape
+import com.example.vallego.ui.components.ValleGoDialogTonalElevation
+import com.example.vallego.ui.components.valleGoDialogStyle
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +113,11 @@ fun SellerDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSellerProfile by remember { mutableStateOf(false) }
+    val chatRepository: ChatRepository = koinInject()
+    val curProf = uiState.sellerProfile ?: profile
+    val unreadChatCount by remember(curProf.id) {
+        chatRepository.observeUnreadCount(curProf.id)
+    }.collectAsState(initial = 0)
     val chatViewModel: OrderChatViewModel = koinViewModel()
     var activeChatSubOrder by remember { mutableStateOf<SubOrder?>(null) }
     var showActiveChatsSheet by remember { mutableStateOf(false) }
@@ -213,10 +228,12 @@ fun SellerDashboardScreen(
             uiState.showAddProductDialog ||
             uiState.selectedProductForEdit != null ||
             uiState.selectedSubOrderForNoShow != null ||
-            uiState.selectedProductForStockEdit != null
+            uiState.selectedProductForStockEdit != null ||
+            uiState.selectedSubOrderForDetail != null
 
     val backgroundBlurRadius by animateDpAsState(
         targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
+        animationSpec = androidx.compose.animation.core.tween(280),
         label = "seller_dialog_blur"
     )
 
@@ -266,6 +283,10 @@ fun SellerDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissRejectionDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text(
                     text = if (isPending) "Rechazar Subpedido" else "Cancelar Subpedido en Curso",
@@ -340,6 +361,10 @@ fun SellerDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeliveryDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -383,11 +408,22 @@ fun SellerDashboardScreen(
                                 PaymentMethod.EFECTIVO -> "Efectivo"
                                 else -> subOrder.paymentMethod?.name ?: "Efectivo"
                             }
-                            Text(
-                                text = "Medio acordado: $pmName",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Medio acordado:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                PaymentMethodLogo(method = subOrder.paymentMethod, size = 13.dp)
+                                Text(
+                                    text = pmName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
 
@@ -545,6 +581,10 @@ fun SellerDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissAddProductDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Nuevo Producto al Catálogo", fontWeight = FontWeight.Bold, color = Color(0xFF003366))
             },
@@ -765,6 +805,26 @@ fun SellerDashboardScreen(
         if (showDeleteConfirm) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirm = false },
+                shape = ValleGoDialogShape,
+                containerColor = ValleGoDialogContainerColor,
+                tonalElevation = ValleGoDialogTonalElevation,
+                modifier = Modifier.valleGoDialogStyle(),
+                icon = {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFFEBEE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_delete_custom),
+                            contentDescription = null,
+                            tint = Color(0xFFC8102E),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                },
                 title = { Text("¿Eliminar producto?", fontWeight = FontWeight.Bold) },
                 text = { Text("¿Estás seguro de que deseas eliminar \"${prod.name}\"?") },
                 confirmButton = {
@@ -788,6 +848,10 @@ fun SellerDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissEditProductDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Editar Producto", fontWeight = FontWeight.Bold, color = Color(0xFF003366))
             },
@@ -979,6 +1043,10 @@ fun SellerDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissNoShowDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Comprador no se presentó", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
             },
@@ -1022,6 +1090,10 @@ fun SellerDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissEditStockDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text("Actualizar Stock", fontWeight = FontWeight.Bold, color = Color(0xFF003366))
             },
@@ -1179,27 +1251,27 @@ fun SellerDashboardScreen(
                     val activeSubOrders = remember(uiState.subOrders) {
                         uiState.subOrders.filter { !it.status.isFinal }
                     }
-                    BadgedBox(
-                        badge = {
-                            if (activeSubOrders.isNotEmpty()) {
-                                Badge(
-                                    containerColor = Color(0xFF00A884),
-                                    contentColor = Color.White
-                                ) {
-                                    Text(
-                                        text = "${activeSubOrders.size}",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                    IconButton(onClick = { showActiveChatsSheet = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadChatCount > 0) {
+                                    Badge(
+                                        containerColor = Color(0xFFEF4444), // Rojo para indicar mensajes no leídos
+                                        contentColor = Color.White
+                                    ) {
+                                        Text(
+                                            text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    ) {
-                        IconButton(onClick = { showActiveChatsSheet = true }) {
+                        ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = "Chats Activos de Pedidos",
-                                tint = if (activeSubOrders.isNotEmpty()) Color(0xFF00A884) else Color(0xFF003366)
+                                tint = if (unreadChatCount > 0) Color(0xFFEF4444) else Color(0xFF003366)
                             )
                         }
                     }
@@ -1295,7 +1367,7 @@ fun SellerDashboardScreen(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Schedule,
+                            painter = painterResource(id = R.drawable.ic_alarm_custom),
                             contentDescription = null,
                             tint = Color(0xFF003366),
                             modifier = Modifier.size(16.dp)
@@ -1390,7 +1462,7 @@ fun SellerDashboardScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Store,
+                                    painter = painterResource(id = R.drawable.ic_store_custom),
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1481,7 +1553,7 @@ fun SellerDashboardScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Store,
+                                                painter = painterResource(id = R.drawable.ic_store_custom),
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(24.dp)
@@ -1659,13 +1731,14 @@ fun SellerDashboardScreen(
         // Overlay elegante desenfocado / scrim para los diálogos emergentes
         AnimatedVisibility(
             visible = isAnyModalOpen,
-            enter = fadeIn(),
-            exit = fadeOut()
+            enter = fadeIn(androidx.compose.animation.core.tween(250)),
+            exit = fadeOut(androidx.compose.animation.core.tween(200)),
+            modifier = Modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF001A33).copy(alpha = 0.55f))
+                    .background(Color(0xFF0F172A).copy(alpha = 0.35f))
             )
         }
     }
@@ -1904,7 +1977,7 @@ fun SellerSubOrderCard(
                                 modifier = Modifier.weight(1f, fill = false)
                             ) {
                                 Icon(
-                                    Icons.Default.LocationOn,
+                                    painter = painterResource(id = R.drawable.ic_location_custom),
                                     contentDescription = null,
                                     tint = Color(0xFFC8102E),
                                     modifier = Modifier.size(16.dp)
@@ -1922,7 +1995,7 @@ fun SellerSubOrderCard(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Schedule,
+                                        painter = painterResource(id = R.drawable.ic_alarm_custom),
                                         contentDescription = null,
                                         tint = Color(0xFF003366),
                                         modifier = Modifier.size(14.dp)
@@ -1995,13 +2068,19 @@ fun SellerSubOrderCard(
                     color = pmBg,
                     shape = RoundedCornerShape(6.dp)
                 ) {
-                    Text(
-                        text = pmLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = pmTint,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        PaymentMethodLogo(method = subOrder.paymentMethod, size = 13.dp)
+                        Text(
+                            text = pmLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = pmTint
+                        )
+                    }
                 }
 
                 when (subOrder.status) {
@@ -2012,7 +2091,7 @@ fun SellerSubOrderCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Schedule,
+                                    painter = painterResource(id = R.drawable.ic_alarm_custom),
                                     contentDescription = null,
                                     tint = Color(0xFFC8102E),
                                     modifier = Modifier.size(16.dp)
@@ -2038,7 +2117,7 @@ fun SellerSubOrderCard(
                                         ),
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                        Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
                                     }
                                 }
                                 OutlinedButton(
@@ -2072,7 +2151,7 @@ fun SellerSubOrderCard(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
                                 }
                             }
                             OutlinedButton(
@@ -2105,7 +2184,7 @@ fun SellerSubOrderCard(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
                                 }
                             }
                             OutlinedButton(
@@ -2138,7 +2217,7 @@ fun SellerSubOrderCard(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
+                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
                                 }
                             }
                             OutlinedButton(
@@ -2189,7 +2268,7 @@ fun SellerSubOrderCard(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
+                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -2216,7 +2295,7 @@ fun SellerSubOrderCard(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
+                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -2253,7 +2332,7 @@ fun SellerSubOrderCard(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
+                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -2350,12 +2429,24 @@ fun ProductCard(
                     .clickable(onClick = onEditProduct)
             ) {
                 if (!categoryName.isNullOrBlank()) {
-                    Text(
-                        text = categoryName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF003366),
-                        fontWeight = FontWeight.Bold
-                    )
+                    val catTheme = com.example.vallego.ui.components.resolveCategoryVisualTheme(categoryName)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = catTheme.iconResId),
+                            contentDescription = null,
+                            tint = Color(0xFF003366),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = categoryName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF003366),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 Text(
                     text = product.name,
@@ -2403,7 +2494,7 @@ fun ProductCard(
                                 color = if (isOutOfStock) Color(0xFFC8102E) else MaterialTheme.colorScheme.onSurface
                             )
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                painter = painterResource(id = R.drawable.ic_edit_product_custom),
                                 contentDescription = "Editar Stock",
                                 modifier = Modifier.size(12.dp),
                                 tint = Color(0xFF003366)
@@ -2422,7 +2513,7 @@ fun ProductCard(
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
+                        painter = painterResource(id = R.drawable.ic_edit_product_custom),
                         contentDescription = "Editar producto completo",
                         tint = Color(0xFF003366),
                         modifier = Modifier.size(18.dp)
@@ -2634,7 +2725,7 @@ fun SellerStoreProfileScreen(
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(painter = painterResource(id = R.drawable.ic_edit_store_custom), contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Editar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
@@ -2715,7 +2806,7 @@ fun SellerStoreProfileScreen(
                                 .height(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                painter = painterResource(id = R.drawable.ic_logout_custom),
                                 contentDescription = null,
                                 tint = Color(0xFFDC2626),
                                 modifier = Modifier.size(18.dp)
@@ -2806,11 +2897,17 @@ fun SellerStoreProfileScreen(
                                 }
                             )
                     ) {
-                        ValleGoBusinessAvatar(
-                            avatarUrl = avatarUrl.takeIf { it.isNotBlank() },
-                            storeName = businessName,
-                            size = 72.dp
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            border = BorderStroke(3.5.dp, Color.White),
+                            shadowElevation = 4.dp
+                        ) {
+                            ValleGoBusinessAvatar(
+                                avatarUrl = avatarUrl.takeIf { it.isNotBlank() },
+                                storeName = businessName,
+                                size = 76.dp
+                            )
+                        }
                         if (isEditMode) {
                             Surface(
                                 color = Color(0xFF003366),
@@ -2832,7 +2929,7 @@ fun SellerStoreProfileScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Row(
@@ -2852,6 +2949,32 @@ fun SellerStoreProfileScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
+                            // Badge Emprendedor Autorizado
+                            Surface(
+                                color = Color(0xFFE6F6F3),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
+                                        contentDescription = null,
+                                        tint = Color(0xFF0D5C4C),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = "Emprendedor Autorizado",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF0D5C4C),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
 
                             // Calificación promedio del vendedor
                             Row(
@@ -3055,7 +3178,7 @@ fun SellerStoreProfileScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                Icons.Default.LocationOn,
+                                                painter = painterResource(id = R.drawable.ic_location_custom),
                                                 contentDescription = null,
                                                 tint = if (isExt) Color(0xFF2E7D32) else Color(0xFF512DA8),
                                                 modifier = Modifier.size(16.dp)
@@ -3124,13 +3247,19 @@ fun SellerStoreProfileScreen(
                                     shape = RoundedCornerShape(10.dp),
                                     border = BorderStroke(1.dp, tint.copy(alpha = 0.3f))
                                 ) {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = tint,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        PaymentMethodLogoByName(name = method, size = 14.dp)
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = tint
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -3463,14 +3592,19 @@ fun SellerStoreProfileScreen(
                                             },
                                             colors = CheckboxDefaults.colors(checkedColor = textTint)
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = label,
-                                                fontWeight = FontWeight.Bold,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = textTint
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                PaymentMethodLogoByName(name = code, size = 16.dp)
+                                                Text(
+                                                    text = label,
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = textTint
+                                                )
+                                            }
                                             Text(
                                                 text = desc,
                                                 style = MaterialTheme.typography.bodySmall,
@@ -3538,6 +3672,10 @@ fun SellerOrderDetailDialog(
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = ValleGoDialogShape,
+        containerColor = ValleGoDialogContainerColor,
+        tonalElevation = ValleGoDialogTonalElevation,
+        modifier = Modifier.valleGoDialogStyle(),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -3575,7 +3713,7 @@ fun SellerOrderDetailDialog(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                Icons.Default.LocationOn,
+                                painter = painterResource(id = R.drawable.ic_location_custom),
                                 contentDescription = null,
                                 tint = Color(0xFFC8102E),
                                 modifier = Modifier.size(20.dp)
@@ -3661,7 +3799,7 @@ fun SellerOrderDetailDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            painter = painterResource(id = R.drawable.ic_chat_custom),
                             contentDescription = null,
                             tint = if (subOrder.status.isFinal) Color(0xFF64748B) else Color(0xFF00A884),
                             modifier = Modifier.size(16.dp)
@@ -3722,7 +3860,7 @@ fun SellerOrderDetailDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Default.Payments, contentDescription = null, tint = pmTint, modifier = Modifier.size(16.dp))
+                            PaymentMethodLogo(method = subOrder.paymentMethod, size = 15.dp)
                             Text(pmLabel, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = pmTint)
                         }
                     }

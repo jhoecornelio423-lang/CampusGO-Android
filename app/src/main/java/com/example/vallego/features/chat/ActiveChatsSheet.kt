@@ -16,13 +16,18 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import com.example.vallego.core.notification.ValleGoNotificationHelper
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.painterResource
+import com.example.vallego.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.domain.model.SubOrderStatus
@@ -37,7 +42,8 @@ data class ActiveChatSummary(
     val subtotal: Double,
     val itemsSummary: String,
     val isBuyerPerspective: Boolean = true,
-    val otherUserAvatarUrl: String? = null
+    val otherUserAvatarUrl: String? = null,
+    val unreadCount: Int = 0
 )
 
 /**
@@ -52,6 +58,11 @@ fun ActiveChatsSheet(
     onClose: () -> Unit
 ) {
     BackHandler(onBack = onClose)
+
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        ValleGoNotificationHelper.cancelChatNotifications(context)
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -94,14 +105,14 @@ fun ActiveChatsSheet(
                         )
                     }
                     Surface(
-                        shape = CircleShape,
-                        color = if (chats.isNotEmpty()) Color(0xFFE8F5E9) else Color(0xFFF1F5F9)
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF1F5F9)
                     ) {
                         Text(
-                            text = "${chats.size}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = if (chats.isNotEmpty()) Color(0xFF2E7D32) else Color(0xFF64748B),
+                            text = "${chats.size} activo${if (chats.size != 1) "s" else ""}",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color(0xFF475569),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
@@ -128,7 +139,7 @@ fun ActiveChatsSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = null,
                                 tint = Color(0xFF64748B),
                                 modifier = Modifier.size(32.dp)
@@ -200,15 +211,34 @@ private fun ActiveChatItemCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = chat.otherUserName.ifBlank { "Contacto de Pedido" },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF1E293B),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        Text(
+                            text = chat.otherUserName.ifBlank { "Contacto de Pedido" },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF1E293B),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (chat.unreadCount > 0) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFEF4444)
+                            ) {
+                                Text(
+                                    text = if (chat.unreadCount > 9) "+9" else "${chat.unreadCount}",
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = "S/ %.2f".format(chat.subtotal),
                         fontWeight = FontWeight.Bold,
@@ -221,7 +251,7 @@ private fun ActiveChatItemCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.LocationOn,
+                        painter = painterResource(id = R.drawable.ic_location_custom),
                         contentDescription = null,
                         tint = Color(0xFFE59A00),
                         modifier = Modifier.size(13.dp)
@@ -282,7 +312,7 @@ private fun ActiveChatItemCard(
                             color = Color(0xFF00A884)
                         )
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            painter = painterResource(id = R.drawable.ic_chat_custom),
                             contentDescription = null,
                             tint = Color(0xFF00A884),
                             modifier = Modifier.size(14.dp)

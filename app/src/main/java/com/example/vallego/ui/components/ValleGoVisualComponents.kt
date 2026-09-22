@@ -14,14 +14,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.alpha
+import com.example.vallego.domain.model.PaymentMethod
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -243,7 +247,7 @@ private fun FallbackStoreBannerContent(storeName: String?) {
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Icon(
-            imageVector = Icons.Default.Store,
+            painter = painterResource(id = R.drawable.ic_store_custom),
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.95f),
             modifier = Modifier.size(28.dp)
@@ -420,6 +424,7 @@ fun SubOrderCountdownTimerBadge(
     createdAtIso: String?,
     status: SubOrderStatus,
     modifier: Modifier = Modifier,
+    labelPrefix: String = "Tiempo de espera: ",
     onExpired: (() -> Unit)? = null,
     onWarning5Min: (() -> Unit)? = null,
     onWarning10Min: (() -> Unit)? = null
@@ -451,38 +456,38 @@ fun SubOrderCountdownTimerBadge(
             val rem = maxOf(0L, targetEpochMillis - now)
             remainingMillis = rem
 
-            val remSec = rem / 1000
-            if (remSec in 1..600 && !hasWarned10Min) {
+            if (rem <= 10 * 60 * 1000L && rem > 5 * 60 * 1000L && !hasWarned10Min) {
                 hasWarned10Min = true
                 onWarning10Min?.invoke()
             }
-            if (remSec in 1..300 && !hasWarned5Min) {
+            if (rem <= 5 * 60 * 1000L && rem > 0L && !hasWarned5Min) {
                 hasWarned5Min = true
                 onWarning5Min?.invoke()
             }
-            if (rem == 0L && !hasExpiredReported) {
-                hasExpiredReported = true
-                onExpired?.invoke()
+            if (rem == 0L) {
+                if (!hasExpiredReported) {
+                    hasExpiredReported = true
+                    onExpired?.invoke()
+                }
                 break
             }
-            delay(1000L)
+            delay(1000)
         }
     }
 
-    val totalSeconds = remainingMillis / 1000
+    val totalSeconds = (remainingMillis / 1000L).coerceAtLeast(0L)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    val formattedTime = "%02d:%02d".format(minutes, seconds)
 
     val (bgCol, textCol, borderCol) = when {
-        totalSeconds > 600 -> Triple(Color(0xFFE6F6F3), Color(0xFF16A085), Color(0xFFA3E4D7)) // Verde Turquesa
-        totalSeconds in 301..600 -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), Color(0xFFFDE68A)) // Amarillo Cálido
-        totalSeconds in 1..300 -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), Color(0xFFEF9A9A)) // Rojo urgente
-        else -> Triple(Color(0xFFFFCDD2), Color(0xFFB71C1C), Color(0xFFE57373)) // Expirado
+        totalSeconds == 0L -> Triple(Color(0xFFFEF2F2), Color(0xFFDC2626), Color(0xFFFECACA))
+        totalSeconds <= 300 -> Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), Color(0xFFFFEDD5))
+        else -> Triple(Color(0xFFEFF6FF), Color(0xFF1D4ED8), Color(0xFFDBEAFE))
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alphaAnim by if (totalSeconds in 1..300) {
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
         infiniteTransition.animateFloat(
             initialValue = 1.0f,
             targetValue = 0.5f,
@@ -505,14 +510,14 @@ fun SubOrderCountdownTimerBadge(
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Icon(
-            imageVector = if (totalSeconds <= 300) Icons.Default.WarningAmber else Icons.Default.Schedule,
+            painter = painterResource(id = if (totalSeconds <= 300) R.drawable.ic_warning_custom else R.drawable.ic_alarm_custom),
             contentDescription = "Temporizador",
             tint = textCol.copy(alpha = alphaAnim),
             modifier = Modifier.size(15.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = if (totalSeconds > 0) "Aceptar en: $formattedTime" else "¡Tiempo agotado!",
+            text = if (totalSeconds > 0) "$labelPrefix$formattedTime" else "¡Tiempo agotado!",
             color = textCol.copy(alpha = alphaAnim),
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp
@@ -620,3 +625,134 @@ fun compressImageUri(
         null
     }
 }
+
+/**
+ * Obtiene el ID del recurso drawable para el método de pago correspondiente.
+ */
+fun getPaymentMethodLogoRes(method: PaymentMethod?): Int? = when (method) {
+    PaymentMethod.YAPE -> R.drawable.yape_logo
+    PaymentMethod.PLIN -> R.drawable.plin_logo
+    PaymentMethod.EFECTIVO -> R.drawable.efectivo_logo
+    else -> null
+}
+
+/**
+ * Obtiene el ID del recurso drawable según el nombre o código del método de pago.
+ */
+fun getPaymentMethodLogoResByName(name: String?): Int? = when (name?.uppercase()?.trim()) {
+    "YAPE" -> R.drawable.yape_logo
+    "PLIN" -> R.drawable.plin_logo
+    "EFECTIVO" -> R.drawable.efectivo_logo
+    else -> null
+}
+
+/**
+ * Renderiza el logo oficial del método de pago con tamaño pequeño proporcional al texto.
+ */
+@Composable
+fun PaymentMethodLogo(
+    method: PaymentMethod?,
+    modifier: Modifier = Modifier,
+    size: Dp = 16.dp,
+    enabled: Boolean = true
+) {
+    val resId = getPaymentMethodLogoRes(method)
+    if (resId != null) {
+        Image(
+            painter = painterResource(id = resId),
+            contentDescription = method?.name,
+            modifier = modifier
+                .size(size)
+                .clip(RoundedCornerShape(3.dp))
+                .let { if (!enabled) it.alpha(0.4f) else it },
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Icon(
+            imageVector = Icons.Default.Payments,
+            contentDescription = null,
+            modifier = modifier
+                .size(size)
+                .let { if (!enabled) it.alpha(0.4f) else it }
+        )
+    }
+}
+
+/**
+ * Renderiza el logo oficial del método de pago usando su nombre (String).
+ */
+@Composable
+fun PaymentMethodLogoByName(
+    name: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 16.dp,
+    enabled: Boolean = true
+) {
+    val resId = getPaymentMethodLogoResByName(name)
+    if (resId != null) {
+        Image(
+            painter = painterResource(id = resId),
+            contentDescription = name,
+            modifier = modifier
+                .size(size)
+                .clip(RoundedCornerShape(3.dp))
+                .let { if (!enabled) it.alpha(0.4f) else it },
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Icon(
+            imageVector = Icons.Default.Payments,
+            contentDescription = null,
+            modifier = modifier
+                .size(size)
+                .let { if (!enabled) it.alpha(0.4f) else it }
+        )
+    }
+}
+
+/**
+ * Constantes y estilos profesionales para ventanas emergentes / diálogos en Valle-GO.
+ */
+val ValleGoDialogShape = RoundedCornerShape(24.dp)
+val ValleGoDialogContainerColor = Color.White
+val ValleGoDialogTonalElevation = 6.dp
+
+/**
+ * Modificador estándar para ventanas emergentes que aplica recorte suave y borde sutil
+ * otorgando un acabado profesional de tarjeta flotante.
+ */
+fun Modifier.valleGoDialogStyle(
+    shape: Shape = ValleGoDialogShape,
+    borderColor: Color = Color(0xFFE2E8F0)
+): Modifier = this
+    .clip(shape)
+    .border(1.dp, borderColor, shape)
+
+fun formatAccountCreationDate(isoDate: String?): String {
+    if (isoDate.isNullOrBlank()) return "Miembro activo"
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+    for (pattern in patterns) {
+        try {
+            val sdf = SimpleDateFormat(pattern, Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = sdf.parse(isoDate)
+            if (date != null) {
+                val outFormat = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-PE"))
+                return outFormat.format(date)
+            }
+        } catch (_: Exception) {}
+    }
+    return isoDate.take(10)
+}
+
+
+

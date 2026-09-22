@@ -23,19 +23,5 @@ fun BetaBadgeOverlay(
     versionName: String = "0.5.2",
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomEnd
-    ) {
-        Text(
-            text = "beta v$versionName",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF64748B).copy(alpha = 0.35f),
-            letterSpacing = 0.6.sp,
-            modifier = Modifier
-                .navigationBarsPadding()
-                .padding(end = 12.dp, bottom = 4.dp)
-        )
-    }
+    // Marca de agua deshabilitada
 }

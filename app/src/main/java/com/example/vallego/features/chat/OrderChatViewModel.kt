@@ -121,15 +121,19 @@ class OrderChatViewModel(
         messageObservationJob?.cancel()
         messageObservationJob = viewModelScope.launch {
             chatRepository.observeMessages(subOrderId, currentUserId).collect { messageList ->
+                // Marcar localmente como leídos los mensajes recibidos para que la UI los muestre leídos de inmediato
+                val readMessages = messageList.map {
+                    if (!it.isFromMe) it.copy(isRead = true) else it
+                }
                 _uiState.update { state ->
                     // Preservar mensajes optimistas locales aún no confirmados remotamente
-                    val unconfirmedLocals = state.messages.filter { it.isFromMe && messageList.none { r -> r.content == it.content } }
+                    val unconfirmedLocals = state.messages.filter { it.isFromMe && readMessages.none { r -> r.content == it.content } }
                     state.copy(
-                        messages = (messageList + unconfirmedLocals).distinctBy { it.id }.sortedBy { it.createdAt },
+                        messages = (readMessages + unconfirmedLocals).distinctBy { it.id }.sortedBy { it.createdAt },
                         isLoading = false
                     )
                 }
-                // Marcar como leídos si hay mensajes no leídos del otro usuario
+                // Persistir lectura en la base de datos
                 chatRepository.markMessagesAsRead(subOrderId, currentUserId)
             }
         }

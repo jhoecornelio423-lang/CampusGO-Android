@@ -28,4 +28,9 @@ interface ChatRepository {
      * Eliminación de respaldo del chat en cliente cuando el subpedido finaliza.
      */
     suspend fun deleteMessagesForSubOrder(subOrderId: String): Result<Unit>
+
+    /**
+     * Observa en tiempo real la cantidad de mensajes no leídos para el usuario especificado.
+     */
+    fun observeUnreadCount(userId: String): Flow<Int>
 }
