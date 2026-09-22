@@ -68,7 +68,7 @@ fun MainNavigation(
     } else if (!isAuthenticated || currentProfile == null) {
         AuthRoute(
             onAuthSuccess = { /* State triggers automatic recomposition */ },
-            modifier = Modifier.fillMaxSize().safeDrawingPadding()
+            modifier = Modifier.fillMaxSize()
         )
     } else {
         val profile = currentProfile!!

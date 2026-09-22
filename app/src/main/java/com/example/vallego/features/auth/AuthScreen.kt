@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +71,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -159,7 +163,10 @@ fun AuthScreen(
         }
     }
 
-    Box(
+    val density = LocalDensity.current
+    var headerHeightDp by remember { mutableStateOf(240.dp) }
+
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(
@@ -172,6 +179,8 @@ fun AuthScreen(
                 )
             )
     ) {
+        val totalScreenHeight = maxHeight
+
         // Círculo grande decorativo translúcido en la esquina superior derecha
         Box(
             modifier = Modifier
@@ -217,7 +226,13 @@ fun AuthScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp)
+                    .onGloballyPositioned { coordinates ->
+                        val hDp = with(density) { coordinates.size.height.toDp() }
+                        if (hDp > 0.dp) {
+                            headerHeightDp = hDp
+                        }
+                    },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Logo Oficial Completo con letras blancas para fondo oscuro
@@ -269,8 +284,12 @@ fun AuthScreen(
             }
 
             // SECCIÓN INFERIOR: TARJETA BLANCA BORDE A BORDE CON ESQUINAS SUPERIORES CURVAS
+            val cardMinHeight = (totalScreenHeight - headerHeightDp).coerceAtLeast(0.dp)
+
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = cardMinHeight),
                 shape = RoundedCornerShape(
                     topStart = 32.dp,
                     topEnd = 32.dp
@@ -281,6 +300,7 @@ fun AuthScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = cardMinHeight)
                         .navigationBarsPadding()
                         .padding(horizontal = 24.dp)
                         .padding(top = 28.dp, bottom = 28.dp),
