@@ -73,8 +73,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-// Azul Campus amigable y luminoso (no oscuro)
-private val CampusBlue = Color(0xFF1976D2)
+// Color institucional ValleGO para cabecera de chat (Estilo WhatsApp institucional)
+private val CampusBlue = Color(0xFF00A884)
 
 /**
  * Pantalla completa de Chat Temporal de Coordinación (Estilo WhatsApp).

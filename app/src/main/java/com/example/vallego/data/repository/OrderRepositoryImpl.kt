@@ -1209,7 +1209,18 @@ class OrderRepositoryImpl(
 
                     val cachedCount = sellerSubOrdersCache[sellerId]?.size ?: 0
                     if (totalOrdersCount > 0 || cachedCount == 0) {
-                        return@withContext Result.success(stats)
+                        val finalStats = if (topProducts.isEmpty() && completedCount > 0) {
+                            val cachedOrders = sellerSubOrdersCache[sellerId] ?: emptyList()
+                            val localStats = computeLocalSellerStats(cachedOrders, dbRange)
+                            if (localStats.topProducts.isNotEmpty()) {
+                                stats.copy(topProducts = localStats.topProducts)
+                            } else {
+                                stats
+                            }
+                        } else {
+                            stats
+                        }
+                        return@withContext Result.success(finalStats)
                     }
                 } catch (_: Exception) {
                     // Si RPC no está desplegado o falla la red, procedemos al cálculo con caché local

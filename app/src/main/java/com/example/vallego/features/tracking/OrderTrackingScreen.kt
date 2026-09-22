@@ -370,7 +370,8 @@ fun OrderTrackingScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(16.dp),
+                                .navigationBarsPadding(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(currentOrders, key = { it.id }) { order ->

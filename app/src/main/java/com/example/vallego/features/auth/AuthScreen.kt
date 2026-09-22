@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -55,6 +56,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalUriHandler
+import com.example.vallego.ui.components.SetDarkScreenStatusBar
 import com.example.vallego.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -148,7 +152,16 @@ fun AuthScreen(
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    SetDarkScreenStatusBar(isDark = true)
     val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+    var showSupportDialog by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+
+    LaunchedEffect(uiState.isLoginMode) {
+        scrollState.scrollTo(0)
+    }
+
     var passwordVisible by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(true) }
 
@@ -218,7 +231,7 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // SECCIÓN SUPERIOR: HEADER CON LOGO OFICIAL DEL PROTOTIPO
@@ -773,7 +786,8 @@ fun AuthScreen(
                                     text = "Centro de soporte",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF00A884)
+                                    color = Color(0xFF00A884),
+                                    modifier = Modifier.clickable { showSupportDialog = true }
                                 )
                             }
                         } else {
@@ -833,6 +847,52 @@ fun AuthScreen(
                 }
             }
         }
+    }
+
+    if (showSupportDialog) {
+        AlertDialog(
+            onDismissRequest = { showSupportDialog = false },
+            title = {
+                Text(
+                    text = "Centro de Soporte ValleGO",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF16324F)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "¿Tienes inconvenientes para iniciar sesión o registrarte? Comunícate con nuestro canal de atención universitaria:",
+                        fontSize = 14.sp,
+                        color = Color(0xFF475569)
+                    )
+                    Text(
+                        text = "📧 Correo: soporte@vallego.app\n💬 WhatsApp: +51 987 654 321\n⏰ Horario: Lun - Sáb 8:00 AM a 8:00 PM",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1E293B)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        try {
+                            uriHandler.openUri("mailto:soporte@vallego.app?subject=Soporte%20ValleGO")
+                        } catch (_: Exception) {}
+                    }
+                ) {
+                    Text("Enviar Correo", fontWeight = FontWeight.Bold, color = Color(0xFF00A884))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSupportDialog = false }) {
+                    Text("Cerrar", color = Color(0xFF64748B))
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = Color.White
+        )
     }
 }
 

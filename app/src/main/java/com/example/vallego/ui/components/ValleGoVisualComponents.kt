@@ -754,5 +754,25 @@ fun formatAccountCreationDate(isoDate: String?): String {
     return isoDate.take(10)
 }
 
-
-
+/**
+ * Permite alternar dinámicamente el color de los iconos de la barra de estado.
+ * En pantallas con fondo oscuro (como WelcomeScreen y AuthScreen), desactiva
+ * isAppearanceLightStatusBars para que la hora, batería y notificaciones sean blancas.
+ * Al salir de la pantalla, restaura automáticamente el estado anterior.
+ */
+@Composable
+fun SetDarkScreenStatusBar(isDark: Boolean = true) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        androidx.compose.runtime.DisposableEffect(isDark) {
+            val activity = view.context as? android.app.Activity
+            val window = activity?.window
+            val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+            val prev = controller?.isAppearanceLightStatusBars ?: true
+            controller?.isAppearanceLightStatusBars = !isDark
+            onDispose {
+                controller?.isAppearanceLightStatusBars = prev
+            }
+        }
+    }
+}

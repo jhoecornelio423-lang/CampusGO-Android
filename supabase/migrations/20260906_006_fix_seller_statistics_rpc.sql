@@ -33,10 +33,10 @@ BEGIN
 
     -- 2. Métricas agregadas de subpedidos
     SELECT
-        COALESCE(SUM(CASE WHEN status IN ('completed', 'payment_confirmed') THEN subtotal_amount ELSE 0 END), 0),
-        COALESCE(COUNT(CASE WHEN status IN ('completed', 'payment_confirmed') THEN 1 END), 0),
-        COALESCE(COUNT(CASE WHEN status IN ('cancelled', 'rejected', 'not_delivered') THEN 1 END), 0),
-        COALESCE(COUNT(CASE WHEN status IN ('pending', 'accepted', 'in_preparation', 'ready', 'waiting_delivery') THEN 1 END), 0),
+        COALESCE(SUM(CASE WHEN LOWER(status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN subtotal_amount ELSE 0 END), 0),
+        COALESCE(COUNT(CASE WHEN LOWER(status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN 1 END), 0),
+        COALESCE(COUNT(CASE WHEN LOWER(status) IN ('cancelled', 'rejected', 'not_delivered', 'cancelado', 'rechazado', 'no_entregado') THEN 1 END), 0),
+        COALESCE(COUNT(CASE WHEN LOWER(status) IN ('pending', 'accepted', 'in_preparation', 'ready', 'waiting_delivery', 'preparing', 'pendiente', 'aceptado', 'en_preparacion', 'listo', 'esperando_entrega') THEN 1 END), 0),
         COUNT(*)
     INTO
         v_total_earnings,
@@ -59,12 +59,15 @@ BEGIN
         SELECT 
             COALESCE(p.name, 'Producto') AS product_name,
             SUM(oi.quantity)::INT AS units_sold,
-            ROUND(SUM(oi.price_at_sale * oi.quantity)::NUMERIC, 2) AS total_amount
+            ROUND(SUM(COALESCE(oi.price_at_sale, p.price, 0) * oi.quantity)::NUMERIC, 2) AS total_amount
         FROM public.order_items oi
-        JOIN public.sub_orders so ON (so.id = oi.sub_order_id OR so.order_id = oi.order_id)
+        JOIN public.sub_orders so ON (
+            so.id = oi.sub_order_id 
+            OR (so.order_id = oi.order_id AND (oi.seller_id IS NULL OR oi.seller_id = p_seller_id))
+        )
         LEFT JOIN public.products p ON p.id = oi.product_id
         WHERE so.seller_id = p_seller_id
-          AND so.status IN ('completed', 'payment_confirmed')
+          AND LOWER(so.status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado')
           AND so.created_at >= v_start_time
         GROUP BY COALESCE(p.name, 'Producto')
         ORDER BY total_amount DESC

@@ -295,6 +295,9 @@ fun BuyerHomeScreen(
                     val res = productRepository.uploadImage("business-assets", path, bytes)
                     res.onSuccess { url ->
                         onUploaded(url)
+                        val updated = currentProfile.copy(avatarUrl = url)
+                        productRepository.updateUserProfile(updated)
+                        currentProfile = updated
                     }
                 }
             },
@@ -357,6 +360,34 @@ fun BuyerHomeScreen(
             onNavigateToTracking = {
                 showCart = false
                 showTracking = true
+            },
+            onOpenChatForOrder = { order, subOrder ->
+                showCart = false
+                val store = realStoresWithProducts.find { it.sellerId == subOrder.sellerId }
+                val sellerAvatar = store?.avatarUrl
+                val meetingPt = subOrder.meetingPointName ?: order.meetingPointName.ifBlank { "Punto por convenir" }
+                val sellerName = subOrder.sellerName.ifBlank { store?.sellerName ?: "Vendedor" }
+                val chatSummary = ActiveChatSummary(
+                    subOrderId = subOrder.id,
+                    otherUserId = subOrder.sellerId,
+                    otherUserName = sellerName,
+                    meetingPoint = meetingPt,
+                    status = subOrder.status,
+                    subtotal = subOrder.subtotalAmount,
+                    itemsSummary = subOrder.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                    isBuyerPerspective = true,
+                    otherUserAvatarUrl = sellerAvatar
+                )
+                activeChatSummary = chatSummary
+                chatViewModel.initChat(
+                    subOrderId = subOrder.id,
+                    currentUserId = currentProfile.id,
+                    otherUserId = subOrder.sellerId,
+                    otherUserName = sellerName,
+                    meetingPoint = meetingPt,
+                    subOrderStatus = subOrder.status,
+                    otherUserAvatarUrl = sellerAvatar
+                )
             },
             modifier = modifier
         )
@@ -637,7 +668,7 @@ fun BuyerHomeScreen(
                             onValueChange = { searchQuery = it },
                             placeholder = {
                                 Text(
-                                    text = "¿Qué buscas hoy? (hamburguesa, café, postre...)",
+                                    text = "¿Qué buscas hoy? (ej. café, postre)",
                                     fontSize = 13.sp,
                                     color = Color(0xFF94A3B8)
                                 )
@@ -692,7 +723,7 @@ fun BuyerHomeScreen(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .padding(bottom = if (cartCalculation.totalItemCount > 0) 70.dp else 16.dp),
+                        .padding(bottom = if (cartCalculation.totalItemCount > 0) 100.dp else 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // 0. Banner de aviso en tiempo real de pedidos listos para recoger
@@ -1580,11 +1611,12 @@ fun BuyerProfileScreen(
                     Box(
                         contentAlignment = Alignment.BottomEnd
                     ) {
+                        val hasAvatarPhoto = !avatarUrl.isNullOrBlank()
                         Box(
-                            modifier = if (!isEditMode) Modifier.clip(CircleShape).clickable { showEnlargedPhoto = true } else Modifier
+                            modifier = if (!isEditMode && hasAvatarPhoto) Modifier.clip(CircleShape).clickable { showEnlargedPhoto = true } else Modifier
                         ) {
                             ValleGoUserAvatar(
-                                avatarUrl = avatarUrl,
+                                avatarUrl = avatarUrl?.trim()?.takeIf { it.isNotBlank() },
                                 name = fullName,
                                 size = 96.dp
                             )

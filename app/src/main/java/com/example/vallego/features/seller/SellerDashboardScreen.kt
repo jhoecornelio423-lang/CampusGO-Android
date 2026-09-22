@@ -1195,18 +1195,7 @@ fun SellerDashboardScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            if (uiState.selectedTab == SellerTab.PRODUCTOS) {
-                ExtendedFloatingActionButton(
-                    onClick = { viewModel.openAddProductDialog() },
-                    icon = { Icon(Icons.Default.Add, contentDescription = "Agregar") },
-                    text = { Text("Nuevo Producto") },
-                    containerColor = Color(0xFF003366),
-                    contentColor = Color.White
-                )
-            }
-        },
-        topBar = {
+            topBar = {
             TopAppBar(
                 title = {
                     val curProf = uiState.sellerProfile ?: profile

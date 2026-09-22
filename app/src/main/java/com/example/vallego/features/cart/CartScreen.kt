@@ -56,7 +56,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.platform.LocalContext
 import com.example.vallego.R
 import com.example.vallego.domain.model.CampusMeetingPoint
+import com.example.vallego.domain.model.Order
 import com.example.vallego.domain.model.PaymentMethod
+import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.ui.components.PaymentMethodLogo
 import com.example.vallego.ui.components.getPaymentMethodLogoRes
@@ -75,6 +77,7 @@ fun CartScreen(
     buyerProfile: UserProfile,
     onNavigateBack: () -> Unit,
     onNavigateToTracking: () -> Unit = onNavigateBack,
+    onOpenChatForOrder: ((Order, SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: CartViewModel = koinViewModel()
 ) {
@@ -199,9 +202,14 @@ fun CartScreen(
                 viewModel.clearPlacedOrder()
                 onNavigateToTracking()
             },
-            onOpenChat = {
+            onOpenChat = { subOrder ->
+                val ord = order
                 viewModel.clearPlacedOrder()
-                onNavigateToTracking()
+                if (onOpenChatForOrder != null) {
+                    onOpenChatForOrder(ord, subOrder)
+                } else {
+                    onNavigateToTracking()
+                }
             },
             onNavigateBack = {
                 viewModel.clearPlacedOrder()
@@ -501,12 +509,12 @@ fun CartScreen(
                                             ) {
                                                 Column {
                                                     Text(
-                                                        text = "Subtotal (${uiState.calculation.totalItemCount} productos):",
+                                                        text = "Subtotal (${uiState.calculation.totalItemCount} ${if (uiState.calculation.totalItemCount == 1) "producto" else "productos"}):",
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                     Text(
-                                                        text = "${uiState.calculation.storeGroups.size} puesto(s) comercial(es)",
+                                                        text = "${uiState.calculation.storeGroups.size} ${if (uiState.calculation.storeGroups.size == 1) "puesto comercial" else "puestos comerciales"}",
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -832,7 +840,7 @@ fun CartScreen(
                                             ) {
                                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                                     Text(
-                                                        text = "Subtotal (${uiState.calculation.totalItemCount} productos):",
+                                                        text = "Subtotal (${uiState.calculation.totalItemCount} ${if (uiState.calculation.totalItemCount == 1) "producto" else "productos"}):",
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -1323,7 +1331,7 @@ fun CartScreen(
                                             ) {
                                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                                     Text(
-                                                        text = "Total General (${uiState.calculation.totalItemCount} productos):",
+                                                        text = "Total General (${uiState.calculation.totalItemCount} ${if (uiState.calculation.totalItemCount == 1) "producto" else "productos"}):",
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )

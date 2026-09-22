@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.R
+import com.example.vallego.ui.components.SetDarkScreenStatusBar
 
 @Composable
 fun WelcomeScreen(
@@ -49,6 +50,7 @@ fun WelcomeScreen(
     onLogin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    SetDarkScreenStatusBar(isDark = true)
     Box(
         modifier = modifier
             .fillMaxSize()
