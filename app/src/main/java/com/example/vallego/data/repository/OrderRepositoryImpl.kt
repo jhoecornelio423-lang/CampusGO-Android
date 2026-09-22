@@ -567,7 +567,7 @@ class OrderRepositoryImpl(
             val hasActiveOrders = previousEmitted?.any { o ->
                 o.status in listOf(OrderStatus.PENDIENTE, OrderStatus.EN_PROCESO, OrderStatus.PARCIALMENTE_ACEPTADA)
             } ?: false
-            delay(if (hasActiveOrders) 3000L else 5000L)
+            delay(if (hasActiveOrders) 3000L else 15000L)
         }
     }.flowOn(Dispatchers.IO)
 
@@ -782,7 +782,7 @@ class OrderRepositoryImpl(
             val hasActiveSubOrders = previousEmitted?.any { so ->
                 so.status in listOf(SubOrderStatus.PENDIENTE, SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION, SubOrderStatus.LISTO)
             } ?: false
-            delay(if (hasActiveSubOrders) 3000L else 5000L)
+            delay(if (hasActiveSubOrders) 3000L else 15000L)
         }
     }.flowOn(Dispatchers.IO)
 

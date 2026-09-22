@@ -1,6 +1,8 @@
 package com.example.vallego.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -25,14 +27,35 @@ private val CampusGoLightColorScheme = lightColorScheme(
     outline = Color(0xFFE5E7EB)
 )
 
+private val ValleGODarkColorScheme = darkColorScheme(
+    primary = Color(0xFF1ABC9C),          // Verde Turquesa brillante
+    onPrimary = Color(0xFF00382E),
+    primaryContainer = Color(0xFF005144),
+    onPrimaryContainer = Color(0xFF70F7D7),
+    secondary = Color(0xFFF4B942),        // Amarillo Cálido
+    onSecondary = Color(0xFF432C00),
+    secondaryContainer = Color(0xFF5F4100),
+    onSecondaryContainer = Color(0xFFFFDEA3),
+    tertiary = Color(0xFF90CAF9),         // Azul claro para encabezados
+    onTertiary = Color(0xFF0D47A1),
+    background = Color(0xFF0F172A),       // Slate 900
+    onBackground = Color(0xFFF1F5F9),
+    surface = Color(0xFF1E293B),          // Slate 800
+    onSurface = Color(0xFFF8FAFC),
+    surfaceVariant = Color(0xFF334155),   // Slate 700
+    onSurfaceVariant = Color(0xFFCBD5E1),
+    outline = Color(0xFF475569)
+)
+
 @Composable
 fun CampusGoTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val colorScheme = if (darkTheme) ValleGODarkColorScheme else CampusGoLightColorScheme
     MaterialTheme(
-        colorScheme = CampusGoLightColorScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
@@ -40,7 +63,7 @@ fun CampusGoTheme(
 
 @Composable
 fun ValleGOTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
