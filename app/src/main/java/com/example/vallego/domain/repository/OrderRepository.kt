@@ -19,6 +19,15 @@ interface OrderRepository {
     suspend fun submitSellerReview(orderId: String, buyerId: String, sellerId: String, rating: Int, comment: String? = null): Result<Unit>
     suspend fun getBuyerReviews(buyerId: String): Result<Map<String, Int>>
     suspend fun getSellerDashboardStatistics(sellerId: String, range: String): Result<com.example.vallego.domain.model.SellerDashboardStats>
+    suspend fun reportIncident(
+        subOrderId: String? = null,
+        reporterId: String? = null,
+        reportedUserId: String? = null,
+        incidentType: String,
+        details: String
+    ): Result<Unit>
+    suspend fun getUserWarnings(userId: String): Result<List<com.example.vallego.domain.model.ProfileWarning>>
+    fun observeUserWarnings(userId: String): Flow<List<com.example.vallego.domain.model.ProfileWarning>>
     fun clearCache()
 }
 

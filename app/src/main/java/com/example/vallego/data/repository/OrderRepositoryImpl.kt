@@ -6,6 +6,7 @@ import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.SubOrderItem
 import com.example.vallego.domain.model.SubOrderStatus
+import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.repository.OrderRepository
 import com.example.vallego.domain.usecase.RecalculateOrderUseCase
 import io.github.jan.supabase.postgrest.Postgrest
@@ -1371,4 +1372,59 @@ class OrderRepositoryImpl(
     } catch (_: Exception) {
         false
     }
+
+    override suspend fun reportIncident(
+        subOrderId: String?,
+        reporterId: String?,
+        reportedUserId: String?,
+        incidentType: String,
+        details: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                postgrest.from("order_incidents").insert(
+                    buildJsonObject {
+                        put("id", UUID.randomUUID().toString())
+                        subOrderId?.let { put("sub_order_id", it) }
+                        reporterId?.let { put("reporter_id", it) }
+                        reportedUserId?.let { put("reported_user_id", it) }
+                        put("incident_type", incidentType)
+                        put("details", details.trim())
+                        put("status", "PENDIENTE")
+                    }
+                )
+                return@withContext Result.success(Unit)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("OrderRepo", "Error al registrar reporte/incidencia: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getUserWarnings(userId: String): Result<List<ProfileWarning>> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val warnings = postgrest.from("profile_warnings").select {
+                    filter {
+                        eq("profile_id", userId)
+                    }
+                    order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<ProfileWarning>()
+                return@withContext Result.success(warnings)
+            }
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            android.util.Log.e("OrderRepo", "Error al obtener advertencias de usuario: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override fun observeUserWarnings(userId: String): Flow<List<ProfileWarning>> = flow {
+        while (true) {
+            val res = getUserWarnings(userId)
+            emit(res.getOrDefault(emptyList()))
+            delay(15000)
+        }
+    }.flowOn(Dispatchers.IO)
 }

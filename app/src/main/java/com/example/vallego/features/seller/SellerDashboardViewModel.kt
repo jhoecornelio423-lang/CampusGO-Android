@@ -54,6 +54,12 @@ class SellerDashboardViewModel(
                 }
             }
         }
+
+        viewModelScope.launch {
+            orderRepository.observeUserWarnings(sellerId).collect { warnings ->
+                _uiState.update { it.copy(warnings = warnings) }
+            }
+        }
         viewModelScope.launch {
             orderRepository.observeSubOrdersForSeller(sellerId).collect { orders ->
                 val today = LocalDate.now(limaZone)

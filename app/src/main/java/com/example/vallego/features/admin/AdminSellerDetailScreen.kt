@@ -3,8 +3,10 @@ package com.example.vallego.features.admin
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,7 +17,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,9 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.R
 import com.example.vallego.domain.model.Product
+import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.model.SellerDashboardStats
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
+import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
 import com.example.vallego.ui.components.PaymentMethodLogoByName
 import com.example.vallego.ui.components.StoreStatusBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
@@ -52,12 +59,24 @@ fun AdminSellerDetailScreen(
     onBack: () -> Unit,
     onSuspend: (UserProfile) -> Unit,
     onReactivate: (UserProfile) -> Unit,
+    onIssueWarning: ((UserProfile) -> Unit)? = null,
+    warnings: List<ProfileWarning> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val isSuspended = seller.role == UserRole.SUSPENDED
 
-    BackHandler {
+    var showEnlargedPhoto by remember { mutableStateOf(false) }
+    var enlargedPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var enlargedPhotoTitle by remember { mutableStateOf("") }
+    var enlargedPhotoRole by remember { mutableStateOf("") }
+    var isEnlargedBanner by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showEnlargedPhoto) {
+        showEnlargedPhoto = false
+    }
+
+    BackHandler(enabled = !showEnlargedPhoto) {
         onBack()
     }
 
@@ -122,7 +141,14 @@ fun AdminSellerDetailScreen(
                         storeName = seller.displayStoreName,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp),
+                            .height(160.dp)
+                            .clickable {
+                                enlargedPhotoUrl = seller.bannerUrl?.takeIf { it.isNotBlank() }
+                                enlargedPhotoTitle = seller.displayStoreName
+                                enlargedPhotoRole = "Banner del Puesto"
+                                isEnlargedBanner = true
+                                showEnlargedPhoto = true
+                            },
                         shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
                     )
 
@@ -130,14 +156,26 @@ fun AdminSellerDetailScreen(
                     Box(
                         modifier = Modifier
                             .padding(top = 115.dp, start = 20.dp)
+                            .clip(CircleShape)
+                            .clickable {
+                                enlargedPhotoUrl = seller.avatarUrl?.takeIf { it.isNotBlank() }
+                                enlargedPhotoTitle = seller.displayStoreName
+                                enlargedPhotoRole = "Emprendedor Universitario • Campus ${seller.campus}"
+                                isEnlargedBanner = false
+                                showEnlargedPhoto = true
+                            }
                     ) {
-                        ValleGoBusinessAvatar(
-                            avatarUrl = seller.avatarUrl,
-                            storeName = seller.displayStoreName,
-                            size = 80.dp,
-                            modifier = Modifier
-                                .border(3.dp, Color.White, CircleShape)
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            border = BorderStroke(3.dp, Color.White),
+                            shadowElevation = 4.dp
+                        ) {
+                            ValleGoBusinessAvatar(
+                                avatarUrl = seller.avatarUrl,
+                                storeName = seller.displayStoreName,
+                                size = 80.dp
+                            )
+                        }
                     }
                 }
             }
@@ -656,13 +694,128 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 7. BOTÓN DE ACCIÓN ADMINISTRATIVA (SUSPENDER / REACTIVAR)
+            // 7. HISTORIAL DE LLAMADAS DE ATENCIÓN / ADVERTENCIAS
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.WarningAmber,
+                                    contentDescription = null,
+                                    tint = if (warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF003366),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Llamadas de Atención al Puesto",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Color(0xFF003366)
+                                )
+                            }
+
+                            Surface(
+                                color = if (warnings.isNotEmpty()) Color(0xFFFFF3E0) else Color(0xFFE8F5E9),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = if (warnings.size == 1) "1 advertencia" else "${warnings.size} advertencias",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF2E7D32),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                        if (warnings.isEmpty()) {
+                            Text(
+                                text = "El emprendedor no tiene llamadas de atención ni sanciones registradas en la plataforma.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                warnings.forEach { warning ->
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.surface,
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFCC80)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Llamada de Atención Oficial",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFFE65100)
+                                                )
+                                                Text(
+                                                    text = warning.createdAt?.take(10) ?: "Reciente",
+                                                    fontSize = 10.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = warning.reason,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 8. BOTONES DE ACCIÓN ADMINISTRATIVA (LLAMAR ATENCIÓN & SUSPENDER/REACTIVAR)
             item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (onIssueWarning != null) {
+                        Button(
+                            onClick = { onIssueWarning(seller) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Llamar la Atención al Puesto", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+
                     if (isSuspended) {
                         Button(
                             onClick = { onReactivate(seller) },
@@ -694,6 +847,16 @@ fun AdminSellerDetailScreen(
                 }
             }
         }
+    }
+
+    if (showEnlargedPhoto) {
+        EnlargedPhotoViewerDialog(
+            photoUrl = enlargedPhotoUrl,
+            name = enlargedPhotoTitle,
+            roleDescription = enlargedPhotoRole,
+            isBanner = isEnlargedBanner,
+            onDismiss = { showEnlargedPhoto = false }
+        )
     }
 }
 

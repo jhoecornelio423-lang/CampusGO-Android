@@ -57,10 +57,10 @@ BEGIN
 
     -- Resumen general de subpedidos
     SELECT 
-        COALESCE(SUM(CASE WHEN s.status IN ('completed', 'pago_confirmado') THEN s.subtotal_amount ELSE 0 END), 0.00),
+        COALESCE(SUM(CASE WHEN LOWER(s.status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN s.subtotal_amount ELSE 0 END), 0.00),
         COUNT(*),
-        COUNT(CASE WHEN s.status IN ('completed', 'pago_confirmado') THEN 1 END),
-        COUNT(CASE WHEN s.status IN ('cancelled', 'rejected', 'no_entregado') THEN 1 END)
+        COUNT(CASE WHEN LOWER(s.status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN 1 END),
+        COUNT(CASE WHEN LOWER(s.status) IN ('cancelled', 'rejected', 'not_delivered', 'no_entregado', 'cancelado', 'rechazado') THEN 1 END)
     INTO 
         v_total_sales,
         v_total_orders,
@@ -71,7 +71,7 @@ BEGIN
 
     -- Calcular ticket promedio y tasa de éxito
     IF v_completed_orders > 0 THEN
-        v_average_ticket := ROUND(v_total_sales / v_completed_orders, 2);
+        v_average_ticket := ROUND((v_total_sales / v_completed_orders)::NUMERIC, 2);
     END IF;
 
     IF (v_completed_orders + v_cancelled_orders) > 0 THEN
@@ -87,17 +87,20 @@ BEGIN
             COALESCE(p.business_name, p.full_name, 'Puesto Universitario') AS store_name,
             COALESCE(p.full_name, 'Titular') AS owner_name,
             p.avatar_url,
-            COALESCE(SUM(CASE WHEN s.status IN ('completed', 'pago_confirmado') THEN s.subtotal_amount ELSE 0 END), 0.00) AS total_sales,
-            COUNT(CASE WHEN s.status IN ('completed', 'pago_confirmado') THEN 1 END) AS completed_orders,
+            COALESCE(SUM(CASE WHEN LOWER(s.status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN s.subtotal_amount ELSE 0 END), 0.00) AS total_sales,
+            COUNT(CASE WHEN LOWER(s.status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN 1 END) AS completed_orders,
             CASE 
-                WHEN v_total_sales > 0 THEN ROUND((COALESCE(SUM(CASE WHEN s.status IN ('completed', 'pago_confirmado') THEN s.subtotal_amount ELSE 0 END), 0.00) * 100.0) / v_total_sales, 1)
+                WHEN v_total_sales > 0 THEN ROUND((COALESCE(SUM(CASE WHEN LOWER(s.status) IN ('completed', 'payment_confirmed', 'completado', 'pago_confirmado') THEN s.subtotal_amount ELSE 0 END), 0.00) * 100.0) / v_total_sales, 1)
                 ELSE 0.0
             END AS percentage
         FROM public.sub_orders s
-        LEFT JOIN public.profiles p ON p.id = s.seller_id
+        JOIN public.profiles p ON p.id = s.seller_id
         WHERE s.created_at >= v_start_time
+          AND p.role::text IN ('emprendedor', 'suspended')
+          AND p.business_name IS NOT NULL
+          AND TRIM(p.business_name) != ''
         GROUP BY s.seller_id, p.business_name, p.full_name, p.avatar_url
-        ORDER BY total_sales DESC, completed_orders DESC
+        ORDER BY total_sales DESC, completed_orders DESC, COUNT(*) DESC
         LIMIT 20
     ) r;
 
@@ -124,16 +127,16 @@ BEGIN
     INTO v_top_points
     FROM (
         SELECT 
-            COALESCE(o.meeting_point_name, o.delivery_place, 'Campus General') AS point_name,
+            COALESCE(s.meeting_point_name, o.meeting_point_name, o.delivery_place, 'Campus General') AS point_name,
             COUNT(*) AS count,
             CASE 
                 WHEN v_total_orders > 0 THEN ROUND((COUNT(*)::NUMERIC * 100.0) / v_total_orders::NUMERIC, 1)
                 ELSE 0.0
             END AS percentage
         FROM public.sub_orders s
-        JOIN public.orders o ON o.id = s.order_id
+        LEFT JOIN public.orders o ON o.id = s.order_id
         WHERE s.created_at >= v_start_time
-        GROUP BY COALESCE(o.meeting_point_name, o.delivery_place, 'Campus General')
+        GROUP BY COALESCE(s.meeting_point_name, o.meeting_point_name, o.delivery_place, 'Campus General')
         ORDER BY count DESC
         LIMIT 6
     ) pt;

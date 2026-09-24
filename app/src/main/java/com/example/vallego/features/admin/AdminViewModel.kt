@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.MetricsPeriod
+import com.example.vallego.domain.model.OrderIncident
 import com.example.vallego.domain.model.SellerApplication
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.repository.AdminRepository
@@ -44,6 +45,19 @@ class AdminViewModel(
                     currentState.copy(
                         sellers = sellers,
                         selectedSellerDetail = updatedSelectedSeller
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            adminRepository.observeBuyers().collect { buyers ->
+                _uiState.update { currentState ->
+                    val updatedSelectedBuyer = currentState.selectedBuyerDetail?.let { selected ->
+                        buyers.find { it.id == selected.id } ?: selected
+                    }
+                    currentState.copy(
+                        buyers = buyers,
+                        selectedBuyerDetail = updatedSelectedBuyer
                     )
                 }
             }
@@ -97,17 +111,24 @@ class AdminViewModel(
                 selectedSellerDetail = seller,
                 isLoadingSellerProducts = true,
                 sellerProducts = emptyList(),
-                sellerStats = null
+                sellerStats = null,
+                userWarnings = emptyList(),
+                isLoadingWarnings = true
             )
         }
         viewModelScope.launch {
             val prodsResult = productRepository.getProductsBySeller(seller.id)
             val statsResult = orderRepository.getSellerDashboardStatistics(seller.id, "all")
+            val warningsResult = adminRepository.getProfileWarnings(seller.id)
+            val incidentsResult = adminRepository.getIncidentsForUser(seller.id)
             _uiState.update {
                 it.copy(
                     isLoadingSellerProducts = false,
                     sellerProducts = prodsResult.getOrDefault(emptyList()),
-                    sellerStats = statsResult.getOrNull()
+                    sellerStats = statsResult.getOrNull(),
+                    userWarnings = warningsResult.getOrDefault(emptyList()),
+                    userIncidents = incidentsResult.getOrDefault(emptyList()),
+                    isLoadingWarnings = false
                 )
             }
         }
@@ -118,7 +139,51 @@ class AdminViewModel(
             it.copy(
                 selectedSellerDetail = null,
                 sellerProducts = emptyList(),
-                sellerStats = null
+                sellerStats = null,
+                userWarnings = emptyList(),
+                userIncidents = emptyList()
+            )
+        }
+    }
+
+    fun onBuyerSearchQueryChange(query: String) {
+        _uiState.update { it.copy(buyerSearchQuery = query) }
+    }
+
+    fun onSelectBuyer(buyer: UserProfile) {
+        _uiState.update {
+            it.copy(
+                selectedBuyerDetail = buyer,
+                isLoadingBuyerDetail = true,
+                buyerStats = null,
+                userWarnings = emptyList(),
+                userIncidents = emptyList(),
+                isLoadingWarnings = true
+            )
+        }
+        viewModelScope.launch {
+            val statsResult = adminRepository.getBuyerOrderStats(buyer.id)
+            val warningsResult = adminRepository.getProfileWarnings(buyer.id)
+            val incidentsResult = adminRepository.getIncidentsForUser(buyer.id)
+            _uiState.update {
+                it.copy(
+                    isLoadingBuyerDetail = false,
+                    buyerStats = statsResult.getOrNull(),
+                    userWarnings = warningsResult.getOrDefault(emptyList()),
+                    userIncidents = incidentsResult.getOrDefault(emptyList()),
+                    isLoadingWarnings = false
+                )
+            }
+        }
+    }
+
+    fun closeBuyerDetail() {
+        _uiState.update {
+            it.copy(
+                selectedBuyerDetail = null,
+                buyerStats = null,
+                userWarnings = emptyList(),
+                userIncidents = emptyList()
             )
         }
     }
@@ -130,12 +195,19 @@ class AdminViewModel(
                 adminRepository.refreshMeetingPoints()
                 adminRepository.refreshSellerApplications()
                 adminRepository.refreshSellers()
+                adminRepository.refreshBuyers()
                 adminRepository.refreshIncidents()
                 loadDetailedMetrics(_uiState.value.selectedMetricsPeriod)
                 _uiState.value.selectedSellerDetail?.let { seller ->
                     val prods = productRepository.getProductsBySeller(seller.id).getOrDefault(emptyList())
                     val stats = orderRepository.getSellerDashboardStatistics(seller.id, "all").getOrNull()
-                    _uiState.update { it.copy(sellerProducts = prods, sellerStats = stats) }
+                    val warns = adminRepository.getProfileWarnings(seller.id).getOrDefault(emptyList())
+                    _uiState.update { it.copy(sellerProducts = prods, sellerStats = stats, userWarnings = warns) }
+                }
+                _uiState.value.selectedBuyerDetail?.let { buyer ->
+                    val stats = adminRepository.getBuyerOrderStats(buyer.id).getOrNull()
+                    val warns = adminRepository.getProfileWarnings(buyer.id).getOrDefault(emptyList())
+                    _uiState.update { it.copy(buyerStats = stats, userWarnings = warns) }
                 }
                 _uiState.update { it.copy(isLoading = false, successMessage = "Datos actualizados correctamente") }
             } catch (e: Exception) {
@@ -256,13 +328,22 @@ class AdminViewModel(
     }
 
     fun dismissSuspensionDialog() {
-        _uiState.update { it.copy(selectedSellerForSuspension = null) }
+        _uiState.update { it.copy(selectedSellerForSuspension = null, selectedIncidentForResolution = null) }
     }
 
     fun confirmSellerSuspension(sellerId: String, reason: String) {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
+            val pendingIncident = _uiState.value.selectedIncidentForResolution
             val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = true, reason = reason)
+            if (pendingIncident != null && result.isSuccess) {
+                adminRepository.resolveIncident(
+                    incidentId = pendingIncident.id,
+                    status = "SANCIONADO",
+                    action = "SUSPENDED",
+                    adminNotes = "Puesto suspendido por el administrador: $reason"
+                )
+            }
             dismissSuspensionDialog()
             _uiState.update { currentState ->
                 val updatedDetail = if (currentState.selectedSellerDetail?.id == sellerId) {
@@ -302,6 +383,158 @@ class AdminViewModel(
                     successMessage = if (result.isSuccess) "Puesto reactivado exitosamente." else null,
                     errorMessage = if (result.isFailure) "Error al reactivar: ${result.exceptionOrNull()?.message}" else null
                 )
+            }
+        }
+    }
+
+    fun openBuyerSuspensionDialog(buyer: UserProfile) {
+        _uiState.update { it.copy(selectedBuyerForSuspension = buyer) }
+    }
+
+    fun dismissBuyerSuspensionDialog() {
+        _uiState.update { it.copy(selectedBuyerForSuspension = null, selectedIncidentForResolution = null) }
+    }
+
+    fun confirmBuyerSuspension(buyerId: String, reason: String) {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            val pendingIncident = _uiState.value.selectedIncidentForResolution
+            val result = adminRepository.toggleBuyerSuspension(buyerId, isSuspended = true, reason = reason)
+            if (pendingIncident != null && result.isSuccess) {
+                adminRepository.resolveIncident(
+                    incidentId = pendingIncident.id,
+                    status = "SANCIONADO",
+                    action = "SUSPENDED",
+                    adminNotes = "Comprador suspendido por el administrador: $reason"
+                )
+            }
+            dismissBuyerSuspensionDialog()
+            _uiState.update { currentState ->
+                val updatedDetail = if (currentState.selectedBuyerDetail?.id == buyerId) {
+                    currentState.selectedBuyerDetail.copy(
+                        role = com.example.vallego.domain.model.UserRole.SUSPENDED_BUYER,
+                        suspensionReason = reason
+                    )
+                } else currentState.selectedBuyerDetail
+                currentState.copy(
+                    selectedBuyerDetail = updatedDetail,
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Comprador suspendido temporalmente." else null,
+                    errorMessage = if (result.isFailure) "Error al suspender comprador: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
+        }
+    }
+
+    fun reactivateBuyer(buyerId: String) {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            val result = adminRepository.toggleBuyerSuspension(buyerId, isSuspended = false)
+            _uiState.update { currentState ->
+                val updatedDetail = if (currentState.selectedBuyerDetail?.id == buyerId) {
+                    currentState.selectedBuyerDetail.copy(
+                        role = com.example.vallego.domain.model.UserRole.COMPRADOR,
+                        suspensionReason = null
+                    )
+                } else currentState.selectedBuyerDetail
+                currentState.copy(
+                    selectedBuyerDetail = updatedDetail,
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Comprador reactivado exitosamente." else null,
+                    errorMessage = if (result.isFailure) "Error al reactivar comprador: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
+        }
+    }
+
+    fun openWarningDialog(user: UserProfile) {
+        _uiState.update { it.copy(selectedUserForWarning = user) }
+    }
+
+    fun dismissWarningDialog() {
+        _uiState.update { it.copy(selectedUserForWarning = null, selectedIncidentForResolution = null) }
+    }
+
+    fun openWarningDialogForIncident(incident: OrderIncident, reportedUser: UserProfile) {
+        _uiState.update {
+            it.copy(
+                selectedUserForWarning = reportedUser,
+                selectedIncidentForResolution = incident
+            )
+        }
+    }
+
+    fun openSuspensionDialogForIncident(incident: OrderIncident, reportedUser: UserProfile) {
+        if (reportedUser.role == com.example.vallego.domain.model.UserRole.COMPRADOR ||
+            reportedUser.role == com.example.vallego.domain.model.UserRole.SUSPENDED_BUYER) {
+            _uiState.update {
+                it.copy(
+                    selectedBuyerForSuspension = reportedUser,
+                    selectedIncidentForResolution = incident
+                )
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    selectedSellerForSuspension = reportedUser,
+                    selectedIncidentForResolution = incident
+                )
+            }
+        }
+    }
+
+    fun onIncidentFilterChange(filter: String) {
+        _uiState.update { it.copy(incidentFilter = filter) }
+    }
+
+    fun resolveIncident(incidentId: String, status: String, action: String? = null, adminNotes: String? = null) {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            val result = adminRepository.resolveIncident(incidentId, status, action, adminNotes)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Incidencia actualizada a $status." else null,
+                    errorMessage = if (result.isFailure) "Error al resolver incidencia: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
+        }
+    }
+
+    fun confirmIssueWarning(userId: String, reason: String, adminId: String? = null) {
+        if (reason.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Debes indicar el motivo de la llamada de atención") }
+            return
+        }
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            val pendingIncident = _uiState.value.selectedIncidentForResolution
+            val result = adminRepository.issueWarning(userId, reason, adminId)
+            if (pendingIncident != null && result.isSuccess) {
+                adminRepository.resolveIncident(
+                    incidentId = pendingIncident.id,
+                    status = "SANCIONADO",
+                    action = "WARNING_ISSUED",
+                    adminNotes = "Llamada de atención aplicada: $reason"
+                )
+            }
+            dismissWarningDialog()
+            if (result.isSuccess) {
+                val warnings = adminRepository.getProfileWarnings(userId).getOrDefault(emptyList())
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        userWarnings = warnings,
+                        successMessage = "Llamada de atención registrada con éxito."
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error al registrar llamada de atención: ${result.exceptionOrNull()?.message}"
+                    )
+                }
             }
         }
     }

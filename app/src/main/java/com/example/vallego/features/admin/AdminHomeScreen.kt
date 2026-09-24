@@ -12,11 +12,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +30,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.vallego.ui.components.ValleGoDialogContainerColor
 import com.example.vallego.ui.components.ValleGoDialogShape
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Group
 import com.example.vallego.ui.components.ValleGoDialogTonalElevation
 import com.example.vallego.ui.components.valleGoDialogStyle
 import androidx.compose.material.icons.Icons
@@ -105,6 +112,8 @@ fun AdminHomeScreen(
     val isAnyModalOpen = uiState.showCreateMeetingPointDialog ||
             uiState.selectedApplicationForRejection != null ||
             uiState.selectedSellerForSuspension != null ||
+            uiState.selectedBuyerForSuspension != null ||
+            uiState.selectedUserForWarning != null ||
             uiState.pointToDelete != null
 
     val backgroundBlurRadius by animateDpAsState(
@@ -325,6 +334,184 @@ fun AdminHomeScreen(
         )
     }
 
+    // Modal Suspender Comprador
+    if (uiState.selectedBuyerForSuspension != null) {
+        val buyer = uiState.selectedBuyerForSuspension!!
+        var suspensionReason by remember { mutableStateOf("Incumplimiento reiterado de recojo de pedidos") }
+        val commonBuyerReasons = listOf(
+            "Incumplimiento reiterado de recojo de pedidos",
+            "Falta de respeto o conducta indebida en el campus",
+            "Reclamos reiterados por parte de vendedores",
+            "Incumplimiento de pagos o comprobantes inválidos",
+            "Uso indebido de la plataforma"
+        )
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissBuyerSuspensionDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
+            title = {
+                Text("Suspender Cuenta de Comprador", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Se suspenderá la cuenta del estudiante '${buyer.fullName}'. El usuario no podrá realizar pedidos hasta que un administrador reactive su acceso.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    commonBuyerReasons.forEach { reason ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { suspensionReason = reason }
+                        ) {
+                            RadioButton(
+                                selected = suspensionReason == reason,
+                                onClick = { suspensionReason = reason }
+                            )
+                            Text(text = reason, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmBuyerSuspension(buyer.id, suspensionReason) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                ) {
+                    Text("Confirmar Suspensión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissBuyerSuspensionDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Modal Llamar la Atención (Vendedor o Comprador)
+    if (uiState.selectedUserForWarning != null) {
+        val targetUser = uiState.selectedUserForWarning!!
+        val isSeller = targetUser.role == UserRole.EMPRENDEDOR || targetUser.role == UserRole.SUSPENDED
+        var reasonSelected by remember {
+            mutableStateOf(
+                if (isSeller) "Incumplimiento de horario o entrega acordada"
+                else "No se presentó a recoger el pedido al punto de encuentro"
+            )
+        }
+        var customReason by remember { mutableStateOf("") }
+        var isCustom by remember { mutableStateOf(false) }
+
+        val commonReasons = if (isSeller) {
+            listOf(
+                "Incumplimiento de horario o entrega acordada",
+                "Producto no coincide con la descripción o calidad",
+                "Cobro o precio indebido fuera de la plataforma",
+                "Falta de respeto o trato inapropiado al comprador"
+            )
+        } else {
+            listOf(
+                "No se presentó a recoger el pedido al punto de encuentro",
+                "Falta de respeto o trato indebido al vendedor",
+                "Cancelaciones reiteradas injustificadas",
+                "Incumplimiento de pago o falta de comprobante"
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissWarningDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFE65100),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Llamada de Atención",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE65100)
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Emitir llamada de atención oficial a: ${if (isSeller) targetUser.displayStoreName else targetUser.fullName}. Quedará registrada permanentemente en su historial disciplinario.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    commonReasons.forEach { reason ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    reasonSelected = reason
+                                    isCustom = false
+                                }
+                        ) {
+                            RadioButton(
+                                selected = !isCustom && reasonSelected == reason,
+                                onClick = {
+                                    reasonSelected = reason
+                                    isCustom = false
+                                }
+                            )
+                            Text(text = reason, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isCustom = true }
+                    ) {
+                        RadioButton(
+                            selected = isCustom,
+                            onClick = { isCustom = true }
+                        )
+                        Text(text = "Otro motivo personalizado...", style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    if (isCustom) {
+                        OutlinedTextField(
+                            value = customReason,
+                            onValueChange = { customReason = it },
+                            placeholder = { Text("Escribe el motivo detallado...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                val finalReason = if (isCustom) customReason.trim() else reasonSelected
+                Button(
+                    onClick = { viewModel.confirmIssueWarning(targetUser.id, finalReason, profile.id) },
+                    enabled = finalReason.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100))
+                ) {
+                    Text("Emitir Advertencia")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissWarningDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         if (uiState.selectedSellerDetail != null) {
             AdminSellerDetailScreen(
@@ -332,9 +519,23 @@ fun AdminHomeScreen(
                 products = uiState.sellerProducts,
                 isLoadingProducts = uiState.isLoadingSellerProducts,
                 sellerStats = uiState.sellerStats,
+                warnings = uiState.userWarnings,
                 onBack = { viewModel.closeSellerDetail() },
                 onSuspend = { seller -> viewModel.openSuspensionDialog(seller) },
-                onReactivate = { seller -> viewModel.reactivateSeller(seller.id) }
+                onReactivate = { seller -> viewModel.reactivateSeller(seller.id) },
+                onIssueWarning = { seller -> viewModel.openWarningDialog(seller) }
+            )
+        } else if (uiState.selectedBuyerDetail != null) {
+            AdminBuyerDetailScreen(
+                buyer = uiState.selectedBuyerDetail!!,
+                buyerStats = uiState.buyerStats,
+                isLoadingStats = uiState.isLoadingBuyerDetail,
+                warnings = uiState.userWarnings,
+                isLoadingWarnings = uiState.isLoadingWarnings,
+                onBack = { viewModel.closeBuyerDetail() },
+                onSuspend = { buyer -> viewModel.openBuyerSuspensionDialog(buyer) },
+                onReactivate = { buyer -> viewModel.reactivateBuyer(buyer.id) },
+                onIssueWarning = { buyer -> viewModel.openWarningDialog(buyer) }
             )
         } else {
             Scaffold(
@@ -411,7 +612,18 @@ fun AdminHomeScreen(
                                     selectedFilter = uiState.applicationFilter,
                                     onFilterChange = { viewModel.onApplicationFilterChange(it) },
                                     onApprove = { app -> viewModel.approveApplication(app.id, profile.id) },
-                                    onReject = { app -> viewModel.openRejectionDialog(app) }
+                                    onReject = { app -> viewModel.openRejectionDialog(app) },
+                                    incidents = uiState.filteredIncidents,
+                                    allIncidents = uiState.incidents,
+                                    incidentFilter = uiState.incidentFilter,
+                                    onIncidentFilterChange = { viewModel.onIncidentFilterChange(it) },
+                                    sellers = uiState.sellers,
+                                    buyers = uiState.buyers,
+                                    onSelectSeller = { seller -> viewModel.onSelectSeller(seller) },
+                                    onSelectBuyer = { buyer -> viewModel.onSelectBuyer(buyer) },
+                                    onIssueWarningForIncident = { inc, user -> viewModel.openWarningDialogForIncident(inc, user) },
+                                    onSuspendForIncident = { inc, user -> viewModel.openSuspensionDialogForIncident(inc, user) },
+                                    onResolveIncident = { inc -> viewModel.resolveIncident(inc.id, "RESUELTO", "RESOLUCION_DIRECTA", "Resuelto por el administrador del campus.") }
                                 )
                             }
                             AdminTab.SELLERS_DIRECTORY -> {
@@ -421,7 +633,19 @@ fun AdminHomeScreen(
                                     onSearchQueryChange = { viewModel.onSellerSearchQueryChange(it) },
                                     onSelectSeller = { seller -> viewModel.onSelectSeller(seller) },
                                     onSuspend = { seller -> viewModel.openSuspensionDialog(seller) },
-                                    onReactivate = { seller -> viewModel.reactivateSeller(seller.id) }
+                                    onReactivate = { seller -> viewModel.reactivateSeller(seller.id) },
+                                    onIssueWarning = { seller -> viewModel.openWarningDialog(seller) }
+                                )
+                            }
+                            AdminTab.BUYERS_DIRECTORY -> {
+                                BuyersDirectoryTabContent(
+                                    buyers = uiState.filteredBuyers,
+                                    searchQuery = uiState.buyerSearchQuery,
+                                    onSearchQueryChange = { viewModel.onBuyerSearchQueryChange(it) },
+                                    onSelectBuyer = { buyer -> viewModel.onSelectBuyer(buyer) },
+                                    onSuspend = { buyer -> viewModel.openBuyerSuspensionDialog(buyer) },
+                                    onReactivate = { buyer -> viewModel.reactivateBuyer(buyer.id) },
+                                    onIssueWarning = { buyer -> viewModel.openWarningDialog(buyer) }
                                 )
                             }
                             AdminTab.CAMPUS_METRICS -> {
@@ -442,7 +666,7 @@ fun AdminHomeScreen(
                     // Barra de Navegación Dock Liquid Glass flotante en la parte inferior
                     AdminLiquidGlassDock(
                         selectedTab = uiState.selectedTab,
-                        pendingApplicationsCount = uiState.metrics.pendingApplicationsCount,
+                        pendingApplicationsCount = uiState.metrics.pendingApplicationsCount + uiState.incidents.count { it.isPending },
                         onSelectTab = { viewModel.setTab(it) },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -645,92 +869,518 @@ fun SellerApplicationsTabContent(
     selectedFilter: String,
     onFilterChange: (String) -> Unit,
     onApprove: (SellerApplication) -> Unit,
-    onReject: (SellerApplication) -> Unit
+    onReject: (SellerApplication) -> Unit,
+    incidents: List<OrderIncident> = emptyList(),
+    allIncidents: List<OrderIncident> = emptyList(),
+    incidentFilter: String = "TODAS",
+    onIncidentFilterChange: (String) -> Unit = {},
+    sellers: List<UserProfile> = emptyList(),
+    buyers: List<UserProfile> = emptyList(),
+    onSelectSeller: (UserProfile) -> Unit = {},
+    onSelectBuyer: (UserProfile) -> Unit = {},
+    onIssueWarningForIncident: (OrderIncident, UserProfile) -> Unit = { _, _ -> },
+    onSuspendForIncident: (OrderIncident, UserProfile) -> Unit = { _, _ -> },
+    onResolveIncident: (OrderIncident) -> Unit = {}
 ) {
+    var activeSubSection by remember { mutableStateOf(0) } // 0 = Solicitudes, 1 = Reportes e Incidencias
+    val pendingIncidentsCount = remember(allIncidents) { allIncidents.count { it.isPending } }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column {
-            Text(
-                "Solicitudes de Vendedor (${applications.size})",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
+        // Selector superior entre Solicitudes de Puestos y Reportes e Incidencias
+        PrimaryTabRow(
+            selectedTabIndex = activeSubSection,
+            containerColor = Color.Transparent,
+            contentColor = Color(0xFF003366)
+        ) {
+            Tab(
+                selected = activeSubSection == 0,
+                onClick = { activeSubSection = 0 },
+                text = {
+                    Text(
+                        text = "Solicitudes (${applications.size})",
+                        fontWeight = if (activeSubSection == 0) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.5.sp
+                    )
+                }
             )
-            Text(
-                "Revisión y autorización de nuevos emprendedores en el campus",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Tab(
+                selected = activeSubSection == 1,
+                onClick = { activeSubSection = 1 },
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Reportes (${allIncidents.size})",
+                            fontWeight = if (activeSubSection == 1) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.5.sp
+                        )
+                        if (pendingIncidentsCount > 0) {
+                            Surface(
+                                color = Color(0xFFC8102E),
+                                shape = CircleShape
+                            ) {
+                                Text(
+                                    text = "$pendingIncidentsCount",
+                                    color = Color.White,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             )
         }
 
-        // Filtros de estado
-        val filterOptions = listOf(
-            "TODAS" to "Todas",
-            "PENDIENTE" to "Pendientes",
-            "APROBADA" to "Aprobadas",
-            "RECHAZADA" to "Rechazadas"
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            filterOptions.forEach { (key, label) ->
-                val isSelected = selectedFilter.equals(key, ignoreCase = true)
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onFilterChange(key) },
-                    label = { Text(label, fontSize = 12.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF003366),
-                        selectedLabelColor = Color.White
-                    )
+        if (activeSubSection == 0) {
+            // Sección 0: Solicitudes de Vendedor
+            Column {
+                Text(
+                    "Solicitudes de Vendedor",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFF003366)
+                )
+                Text(
+                    "Revisión y autorización de nuevos emprendedores en el campus",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
 
-        if (applications.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            // Filtros de estado para Solicitudes
+            val filterOptions = listOf(
+                "TODAS" to "Todas",
+                "PENDIENTE" to "Pendientes",
+                "APROBADA" to "Aprobadas",
+                "RECHAZADA" to "Rechazadas"
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.VerifiedUser,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = when (selectedFilter.uppercase()) {
-                            "PENDIENTE" -> "No hay solicitudes pendientes de aprobación"
-                            "APROBADA" -> "No hay solicitudes aprobadas"
-                            "RECHAZADA" -> "No hay solicitudes rechazadas"
-                            else -> "No hay solicitudes de nuevos vendedores registradas"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                filterOptions.forEach { (key, label) ->
+                    val isSelected = selectedFilter.equals(key, ignoreCase = true)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onFilterChange(key) },
+                        label = { Text(label, fontSize = 12.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF003366),
+                            selectedLabelColor = Color.White
+                        )
                     )
                 }
             }
+
+            if (applications.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VerifiedUser,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = when (selectedFilter.uppercase()) {
+                                "PENDIENTE" -> "No hay solicitudes pendientes de aprobación"
+                                "APROBADA" -> "No hay solicitudes aprobadas"
+                                "RECHAZADA" -> "No hay solicitudes rechazadas"
+                                else -> "No hay solicitudes de nuevos vendedores registradas"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(applications, key = { it.id }) { app ->
+                        SellerApplicationCard(
+                            application = app,
+                            onApprove = { onApprove(app) },
+                            onReject = { onReject(app) }
+                        )
+                    }
+                }
+            }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            // Sección 1: Moderación de Reportes e Incidencias
+            Column {
+                Text(
+                    "Centro de Reportes y Moderación",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFF003366)
+                )
+                Text(
+                    "Reclamos entre estudiantes, compradores y vendedores del campus",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Filtros de estado de Incidencias
+            val incidentFilterOptions = listOf(
+                "TODAS" to "Todas (${allIncidents.size})",
+                "PENDIENTES" to "Pendientes (${allIncidents.count { it.isPending }})",
+                "SANCIONADO" to "Sancionadas (${allIncidents.count { it.status.equals("SANCIONADO", ignoreCase = true) }})",
+                "RESUELTO" to "Resueltas (${allIncidents.count { it.status.equals("RESUELTO", ignoreCase = true) }})"
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(applications, key = { it.id }) { app ->
-                    SellerApplicationCard(
-                        application = app,
-                        onApprove = { onApprove(app) },
-                        onReject = { onReject(app) }
+                incidentFilterOptions.forEach { (key, label) ->
+                    val isSelected = incidentFilter.equals(key, ignoreCase = true)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onIncidentFilterChange(key) },
+                        label = { Text(label, fontSize = 11.5.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF003366),
+                            selectedLabelColor = Color.White
+                        )
                     )
+                }
+            }
+
+            if (incidents.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ReportProblem,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = Color(0xFF00A884)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = when (incidentFilter.uppercase()) {
+                                "PENDIENTES", "PENDIENTE" -> "¡Excelente! No hay reportes pendientes de moderación en el campus."
+                                "SANCIONADO" -> "No hay sanciones registradas en este momento."
+                                "RESUELTO" -> "No hay incidencias resueltas registradas."
+                                else -> "No se han emitido reportes de incidencias aún."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(incidents, key = { it.id }) { incident ->
+                        val reportedUser = sellers.find { it.id == incident.reportedUserId }
+                            ?: buyers.find { it.id == incident.reportedUserId }
+                        val reporterUser = sellers.find { it.id == incident.reporterId }
+                            ?: buyers.find { it.id == incident.reporterId }
+
+                        AdminIncidentCard(
+                            incident = incident,
+                            reportedUser = reportedUser,
+                            reporterUser = reporterUser,
+                            onSelectSeller = onSelectSeller,
+                            onSelectBuyer = onSelectBuyer,
+                            onIssueWarning = { user -> onIssueWarningForIncident(incident, user) },
+                            onSuspend = { user -> onSuspendForIncident(incident, user) },
+                            onResolve = { onResolveIncident(incident) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminIncidentCard(
+    incident: OrderIncident,
+    reportedUser: UserProfile?,
+    reporterUser: UserProfile?,
+    onSelectSeller: (UserProfile) -> Unit,
+    onSelectBuyer: (UserProfile) -> Unit,
+    onIssueWarning: (UserProfile) -> Unit,
+    onSuspend: (UserProfile) -> Unit,
+    onResolve: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Encabezado: Estado y Fecha
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val (statusBg, statusFg, statusLabel) = when (incident.status.uppercase()) {
+                    "PENDIENTE" -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "PENDIENTE DE REVISIÓN")
+                    "SANCIONADO" -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "SANCIONADO")
+                    "RESUELTO" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "RESUELTO")
+                    else -> Triple(Color(0xFFF1F5F9), Color(0xFF64748B), incident.status)
+                }
+
+                Surface(
+                    color = statusBg,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = statusLabel,
+                        color = statusFg,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+
+                Text(
+                    text = incident.createdAt?.take(10) ?: "Fecha no disponible",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+
+            // Título de la Infracción / Motivo
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ReportProblem,
+                    contentDescription = null,
+                    tint = if (incident.isPending) Color(0xFFE65100) else Color(0xFF64748B),
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = incident.displayIncidentTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp,
+                    color = Color(0xFF003366)
+                )
+            }
+
+            if (!incident.subOrderId.isNullOrBlank()) {
+                Text(
+                    text = "Subpedido relacionado: #${incident.subOrderId.take(8).uppercase()}",
+                    fontSize = 11.5.sp,
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFFF1F5F9))
+
+            // Datos del Usuario Reportado (Infractor / Acusado)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "USUARIO REPORTADO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF94A3B8),
+                        fontWeight = FontWeight.Bold
+                    )
+                    val reportedName = reportedUser?.businessName ?: reportedUser?.fullName ?: "ID: ${incident.reportedUserId?.take(8)}"
+                    val isSeller = reportedUser?.role == com.example.vallego.domain.model.UserRole.EMPRENDEDOR ||
+                            reportedUser?.role == com.example.vallego.domain.model.UserRole.SUSPENDED
+                    Text(
+                        text = reportedName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp,
+                        color = Color(0xFF1E293B)
+                    )
+                    Text(
+                        text = if (isSeller) "Rol: Vendedor / Puesto Comercial" else "Rol: Estudiante / Comprador",
+                        fontSize = 11.sp,
+                        color = if (isSeller) Color(0xFF00A884) else Color(0xFF003366)
+                    )
+                }
+
+                if (reportedUser != null) {
+                    val isSeller = reportedUser.role == com.example.vallego.domain.model.UserRole.EMPRENDEDOR ||
+                            reportedUser.role == com.example.vallego.domain.model.UserRole.SUSPENDED
+                    OutlinedButton(
+                        onClick = {
+                            if (isSeller) onSelectSeller(reportedUser) else onSelectBuyer(reportedUser)
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp),
+                        border = BorderStroke(1.dp, Color(0xFF003366))
+                    ) {
+                        Text("Ver Perfil", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF003366))
+                    }
+                }
+            }
+
+            // Datos del Denunciante
+            Column {
+                Text(
+                    text = "DENUNCIANTE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF94A3B8),
+                    fontWeight = FontWeight.Bold
+                )
+                val reporterName = reporterUser?.businessName ?: reporterUser?.fullName ?: "Usuario #${incident.reporterId?.take(8) ?: "Anónimo"}"
+                Text(
+                    text = reporterName,
+                    fontSize = 12.5.sp,
+                    color = Color(0xFF475569)
+                )
+            }
+
+            // Detalle o testimonio del reclamo
+            if (!incident.details.isNullOrBlank()) {
+                Surface(
+                    color = Color(0xFFF8FAFC),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "Detalle del reporte:",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF64748B)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = incident.details,
+                            fontSize = 12.5.sp,
+                            color = Color(0xFF1E293B)
+                        )
+                    }
+                }
+            }
+
+            // Si ya está resuelto o sancionado, mostrar resolución del administrador
+            if (!incident.isPending) {
+                Surface(
+                    color = if (incident.status == "SANCIONADO") Color(0xFFFFEBEE) else Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "Resolución del Administrador:",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            color = if (incident.status == "SANCIONADO") Color(0xFFC8102E) else Color(0xFF2E7D32)
+                        )
+                        if (!incident.resolutionAction.isNullOrBlank()) {
+                            Text(
+                                text = "Acción: ${incident.resolutionAction}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (!incident.adminNotes.isNullOrBlank()) {
+                            Text(
+                                text = "Nota: ${incident.adminNotes}",
+                                fontSize = 12.sp,
+                                color = Color(0xFF334155)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Botones de Acción para el Administrador (Solo si está PENDIENTE)
+            if (incident.isPending) {
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (reportedUser != null) {
+                        // Botón 1: Llamar la atención
+                        Button(
+                            onClick = { onIssueWarning(reportedUser) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_warning_custom),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Llamar atención", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Botón 2: Suspender Cuenta
+                        OutlinedButton(
+                            onClick = { onSuspend(reportedUser) },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
+                            border = BorderStroke(1.dp, Color(0xFFC8102E)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) {
+                            Text("Suspender", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Botón 3: Resolver sin sanción
+                    OutlinedButton(
+                        onClick = onResolve,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00A884)),
+                        border = BorderStroke(1.dp, Color(0xFF00A884)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = if (reportedUser == null) Modifier.fillMaxWidth().height(38.dp) else Modifier.height(38.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text("Resolver", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -870,7 +1520,8 @@ fun SellersDirectoryTabContent(
     onSearchQueryChange: (String) -> Unit,
     onSelectSeller: (UserProfile) -> Unit,
     onSuspend: (UserProfile) -> Unit,
-    onReactivate: (UserProfile) -> Unit
+    onReactivate: (UserProfile) -> Unit,
+    onIssueWarning: (UserProfile) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -938,7 +1589,8 @@ fun SellersDirectoryTabContent(
                         seller = seller,
                         onSelectSeller = { onSelectSeller(seller) },
                         onSuspend = { onSuspend(seller) },
-                        onReactivate = { onReactivate(seller) }
+                        onReactivate = { onReactivate(seller) },
+                        onIssueWarning = { onIssueWarning(seller) }
                     )
                 }
             }
@@ -951,7 +1603,8 @@ fun SellerDirectoryCard(
     seller: UserProfile,
     onSelectSeller: () -> Unit,
     onSuspend: () -> Unit,
-    onReactivate: () -> Unit
+    onReactivate: () -> Unit,
+    onIssueWarning: () -> Unit
 ) {
     val isSuspended = seller.role == UserRole.SUSPENDED
 
@@ -1056,11 +1709,23 @@ fun SellerDirectoryCard(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onIssueWarning,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Llamar la atención",
+                            tint = Color(0xFFE65100),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
                     Button(
                         onClick = onSelectSeller,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         modifier = Modifier.height(32.dp)
                     ) {
                         Text("Ver Detalle", fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -1072,7 +1737,7 @@ fun SellerDirectoryCard(
                         Button(
                             onClick = onReactivate,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
                             Text("Reactivar", fontSize = 11.sp)
@@ -1086,6 +1751,285 @@ fun SellerDirectoryCard(
                         ) {
                             Icon(Icons.Default.PersonOff, contentDescription = null, modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(2.dp))
+                            Text("Suspender", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BuyersDirectoryTabContent(
+    buyers: List<UserProfile>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectBuyer: (UserProfile) -> Unit,
+    onSuspend: (UserProfile) -> Unit,
+    onReactivate: (UserProfile) -> Unit,
+    onIssueWarning: (UserProfile) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Column {
+            Text("Compradores del Campus (${buyers.size})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text("Gestión, auditoría y seguimiento especializado de estudiantes compradores", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Barra de búsqueda con icono y botón para limpiar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Buscar por nombre, teléfono, código...", fontSize = 14.sp) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color(0xFF003366))
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (buyers.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Group,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = if (searchQuery.isNotBlank()) "No se encontraron compradores que coincidan con '$searchQuery'" else "No hay compradores registrados en este campus",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 96.dp)
+            ) {
+                items(buyers, key = { it.id }) { buyer ->
+                    BuyerDirectoryCard(
+                        buyer = buyer,
+                        onSelectBuyer = { onSelectBuyer(buyer) },
+                        onSuspend = { onSuspend(buyer) },
+                        onReactivate = { onReactivate(buyer) },
+                        onIssueWarning = { onIssueWarning(buyer) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BuyerDirectoryCard(
+    buyer: UserProfile,
+    onSelectBuyer: () -> Unit,
+    onSuspend: () -> Unit,
+    onReactivate: () -> Unit,
+    onIssueWarning: () -> Unit
+) {
+    val context = LocalContext.current
+    val isSuspended = buyer.role == UserRole.SUSPENDED_BUYER || buyer.role == UserRole.SUSPENDED
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSuspended) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelectBuyer)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ValleGoBusinessAvatar(
+                    avatarUrl = buyer.avatarUrl,
+                    storeName = buyer.fullName,
+                    size = 48.dp
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = buyer.fullName,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF003366)
+                    )
+                    Text(
+                        text = "Campus: ${buyer.campus}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!buyer.studentCode.isNullOrBlank()) {
+                        Text(
+                            text = "Cód: ${buyer.studentCode}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF00897B),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                Surface(
+                    color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF2E7D32),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = if (isSuspended) "SUSPENDIDO" else "ACTIVO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (isSuspended && !buyer.suspensionReason.isNullOrBlank()) {
+                Surface(
+                    color = Color.White.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Motivo de suspensión: ${buyer.suspensionReason}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFC8102E),
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Teléfono con accesos directos
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = null,
+                        tint = Color(0xFF003366),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = buyer.phone.takeIf { it.isNotBlank() } ?: "Sin teléfono",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                    if (buyer.phone.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Phone,
+                            contentDescription = "Llamar",
+                            tint = Color(0xFF003366),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${buyer.phone.trim()}"))
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {}
+                                }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_chat_custom),
+                            contentDescription = "WhatsApp",
+                            tint = Color(0xFF25D366),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable {
+                                    try {
+                                        val clean = buyer.phone.replace("+", "").replace(" ", "").trim()
+                                        val phoneWithCountry = if (clean.startsWith("51")) clean else "51$clean"
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$phoneWithCountry"))
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {}
+                                }
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onIssueWarning,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Llamar la atención",
+                            tint = Color(0xFFE65100),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Button(
+                        onClick = onSelectBuyer,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Ver Perfil", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(12.dp))
+                    }
+
+                    if (isSuspended) {
+                        Button(
+                            onClick = onReactivate,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("Reactivar", fontSize = 11.sp)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onSuspend,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
                             Text("Suspender", fontSize = 11.sp)
                         }
                     }
@@ -1236,7 +2180,7 @@ fun CampusMetricsTabContent(
                     AdminMetricCard(
                         title = "Tasa de Éxito",
                         value = "%.1f%%".format(detailedMetrics.fulfillmentRate),
-                        color = if (detailedMetrics.fulfillmentRate >= 80f) Color(0xFF2E7D32) else Color(0xFFE65100),
+                        color = if (detailedMetrics.fulfillmentRate >= 80.0) Color(0xFF2E7D32) else Color(0xFFE65100),
                         subtitle = "Entregas efectivas",
                         modifier = Modifier.weight(1f)
                     )
@@ -1414,7 +2358,7 @@ fun CampusMetricsTabContent(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             LinearProgressIndicator(
-                                progress = { (rank.percentage / 100f).coerceIn(0f, 1f) },
+                                progress = { (rank.percentage.toFloat() / 100f).coerceIn(0f, 1f) },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(6.dp)
@@ -1776,6 +2720,11 @@ fun AdminLiquidGlassDock(
                 iconResId = R.drawable.ic_store_custom
             ),
             AdminDockItemData(
+                tab = AdminTab.BUYERS_DIRECTORY,
+                label = "Alumnos",
+                iconVector = Icons.Default.Group
+            ),
+            AdminDockItemData(
                 tab = AdminTab.CAMPUS_METRICS,
                 label = "Métricas",
                 iconVector = Icons.AutoMirrored.Filled.TrendingUp
@@ -1836,11 +2785,11 @@ fun AdminLiquidGlassDock(
                     )
             )
 
-            // Fila de ítems del Dock con espaciado elástico y altura cómoda
+            // Fila de ítems del Dock con espaciado elástico y altura cómoda para 5 ítems
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items.forEach { item ->
@@ -1878,7 +2827,7 @@ private fun AdminDockItem(
     )
 
     val itemWidth by animateDpAsState(
-        targetValue = if (isSelected) 74.dp else 48.dp,
+        targetValue = if (isSelected) 64.dp else 44.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow

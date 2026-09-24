@@ -37,7 +37,12 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.ReportProblem
+import kotlinx.coroutines.launch
+import com.example.vallego.domain.repository.OrderRepository
+import com.example.vallego.ui.components.IncidentContextType
+import com.example.vallego.ui.components.ReportIncidentDialog
 import com.example.vallego.features.chat.OrderChatBottomSheet
 import com.example.vallego.features.chat.OrderChatViewModel
 import androidx.compose.ui.platform.LocalContext
@@ -78,17 +83,22 @@ fun OrderTrackingScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCart: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    viewModel: OrderTrackingViewModel = koinViewModel()
+    viewModel: OrderTrackingViewModel = koinViewModel(),
+    orderRepository: OrderRepository = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedOrderForDetail by remember { mutableStateOf<Order?>(null) }
     var isChatPickerOpen by remember { mutableStateOf(false) }
+    var subOrderToReport by remember { mutableStateOf<SubOrder?>(null) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
 
     val isAnyModalOpen = uiState.orderToCancel != null ||
             uiState.subOrderToRate != null ||
             selectedOrderForDetail != null ||
-            isChatPickerOpen
+            isChatPickerOpen ||
+            subOrderToReport != null
 
     val backgroundBlurRadius by animateDpAsState(
         targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
@@ -235,6 +245,10 @@ fun OrderTrackingScreen(
             order = detailOrder,
             reviewedOrders = uiState.reviewedOrders,
             onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) },
+            onReportSubOrder = { subOrder ->
+                selectedOrderForDetail = null
+                subOrderToReport = subOrder
+            },
             onOpenChat = { subOrder ->
                 selectedOrderForDetail = null
                 activeChatSubOrder = Pair(detailOrder, subOrder)
@@ -248,6 +262,37 @@ fun OrderTrackingScreen(
                 )
             },
             onDismiss = { selectedOrderForDetail = null }
+        )
+    }
+
+    if (subOrderToReport != null) {
+        val subOrder = subOrderToReport!!
+        ReportIncidentDialog(
+            title = "Reportar Puesto Comercial",
+            subtitle = "Puesto: ${subOrder.sellerName.ifBlank { "Vendedor" }} • Subpedido #${subOrder.id.take(8)}",
+            contextType = IncidentContextType.ORDER,
+            isSubmitting = isSubmittingReport,
+            onDismiss = { subOrderToReport = null },
+            onSubmit = { reasonKey, reasonLabel, details ->
+                isSubmittingReport = true
+                coroutineScope.launch {
+                    val result = orderRepository.reportIncident(
+                        subOrderId = subOrder.id,
+                        reporterId = buyerProfile.id,
+                        reportedUserId = subOrder.sellerId,
+                        incidentType = reasonKey,
+                        details = details.ifBlank { reasonLabel }
+                    )
+                    isSubmittingReport = false
+                    subOrderToReport = null
+                    if (result.isSuccess) {
+                        snackbarHostState.showSnackbar("Reporte enviado con éxito al Administrador.")
+                    } else {
+                        val errMsg = result.exceptionOrNull()?.message ?: "Error al registrar reporte."
+                        snackbarHostState.showSnackbar(errMsg)
+                    }
+                }
+            }
         )
     }
 
@@ -1159,6 +1204,7 @@ fun BuyerOrderDetailDialog(
     order: Order,
     reviewedOrders: Map<String, Int> = emptyMap(),
     onRateSeller: ((SubOrder) -> Unit)? = null,
+    onReportSubOrder: ((SubOrder) -> Unit)? = null,
     onOpenChat: ((SubOrder) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -1433,6 +1479,28 @@ fun BuyerOrderDetailDialog(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
                                         color = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884)
+                                    )
+                                }
+                            }
+
+                            if (onReportSubOrder != null) {
+                                TextButton(
+                                    onClick = { onReportSubOrder(subOrder) },
+                                    modifier = Modifier.align(Alignment.End),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Flag,
+                                        contentDescription = "Reportar",
+                                        tint = Color(0xFFC8102E),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Reportar problema con este puesto",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFFC8102E)
                                     )
                                 }
                             }

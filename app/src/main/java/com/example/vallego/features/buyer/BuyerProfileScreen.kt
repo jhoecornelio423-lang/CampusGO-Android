@@ -26,8 +26,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.R
+import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
+import com.example.vallego.ui.components.OfficialWarningBanner
 import com.example.vallego.ui.components.ValleGoUserAvatar
 import com.example.vallego.ui.components.compressImageUri
 import com.example.vallego.ui.components.formatAccountCreationDate
@@ -36,6 +38,7 @@ import com.example.vallego.ui.components.formatAccountCreationDate
 @Composable
 fun BuyerProfileScreen(
     profile: UserProfile,
+    warnings: List<ProfileWarning> = emptyList(),
     onNavigateBack: () -> Unit,
     onSaveProfile: (UserProfile) -> Unit,
     onUploadAvatar: (ByteArray, (String) -> Unit) -> Unit,
@@ -211,6 +214,11 @@ fun BuyerProfileScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
+            OfficialWarningBanner(
+                warnings = warnings,
+                isSeller = false
+            )
+
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color.White,

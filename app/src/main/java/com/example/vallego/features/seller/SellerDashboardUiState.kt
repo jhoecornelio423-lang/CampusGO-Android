@@ -66,7 +66,8 @@ data class SellerDashboardUiState(
     val earningsToday: Double = 0.0,
     val statsData: com.example.vallego.domain.model.SellerDashboardStats? = null,
     val isLoadingStats: Boolean = false,
-    val statsTimeRange: String = "all"
+    val statsTimeRange: String = "all",
+    val warnings: List<com.example.vallego.domain.model.ProfileWarning> = emptyList()
 ) {
     val filteredTodayOrders: List<SubOrder>
         get() = when (selectedFilter) {

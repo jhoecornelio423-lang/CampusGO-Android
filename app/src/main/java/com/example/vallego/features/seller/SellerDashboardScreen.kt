@@ -88,6 +88,7 @@ import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.verificationCode
 import androidx.compose.material.icons.filled.VerifiedUser
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
+import com.example.vallego.ui.components.OfficialWarningBanner
 import com.example.vallego.ui.components.StoreStatusBadge
 import com.example.vallego.ui.components.SubOrderCountdownTimerBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
@@ -182,6 +183,7 @@ fun SellerDashboardScreen(
         SellerStoreProfileScreen(
             profile = profile,
             sellerProfile = uiState.sellerProfile,
+            warnings = uiState.warnings,
             availableMeetingPoints = uiState.availableMeetingPoints,
             isSaving = uiState.isSavingProfile,
             isUploading = uiState.isUploadingAsset,
@@ -1314,6 +1316,12 @@ fun SellerDashboardScreen(
                     )
                 }
             }
+
+            // Advertencias Formales de Moderación emitidas por la Administración
+            OfficialWarningBanner(
+                warnings = uiState.warnings,
+                isSeller = true
+            )
 
             // Selector de Pestañas: Pedidos, Menú y Estadísticas
             val currentTabIndex = when (uiState.selectedTab) {

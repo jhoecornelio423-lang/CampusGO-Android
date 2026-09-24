@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.VerifiedUser
+import com.example.vallego.ui.components.OfficialWarningBanner
 import com.example.vallego.domain.model.Category
 import com.example.vallego.domain.model.Product
 import com.example.vallego.domain.model.SubOrderStatus
@@ -137,6 +138,7 @@ fun BuyerHomeScreen(
     val allMeetingPoints by adminRepository.observeMeetingPoints().collectAsState(initial = emptyList())
     val cartCalculation by cartRepository.cartCalculation.collectAsState()
     val buyerOrders by orderRepository.observeOrdersForBuyer(profile.id).collectAsState(initial = emptyList())
+    val buyerWarnings by orderRepository.observeUserWarnings(profile.id).collectAsState(initial = emptyList())
     val readyOrdersInfo = remember(buyerOrders) {
         buyerOrders.flatMap { order ->
             order.subOrders
@@ -282,6 +284,7 @@ fun BuyerHomeScreen(
     if (showProfile) {
         BuyerProfileScreen(
             profile = currentProfile,
+            warnings = buyerWarnings,
             onNavigateBack = { showProfile = false },
             onSaveProfile = { updated ->
                 coroutineScope.launch {
@@ -729,6 +732,12 @@ fun BuyerHomeScreen(
                         .padding(bottom = if (cartCalculation.totalItemCount > 0) 100.dp else 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Advertencias formales emitidas por el Administrador
+                    OfficialWarningBanner(
+                        warnings = buyerWarnings,
+                        isSeller = false
+                    )
+
                     // 0. Banner de aviso en tiempo real de pedidos listos para recoger
                     val visibleReadyOrders = remember(readyOrdersInfo, dismissedReadyAlerts) {
                         readyOrdersInfo.filter { it.third !in dismissedReadyAlerts }

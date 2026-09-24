@@ -1,8 +1,12 @@
 package com.example.vallego.domain.repository
 
+import com.example.vallego.domain.model.BuyerOrderStats
+import com.example.vallego.domain.model.CampusDetailedMetrics
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.CampusMetrics
+import com.example.vallego.domain.model.MetricsPeriod
 import com.example.vallego.domain.model.OrderIncident
+import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.model.SellerApplication
 import com.example.vallego.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
@@ -23,9 +27,19 @@ interface AdminRepository {
     suspend fun refreshSellers()
     suspend fun toggleSellerSuspension(sellerId: String, isSuspended: Boolean, reason: String? = null): Result<Unit>
 
+    fun observeBuyers(): Flow<List<UserProfile>>
+    suspend fun refreshBuyers()
+    suspend fun toggleBuyerSuspension(buyerId: String, isSuspended: Boolean, reason: String? = null): Result<Unit>
+
+    suspend fun issueWarning(profileId: String, reason: String, createdBy: String? = null): Result<Unit>
+    suspend fun getProfileWarnings(profileId: String): Result<List<ProfileWarning>>
+    suspend fun getBuyerOrderStats(buyerId: String): Result<BuyerOrderStats>
+
     fun observeIncidents(): Flow<List<OrderIncident>>
     suspend fun refreshIncidents()
+    suspend fun resolveIncident(incidentId: String, status: String, action: String? = null, adminNotes: String? = null): Result<Unit>
+    suspend fun getIncidentsForUser(userId: String): Result<List<OrderIncident>>
 
     fun observeCampusMetrics(): Flow<CampusMetrics>
-    suspend fun getCampusDetailedMetrics(period: com.example.vallego.domain.model.MetricsPeriod): Result<com.example.vallego.domain.model.CampusDetailedMetrics>
+    suspend fun getCampusDetailedMetrics(period: MetricsPeriod): Result<CampusDetailedMetrics>
 }

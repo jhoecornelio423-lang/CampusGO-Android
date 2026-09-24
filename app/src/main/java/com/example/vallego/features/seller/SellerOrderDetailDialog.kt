@@ -7,8 +7,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,15 +18,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.example.vallego.R
 import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.SubOrderStatus
+import com.example.vallego.domain.repository.OrderRepository
+import com.example.vallego.ui.components.IncidentContextType
 import com.example.vallego.ui.components.PaymentMethodLogo
+import com.example.vallego.ui.components.ReportIncidentDialog
 import com.example.vallego.ui.components.ValleGoDialogContainerColor
 import com.example.vallego.ui.components.ValleGoDialogShape
 import com.example.vallego.ui.components.ValleGoDialogTonalElevation
 import com.example.vallego.ui.components.valleGoDialogStyle
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @Composable
 fun SellerOrderDetailDialog(
@@ -36,9 +43,13 @@ fun SellerOrderDetailDialog(
     onMarkReady: (String) -> Unit,
     onOpenDelivery: (SubOrder) -> Unit,
     onOpenRejection: (SubOrder) -> Unit,
-    onOpenChat: ((SubOrder) -> Unit)? = null
+    onOpenChat: ((SubOrder) -> Unit)? = null,
+    orderRepository: OrderRepository = koinInject()
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var showReportBuyerDialog by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = ValleGoDialogShape,
@@ -153,6 +164,29 @@ fun SellerOrderDetailDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = { showReportBuyerDialog = true },
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFC8102E)),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ReportProblem,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Reportar Comprador",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -339,4 +373,33 @@ fun SellerOrderDetailDialog(
             }
         }
     )
+
+    if (showReportBuyerDialog) {
+        ReportIncidentDialog(
+            title = "Reportar Comprador",
+            subtitle = "Cliente: ${subOrder.buyerName ?: "Estudiante Universitario"}",
+            contextType = IncidentContextType.BUYER,
+            isSubmitting = isSubmittingReport,
+            onDismiss = { showReportBuyerDialog = false },
+            onSubmit = { reasonKey, reasonLabel, details ->
+                coroutineScope.launch {
+                    isSubmittingReport = true
+                    val result = orderRepository.reportIncident(
+                        subOrderId = subOrder.id,
+                        reporterId = subOrder.sellerId,
+                        reportedUserId = subOrder.buyerId,
+                        incidentType = reasonKey,
+                        details = details.ifBlank { reasonLabel }
+                    )
+                    isSubmittingReport = false
+                    showReportBuyerDialog = false
+                    if (result.isSuccess) {
+                        Toast.makeText(context, "Reporte enviado al Administrador del Campus.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Error al enviar reporte: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        )
+    }
 }

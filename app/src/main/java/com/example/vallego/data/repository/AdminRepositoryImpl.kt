@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.example.vallego.domain.model.BuyerOrderStats
+import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.model.CampusDetailedMetrics
 import com.example.vallego.domain.model.MetricsPeriod
 import com.example.vallego.domain.model.SellerSalesRanking
@@ -40,6 +42,11 @@ class AdminRepositoryImpl(
 ) : AdminRepository {
 
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val jsonParser = kotlinx.serialization.json.Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
 
     companion object {
         private val defaultMeetingPoints = listOf(
@@ -128,11 +135,29 @@ class AdminRepositoryImpl(
                 supportedMeetingPoints = listOf("mp-1", "mp-2", "mp-3", "mp-4")
             )
         )
+
+        private val defaultBuyers = listOf(
+            UserProfile(
+                id = "buyer-marcos",
+                fullName = "Marcos",
+                phone = "94814534533",
+                role = UserRole.COMPRADOR,
+                campus = "UCV - Lima Norte"
+            ),
+            UserProfile(
+                id = "buyer-juan",
+                fullName = "Juan Comprador",
+                phone = "987654321",
+                role = UserRole.COMPRADOR,
+                campus = "Los Olivos"
+            )
+        )
     }
 
     private val _meetingPointsFlow = MutableStateFlow<List<CampusMeetingPoint>>(defaultMeetingPoints)
     private val _applicationsFlow = MutableStateFlow<List<SellerApplication>>(defaultApplications)
     private val _sellersFlow = MutableStateFlow<List<UserProfile>>(defaultSellers)
+    private val _buyersFlow = MutableStateFlow<List<UserProfile>>(defaultBuyers)
     private val _incidentsFlow = MutableStateFlow<List<OrderIncident>>(emptyList())
 
     init {
@@ -145,6 +170,7 @@ class AdminRepositoryImpl(
         refreshMeetingPoints()
         refreshSellerApplications()
         refreshSellers()
+        refreshBuyers()
         refreshIncidents()
     }
 
@@ -209,11 +235,38 @@ class AdminRepositoryImpl(
         }
     }
 
+    override suspend fun refreshBuyers() = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val profiles = postgrest.from("profiles")
+                    .select {
+                        filter {
+                            or {
+                                eq("role", "comprador")
+                                eq("role", "suspended_buyer")
+                            }
+                        }
+                    }
+                    .decodeList<UserProfile>()
+                _buyersFlow.value = profiles
+                return@withContext
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error al cargar profiles de compradores: ${e.message}", e)
+        }
+
+        if (_buyersFlow.value.isEmpty() && postgrest == null) {
+            _buyersFlow.value = defaultBuyers
+        }
+    }
+
     override suspend fun refreshIncidents(): Unit = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val remoteIncidents = postgrest.from("order_incidents")
-                    .select()
+                    .select {
+                        order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                    }
                     .decodeList<OrderIncident>()
                 _incidentsFlow.value = remoteIncidents
             }
@@ -488,7 +541,187 @@ class AdminRepositoryImpl(
         }
     }
 
+    override fun observeBuyers(): Flow<List<UserProfile>> = _buyersFlow.asStateFlow()
+
+    override suspend fun toggleBuyerSuspension(buyerId: String, isSuspended: Boolean, reason: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val targetRole = if (isSuspended) "suspended_buyer" else "comprador"
+                postgrest.from("profiles").update(
+                    buildJsonObject {
+                        put("role", targetRole)
+                        if (isSuspended && !reason.isNullOrBlank()) {
+                            put("suspension_reason", reason)
+                        } else if (!isSuspended) {
+                            put("suspension_reason", "")
+                        }
+                    }
+                ) {
+                    filter { eq("id", buyerId) }
+                }
+                refreshBuyers()
+                return@withContext Result.success(Unit)
+            }
+
+            val current = _buyersFlow.value.toMutableList()
+            val index = current.indexOfFirst { it.id == buyerId }
+            if (index >= 0) {
+                val updatedRole = if (isSuspended) UserRole.SUSPENDED_BUYER else UserRole.COMPRADOR
+                current[index] = current[index].copy(
+                    role = updatedRole,
+                    suspensionReason = if (isSuspended) reason else null
+                )
+                _buyersFlow.value = current
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al cambiar suspension de comprador: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun issueWarning(profileId: String, reason: String, createdBy: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                postgrest.from("profile_warnings").insert(
+                    buildJsonObject {
+                        put("id", UUID.randomUUID().toString())
+                        put("profile_id", profileId)
+                        put("reason", reason.trim())
+                        createdBy?.let { put("created_by", it) }
+                    }
+                )
+                return@withContext Result.success(Unit)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al emitir advertencia: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getProfileWarnings(profileId: String): Result<List<ProfileWarning>> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val warnings = postgrest.from("profile_warnings").select {
+                    filter {
+                        eq("profile_id", profileId)
+                    }
+                    order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<ProfileWarning>()
+                return@withContext Result.success(warnings)
+            }
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al obtener advertencias: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getBuyerOrderStats(buyerId: String): Result<BuyerOrderStats> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val orders = postgrest.from("orders").select {
+                    filter {
+                        eq("buyer_id", buyerId)
+                    }
+                }.decodeList<AdminOrderDto>()
+
+                val total = orders.size
+                val completed = orders.filter { it.status.lowercase() in listOf("completed", "completado", "payment_confirmed", "pago_confirmado") }
+                val cancelled = orders.filter { it.status.lowercase() in listOf("cancelled", "cancelado", "rejected", "rechazado", "not_delivered", "no_entregado") }
+                val completedCount = completed.size
+                val cancelledCount = cancelled.size
+                val inProgressCount = (total - completedCount - cancelledCount).coerceAtLeast(0)
+                val totalSpent = completed.sumOf { it.totalPrice }
+
+                return@withContext Result.success(
+                    BuyerOrderStats(
+                        totalOrders = total,
+                        completedOrders = completedCount,
+                        cancelledOrders = cancelledCount,
+                        inProgressOrders = inProgressCount,
+                        totalSpent = totalSpent
+                    )
+                )
+            }
+            Result.success(BuyerOrderStats(totalOrders = 0, completedOrders = 0, cancelledOrders = 0, inProgressOrders = 0, totalSpent = 0.0))
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al obtener estadisticas de comprador: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     override fun observeIncidents(): Flow<List<OrderIncident>> = _incidentsFlow.asStateFlow()
+
+    override suspend fun resolveIncident(
+        incidentId: String,
+        status: String,
+        action: String?,
+        adminNotes: String?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                try {
+                    postgrest.rpc(
+                        function = "resolve_incident_rpc",
+                        parameters = buildJsonObject {
+                            put("p_incident_id", incidentId)
+                            put("p_status", status)
+                            action?.let { put("p_action", it) }
+                            adminNotes?.let { put("p_admin_notes", it) }
+                        }
+                    )
+                } catch (rpcErr: Exception) {
+                    android.util.Log.w("AdminRepo", "RPC resolve_incident_rpc fallo, intentando update directo: ${rpcErr.message}")
+                    postgrest.from("order_incidents").update(
+                        buildJsonObject {
+                            put("status", status)
+                            action?.let { put("resolution_action", it) }
+                            adminNotes?.let { put("admin_notes", it) }
+                        }
+                    ) {
+                        filter { eq("id", incidentId) }
+                    }
+                }
+                refreshIncidents()
+                return@withContext Result.success(Unit)
+            }
+            val current = _incidentsFlow.value.toMutableList()
+            val idx = current.indexOfFirst { it.id == incidentId }
+            if (idx >= 0) {
+                current[idx] = current[idx].copy(
+                    status = status,
+                    resolutionAction = action,
+                    adminNotes = adminNotes
+                )
+                _incidentsFlow.value = current
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al resolver incidencia: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getIncidentsForUser(userId: String): Result<List<OrderIncident>> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val incidents = postgrest.from("order_incidents").select {
+                    filter {
+                        eq("reported_user_id", userId)
+                    }
+                    order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<OrderIncident>()
+                return@withContext Result.success(incidents)
+            }
+            val local = _incidentsFlow.value.filter { it.reportedUserId == userId }
+            Result.success(local)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al obtener incidencias de usuario: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 
     override fun observeCampusMetrics(): Flow<CampusMetrics> {
         val ordersFlow = if (orderRepository is OrderRepositoryImpl) {
@@ -524,10 +757,11 @@ class AdminRepositoryImpl(
                         parameters = buildJsonObject {
                             put("p_period", period.apiValue)
                         }
-                    ).decodeSingle<CampusDetailedMetrics>()
-                    return@withContext Result.success(rpcResult)
+                    )
+                    val parsed = jsonParser.decodeFromString<CampusDetailedMetrics>(rpcResult.data)
+                    return@withContext Result.success(parsed)
                 } catch (e: Exception) {
-                    android.util.Log.w("AdminRepositoryImpl", "RPC get_campus_admin_metrics no disponible, usando cálculo local: ${e.message}")
+                    android.util.Log.w("AdminRepositoryImpl", "RPC get_campus_admin_metrics fallo, usando cálculo local: ${e.message}", e)
                 }
             }
 
@@ -593,20 +827,23 @@ class AdminRepositoryImpl(
         val cancelledCount = cancelled.size
         val avgTicket = if (completedCount > 0) totalSales / completedCount else 0.0
         val totalAttempts = completedCount + cancelledCount
-        val fulfillmentRate = if (totalAttempts > 0) (completedCount.toFloat() * 100f) / totalAttempts.toFloat() else 100.0f
+        val fulfillmentRate = if (totalAttempts > 0) (completedCount.toDouble() * 100.0) / totalAttempts.toDouble() else 100.0
 
         val sellerMap = sellers.associateBy { it.id }
         val salesBySeller = completed.groupBy { it.sellerId }
-        val rankings = salesBySeller.map { (sellerId, subs) ->
+        val rankings = salesBySeller.mapNotNull { (sellerId, subs) ->
             val seller = sellerMap[sellerId]
+            if (seller == null || (seller.role != UserRole.EMPRENDEDOR && seller.role != UserRole.SUSPENDED) || seller.businessName.isNullOrBlank()) {
+                return@mapNotNull null
+            }
             val sellerSales = subs.sumOf { it.subtotalAmount }
             val sellerCompleted = subs.size
-            val percentage = if (totalSales > 0) ((sellerSales * 100.0) / totalSales).toFloat() else 0f
+            val percentage = if (totalSales > 0) ((sellerSales * 100.0) / totalSales) else 0.0
             SellerSalesRanking(
                 sellerId = sellerId,
-                storeName = seller?.displayStoreName ?: "Puesto Universitario",
-                ownerName = seller?.fullName ?: "Titular",
-                avatarUrl = seller?.avatarUrl,
+                storeName = seller.displayStoreName,
+                ownerName = seller.fullName,
+                avatarUrl = seller.avatarUrl,
                 totalSales = sellerSales,
                 completedOrders = sellerCompleted,
                 percentage = percentage
@@ -617,7 +854,7 @@ class AdminRepositoryImpl(
         val paymentBreakdowns = paymentMap.map { (method, subs) ->
             val count = subs.size
             val amount = subs.sumOf { it.subtotalAmount }
-            val pct = if (totalOrders > 0) (count.toFloat() * 100f) / totalOrders.toFloat() else 0f
+            val pct = if (totalOrders > 0) (count.toDouble() * 100.0) / totalOrders.toDouble() else 0.0
             PaymentMethodBreakdown(
                 method = method,
                 count = count,
@@ -632,7 +869,7 @@ class AdminRepositoryImpl(
             parent?.meetingPointName ?: parent?.deliveryPlace ?: "Campus General"
         }.map { (ptName, subs) ->
             val count = subs.size
-            val pct = if (totalOrders > 0) (count.toFloat() * 100f) / totalOrders.toFloat() else 0f
+            val pct = if (totalOrders > 0) (count.toDouble() * 100.0) / totalOrders.toDouble() else 0.0
             MeetingPointTraffic(
                 pointName = ptName,
                 count = count,
@@ -691,6 +928,9 @@ private data class AdminSubOrderDto(
 @Serializable
 private data class AdminOrderDto(
     val id: String,
+    @SerialName("buyer_id") val buyerId: String? = null,
+    val status: String = "pending",
+    @SerialName("total_price") val totalPrice: Double = 0.0,
     @SerialName("meeting_point_name") val meetingPointName: String? = null,
     @SerialName("delivery_place") val deliveryPlace: String? = null,
     @SerialName("created_at") val createdAt: String? = null

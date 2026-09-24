@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
@@ -41,10 +42,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.vallego.domain.repository.AuthRepository
+import com.example.vallego.domain.repository.OrderRepository
+import com.example.vallego.ui.components.IncidentContextType
+import com.example.vallego.ui.components.ReportIncidentDialog
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,8 +91,16 @@ fun BuyerSellerProfileScreen(
     onProductClick: (Product) -> Unit,
     onAddToCart: (Product) -> Unit,
     onNavigateToCart: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    orderRepository: OrderRepository = koinInject(),
+    authRepository: AuthRepository = koinInject()
 ) {
+    val currentBuyerProfile by authRepository.currentProfile.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
+
     val sellerSupportedPoints = remember(store.supportedMeetingPoints, meetingPoints) {
         val supportedSet = store.supportedMeetingPoints.filter { it.isNotBlank() }.toSet()
         meetingPoints.filter { it.isActive && supportedSet.contains(it.id) }
@@ -99,6 +118,7 @@ fun BuyerSellerProfileScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -116,6 +136,15 @@ fun BuyerSellerProfileScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
                             tint = Color(0xFF003366)
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showReportDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.ReportProblem,
+                            contentDescription = "Reportar Puesto",
+                            tint = Color(0xFFC8102E)
                         )
                     }
                 },
@@ -700,6 +729,36 @@ fun BuyerSellerProfileScreen(
             roleDescription = enlargedPhotoRole,
             isBanner = isEnlargedBanner,
             onDismiss = { showEnlargedPhoto = false }
+        )
+    }
+
+    if (showReportDialog) {
+        ReportIncidentDialog(
+            title = "Reportar Puesto Comercial",
+            subtitle = store.sellerName,
+            contextType = IncidentContextType.SELLER,
+            isSubmitting = isSubmittingReport,
+            onDismiss = { showReportDialog = false },
+            onSubmit = { reasonKey, reasonLabel, details ->
+                coroutineScope.launch {
+                    isSubmittingReport = true
+                    val reporterId = currentBuyerProfile?.id
+                    val result = orderRepository.reportIncident(
+                        subOrderId = null,
+                        reporterId = reporterId,
+                        reportedUserId = store.sellerId,
+                        incidentType = reasonKey,
+                        details = details.ifBlank { reasonLabel }
+                    )
+                    isSubmittingReport = false
+                    showReportDialog = false
+                    if (result.isSuccess) {
+                        snackbarHostState.showSnackbar("Reporte enviado con éxito al Administrador del Campus.")
+                    } else {
+                        snackbarHostState.showSnackbar("Error al enviar reporte: ${result.exceptionOrNull()?.message}")
+                    }
+                }
+            }
         )
     }
 }

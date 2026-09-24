@@ -30,8 +30,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vallego.R
 import com.example.vallego.domain.model.CampusMeetingPoint
+import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
+import com.example.vallego.ui.components.OfficialWarningBanner
 import com.example.vallego.ui.components.PaymentMethodLogoByName
 import com.example.vallego.ui.components.StoreStatusBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
@@ -43,6 +45,7 @@ import com.example.vallego.ui.components.compressImageUri
 fun SellerStoreProfileScreen(
     profile: UserProfile,
     sellerProfile: UserProfile?,
+    warnings: List<ProfileWarning> = emptyList(),
     availableMeetingPoints: List<CampusMeetingPoint> = emptyList(),
     isSaving: Boolean,
     isUploading: Boolean = false,
@@ -504,6 +507,12 @@ fun SellerStoreProfileScreen(
             }
 
             if (!isEditMode) {
+                // Advertencias Oficiales de Moderación
+                OfficialWarningBanner(
+                    warnings = warnings,
+                    isSeller = true
+                )
+
                 // MODO LECTURA
                 if (businessStatus == "SATURADO") {
                     Card(

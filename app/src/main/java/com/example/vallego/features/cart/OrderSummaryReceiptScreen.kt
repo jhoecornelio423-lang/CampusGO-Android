@@ -16,21 +16,29 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.example.vallego.domain.model.Order
 import com.example.vallego.domain.model.SubOrder
+import com.example.vallego.domain.repository.OrderRepository
+import com.example.vallego.ui.components.IncidentContextType
+import com.example.vallego.ui.components.ReportIncidentDialog
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 /**
  * Pantalla completa de Comprobante / Resumen de Pedido (Estilo Boleta Digital).
@@ -41,8 +49,13 @@ fun OrderSummaryReceiptScreen(
     order: Order,
     onNavigateToTracking: () -> Unit,
     onOpenChat: ((SubOrder) -> Unit)? = null,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    orderRepository: OrderRepository = koinInject()
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var showReportDialog by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
     BackHandler(onBack = onNavigateBack)
 
     Scaffold(
@@ -135,6 +148,28 @@ fun OrderSummaryReceiptScreen(
                                 fontSize = 14.sp
                             )
                         }
+                    }
+
+                    OutlinedButton(
+                        onClick = { showReportDialog = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
+                        border = BorderStroke(1.dp, Color(0xFFFFCDD2)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ReportProblem,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "¿Problema con esta orden? Reportar al Administrador",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.5.sp
+                        )
                     }
 
                     TextButton(
@@ -394,11 +429,40 @@ fun OrderSummaryReceiptScreen(
                             text = "S/ %.2f".format(order.totalAmount),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 20.sp,
-                            color = Color(0xFF003366)
                         )
                     }
                 }
             }
         }
+    }
+
+    if (showReportDialog) {
+        val targetSeller = order.subOrders.firstOrNull()
+        ReportIncidentDialog(
+            title = "Reportar Problema con el Pedido",
+            subtitle = "Orden #${order.id.take(8)} • ${targetSeller?.sellerName ?: "Campus"}",
+            contextType = IncidentContextType.ORDER,
+            isSubmitting = isSubmittingReport,
+            onDismiss = { showReportDialog = false },
+            onSubmit = { reasonKey, reasonLabel, details ->
+                coroutineScope.launch {
+                    isSubmittingReport = true
+                    val result = orderRepository.reportIncident(
+                        subOrderId = targetSeller?.id,
+                        reporterId = order.buyerId,
+                        reportedUserId = targetSeller?.sellerId,
+                        incidentType = reasonKey,
+                        details = details.ifBlank { reasonLabel }
+                    )
+                    isSubmittingReport = false
+                    showReportDialog = false
+                    if (result.isSuccess) {
+                        Toast.makeText(context, "Reporte enviado con éxito al Administrador del Campus.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Error al enviar reporte: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        )
     }
 }
