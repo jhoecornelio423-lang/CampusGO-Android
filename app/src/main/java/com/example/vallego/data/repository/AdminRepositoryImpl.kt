@@ -21,6 +21,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.example.vallego.domain.model.CampusDetailedMetrics
+import com.example.vallego.domain.model.MetricsPeriod
+import com.example.vallego.domain.model.SellerSalesRanking
+import com.example.vallego.domain.model.PaymentMethodBreakdown
+import com.example.vallego.domain.model.MeetingPointTraffic
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
 class AdminRepositoryImpl(
@@ -503,4 +514,184 @@ class AdminRepositoryImpl(
             )
         }
     }
+
+    override suspend fun getCampusDetailedMetrics(period: MetricsPeriod): Result<CampusDetailedMetrics> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                try {
+                    val rpcResult = postgrest.rpc(
+                        function = "get_campus_admin_metrics",
+                        parameters = buildJsonObject {
+                            put("p_period", period.apiValue)
+                        }
+                    ).decodeSingle<CampusDetailedMetrics>()
+                    return@withContext Result.success(rpcResult)
+                } catch (e: Exception) {
+                    android.util.Log.w("AdminRepositoryImpl", "RPC get_campus_admin_metrics no disponible, usando cálculo local: ${e.message}")
+                }
+            }
+
+            val sellers = _sellersFlow.value
+            val subOrders = try {
+                if (postgrest != null) {
+                    postgrest.from("sub_orders").select().decodeList<AdminSubOrderDto>()
+                } else {
+                    emptyList()
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val orders = try {
+                if (postgrest != null) {
+                    postgrest.from("orders").select().decodeList<AdminOrderDto>()
+                } else {
+                    emptyList()
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val computed = computeLocalDetailedMetrics(period, sellers, subOrders, orders)
+            Result.success(computed)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error en getCampusDetailedMetrics: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    private fun computeLocalDetailedMetrics(
+        period: MetricsPeriod,
+        sellers: List<UserProfile>,
+        subOrders: List<AdminSubOrderDto>,
+        orders: List<AdminOrderDto>
+    ): CampusDetailedMetrics {
+        val now = System.currentTimeMillis()
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone("America/Lima")).apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfToday = calendar.timeInMillis
+        val startOfWeek = now - (7L * 24 * 60 * 60 * 1000)
+        val startOfMonth = now - (30L * 24 * 60 * 60 * 1000)
+
+        val filteredSubs = when (period) {
+            MetricsPeriod.HOY -> subOrders.filter { parseIsoTime(it.createdAt) >= startOfToday }
+            MetricsPeriod.SEMANA -> subOrders.filter { parseIsoTime(it.createdAt) >= startOfWeek }
+            MetricsPeriod.MES -> subOrders.filter { parseIsoTime(it.createdAt) >= startOfMonth }
+            MetricsPeriod.HISTORICO -> subOrders
+        }
+
+        val completed = filteredSubs.filter { it.status.lowercase() in listOf("completed", "pago_confirmado") }
+        val cancelled = filteredSubs.filter { it.status.lowercase() in listOf("cancelled", "rejected", "no_entregado") }
+        val totalSales = completed.sumOf { it.subtotalAmount }
+        val totalOrders = filteredSubs.size
+        val completedCount = completed.size
+        val cancelledCount = cancelled.size
+        val avgTicket = if (completedCount > 0) totalSales / completedCount else 0.0
+        val totalAttempts = completedCount + cancelledCount
+        val fulfillmentRate = if (totalAttempts > 0) (completedCount.toFloat() * 100f) / totalAttempts.toFloat() else 100.0f
+
+        val sellerMap = sellers.associateBy { it.id }
+        val salesBySeller = completed.groupBy { it.sellerId }
+        val rankings = salesBySeller.map { (sellerId, subs) ->
+            val seller = sellerMap[sellerId]
+            val sellerSales = subs.sumOf { it.subtotalAmount }
+            val sellerCompleted = subs.size
+            val percentage = if (totalSales > 0) ((sellerSales * 100.0) / totalSales).toFloat() else 0f
+            SellerSalesRanking(
+                sellerId = sellerId,
+                storeName = seller?.displayStoreName ?: "Puesto Universitario",
+                ownerName = seller?.fullName ?: "Titular",
+                avatarUrl = seller?.avatarUrl,
+                totalSales = sellerSales,
+                completedOrders = sellerCompleted,
+                percentage = percentage
+            )
+        }.sortedByDescending { it.totalSales }
+
+        val paymentMap = filteredSubs.groupBy { (it.paymentMethod ?: "EFECTIVO").uppercase() }
+        val paymentBreakdowns = paymentMap.map { (method, subs) ->
+            val count = subs.size
+            val amount = subs.sumOf { it.subtotalAmount }
+            val pct = if (totalOrders > 0) (count.toFloat() * 100f) / totalOrders.toFloat() else 0f
+            PaymentMethodBreakdown(
+                method = method,
+                count = count,
+                totalAmount = amount,
+                percentage = pct
+            )
+        }.sortedByDescending { it.count }
+
+        val ordersMap = orders.associateBy { it.id }
+        val trafficByPoint = filteredSubs.groupBy { sub ->
+            val parent = sub.orderId?.let { ordersMap[it] }
+            parent?.meetingPointName ?: parent?.deliveryPlace ?: "Campus General"
+        }.map { (ptName, subs) ->
+            val count = subs.size
+            val pct = if (totalOrders > 0) (count.toFloat() * 100f) / totalOrders.toFloat() else 0f
+            MeetingPointTraffic(
+                pointName = ptName,
+                count = count,
+                percentage = pct
+            )
+        }.sortedByDescending { it.count }.take(6)
+
+        return CampusDetailedMetrics(
+            period = period.apiValue,
+            totalSales = totalSales,
+            totalOrders = totalOrders,
+            completedOrders = completedCount,
+            cancelledOrders = cancelledCount,
+            averageTicket = avgTicket,
+            fulfillmentRate = fulfillmentRate,
+            sellerRankings = rankings,
+            paymentMethods = paymentBreakdowns,
+            topMeetingPoints = trafficByPoint
+        )
+    }
+
+    private fun parseIsoTime(isoDate: String?): Long {
+        if (isoDate.isNullOrBlank()) return 0L
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss"
+        )
+        for (pattern in formats) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                val d = sdf.parse(isoDate)
+                if (d != null) return d.time
+            } catch (_: Exception) {}
+        }
+        return 0L
+    }
 }
+
+@Serializable
+private data class AdminSubOrderDto(
+    val id: String,
+    @SerialName("seller_id") val sellerId: String,
+    @SerialName("order_id") val orderId: String? = null,
+    @SerialName("subtotal_amount") val subtotalAmount: Double = 0.0,
+    val status: String = "pending",
+    @SerialName("payment_method") val paymentMethod: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+private data class AdminOrderDto(
+    val id: String,
+    @SerialName("meeting_point_name") val meetingPointName: String? = null,
+    @SerialName("delivery_place") val deliveryPlace: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)

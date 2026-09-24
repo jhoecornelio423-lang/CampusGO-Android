@@ -27,4 +27,5 @@ interface AdminRepository {
     suspend fun refreshIncidents()
 
     fun observeCampusMetrics(): Flow<CampusMetrics>
+    suspend fun getCampusDetailedMetrics(period: com.example.vallego.domain.model.MetricsPeriod): Result<com.example.vallego.domain.model.CampusDetailedMetrics>
 }

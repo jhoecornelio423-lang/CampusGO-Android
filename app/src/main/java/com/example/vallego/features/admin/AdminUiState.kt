@@ -1,9 +1,13 @@
 package com.example.vallego.features.admin
 
+import com.example.vallego.domain.model.CampusDetailedMetrics
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.CampusMetrics
+import com.example.vallego.domain.model.MetricsPeriod
 import com.example.vallego.domain.model.OrderIncident
+import com.example.vallego.domain.model.Product
 import com.example.vallego.domain.model.SellerApplication
+import com.example.vallego.domain.model.SellerDashboardStats
 import com.example.vallego.domain.model.UserProfile
 
 enum class AdminTab {
@@ -20,6 +24,13 @@ data class AdminUiState(
     val sellers: List<UserProfile> = emptyList(),
     val incidents: List<OrderIncident> = emptyList(),
     val metrics: CampusMetrics = CampusMetrics(),
+    val selectedMetricsPeriod: MetricsPeriod = MetricsPeriod.HOY,
+    val detailedMetrics: CampusDetailedMetrics = CampusDetailedMetrics(),
+    val isLoadingMetrics: Boolean = false,
+    val selectedSellerDetail: UserProfile? = null,
+    val sellerProducts: List<Product> = emptyList(),
+    val isLoadingSellerProducts: Boolean = false,
+    val sellerStats: SellerDashboardStats? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,

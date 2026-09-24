@@ -3,9 +3,12 @@ package com.example.vallego.features.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vallego.domain.model.CampusMeetingPoint
+import com.example.vallego.domain.model.MetricsPeriod
 import com.example.vallego.domain.model.SellerApplication
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.repository.AdminRepository
+import com.example.vallego.domain.repository.OrderRepository
+import com.example.vallego.domain.repository.ProductRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -13,7 +16,9 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 class AdminViewModel(
-    private val adminRepository: AdminRepository
+    private val adminRepository: AdminRepository,
+    private val productRepository: ProductRepository,
+    private val orderRepository: OrderRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
@@ -32,7 +37,15 @@ class AdminViewModel(
         }
         viewModelScope.launch {
             adminRepository.observeSellers().collect { sellers ->
-                _uiState.update { it.copy(sellers = sellers) }
+                _uiState.update { currentState ->
+                    val updatedSelectedSeller = currentState.selectedSellerDetail?.let { selected ->
+                        sellers.find { it.id == selected.id } ?: selected
+                    }
+                    currentState.copy(
+                        sellers = sellers,
+                        selectedSellerDetail = updatedSelectedSeller
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -45,6 +58,7 @@ class AdminViewModel(
                 _uiState.update { it.copy(metrics = metrics) }
             }
         }
+        loadDetailedMetrics(MetricsPeriod.HOY)
     }
 
     fun setTab(tab: AdminTab) {
@@ -59,6 +73,56 @@ class AdminViewModel(
         _uiState.update { it.copy(applicationFilter = filter) }
     }
 
+    fun setMetricsPeriod(period: MetricsPeriod) {
+        _uiState.update { it.copy(selectedMetricsPeriod = period) }
+        loadDetailedMetrics(period)
+    }
+
+    private fun loadDetailedMetrics(period: MetricsPeriod) {
+        _uiState.update { it.copy(isLoadingMetrics = true) }
+        viewModelScope.launch {
+            val result = adminRepository.getCampusDetailedMetrics(period)
+            _uiState.update {
+                it.copy(
+                    isLoadingMetrics = false,
+                    detailedMetrics = result.getOrDefault(it.detailedMetrics)
+                )
+            }
+        }
+    }
+
+    fun onSelectSeller(seller: UserProfile) {
+        _uiState.update {
+            it.copy(
+                selectedSellerDetail = seller,
+                isLoadingSellerProducts = true,
+                sellerProducts = emptyList(),
+                sellerStats = null
+            )
+        }
+        viewModelScope.launch {
+            val prodsResult = productRepository.getProductsBySeller(seller.id)
+            val statsResult = orderRepository.getSellerDashboardStatistics(seller.id, "all")
+            _uiState.update {
+                it.copy(
+                    isLoadingSellerProducts = false,
+                    sellerProducts = prodsResult.getOrDefault(emptyList()),
+                    sellerStats = statsResult.getOrNull()
+                )
+            }
+        }
+    }
+
+    fun closeSellerDetail() {
+        _uiState.update {
+            it.copy(
+                selectedSellerDetail = null,
+                sellerProducts = emptyList(),
+                sellerStats = null
+            )
+        }
+    }
+
     fun refresh() {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
@@ -67,6 +131,12 @@ class AdminViewModel(
                 adminRepository.refreshSellerApplications()
                 adminRepository.refreshSellers()
                 adminRepository.refreshIncidents()
+                loadDetailedMetrics(_uiState.value.selectedMetricsPeriod)
+                _uiState.value.selectedSellerDetail?.let { seller ->
+                    val prods = productRepository.getProductsBySeller(seller.id).getOrDefault(emptyList())
+                    val stats = orderRepository.getSellerDashboardStatistics(seller.id, "all").getOrNull()
+                    _uiState.update { it.copy(sellerProducts = prods, sellerStats = stats) }
+                }
                 _uiState.update { it.copy(isLoading = false, successMessage = "Datos actualizados correctamente") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = "Error al actualizar: ${e.message}") }
@@ -194,8 +264,17 @@ class AdminViewModel(
         viewModelScope.launch {
             val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = true, reason = reason)
             dismissSuspensionDialog()
-            _uiState.update {
-                it.copy(
+            _uiState.update { currentState ->
+                val updatedDetail = if (currentState.selectedSellerDetail?.id == sellerId) {
+                    currentState.selectedSellerDetail.copy(
+                        role = com.example.vallego.domain.model.UserRole.SUSPENDED,
+                        businessStatus = "CERRADO",
+                        acceptingOrders = false,
+                        suspensionReason = reason
+                    )
+                } else currentState.selectedSellerDetail
+                currentState.copy(
+                    selectedSellerDetail = updatedDetail,
                     isLoading = false,
                     successMessage = if (result.isSuccess) "Puesto suspendido temporalmente." else null,
                     errorMessage = if (result.isFailure) "Error al suspender: ${result.exceptionOrNull()?.message}" else null
@@ -208,8 +287,17 @@ class AdminViewModel(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = false)
-            _uiState.update {
-                it.copy(
+            _uiState.update { currentState ->
+                val updatedDetail = if (currentState.selectedSellerDetail?.id == sellerId) {
+                    currentState.selectedSellerDetail.copy(
+                        role = com.example.vallego.domain.model.UserRole.EMPRENDEDOR,
+                        businessStatus = "ABIERTO",
+                        acceptingOrders = true,
+                        suspensionReason = null
+                    )
+                } else currentState.selectedSellerDetail
+                currentState.copy(
+                    selectedSellerDetail = updatedDetail,
                     isLoading = false,
                     successMessage = if (result.isSuccess) "Puesto reactivado exitosamente." else null,
                     errorMessage = if (result.isFailure) "Error al reactivar: ${result.exceptionOrNull()?.message}" else null
