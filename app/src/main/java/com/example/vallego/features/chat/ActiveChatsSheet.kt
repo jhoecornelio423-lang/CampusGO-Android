@@ -55,7 +55,8 @@ data class ActiveChatSummary(
 fun ActiveChatsSheet(
     chats: List<ActiveChatSummary>,
     onSelectChat: (ActiveChatSummary) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    userAvatarUrl: String? = null
 ) {
     BackHandler(onBack = onClose)
 
@@ -104,17 +105,29 @@ fun ActiveChatsSheet(
                             color = Color(0xFF1E293B)
                         )
                     }
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF1F5F9)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "${chats.size} activo${if (chats.size != 1) "s" else ""}",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            color = Color(0xFF475569),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF1F5F9)
+                        ) {
+                            Text(
+                                text = "${chats.size} activo${if (chats.size != 1) "s" else ""}",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF475569),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                        if (!userAvatarUrl.isNullOrBlank()) {
+                            ValleGoUserAvatar(
+                                avatarUrl = userAvatarUrl,
+                                name = null,
+                                size = 32.dp
+                            )
+                        }
                     }
                 }
             }

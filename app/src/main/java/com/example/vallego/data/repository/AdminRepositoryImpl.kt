@@ -143,36 +143,32 @@ class AdminRepositoryImpl(
                 val remotePoints = postgrest.from("campus_meeting_points")
                     .select()
                     .decodeList<CampusMeetingPoint>()
-                if (remotePoints.isNotEmpty()) {
-                    _meetingPointsFlow.value = remotePoints
-                    return@withContext
-                }
+                _meetingPointsFlow.value = remotePoints
+                return@withContext
             }
         } catch (e: Exception) {
             android.util.Log.e("AdminRepositoryImpl", "Error al cargar campus_meeting_points desde Supabase: ${e.message}", e)
         }
 
-        if (_meetingPointsFlow.value.isEmpty()) {
+        if (_meetingPointsFlow.value.isEmpty() && postgrest == null) {
             _meetingPointsFlow.value = defaultMeetingPoints
         }
     }
 
-    private suspend fun refreshSellerApplications() = withContext(Dispatchers.IO) {
+    override suspend fun refreshSellerApplications() = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val remoteApps = postgrest.from("seller_applications")
                     .select()
                     .decodeList<SellerApplication>()
-                if (remoteApps.isNotEmpty()) {
-                    _applicationsFlow.value = remoteApps
-                    return@withContext
-                }
+                _applicationsFlow.value = remoteApps
+                return@withContext
             }
         } catch (e: Exception) {
             android.util.Log.e("AdminRepositoryImpl", "Error al cargar seller_applications: ${e.message}", e)
         }
 
-        if (_applicationsFlow.value.isEmpty()) {
+        if (_applicationsFlow.value.isEmpty() && postgrest == null) {
             _applicationsFlow.value = defaultApplications
         }
     }
@@ -190,21 +186,19 @@ class AdminRepositoryImpl(
                         }
                     }
                     .decodeList<UserProfile>()
-                if (profiles.isNotEmpty()) {
-                    _sellersFlow.value = profiles.map { SellerPaymentMethodsStorage.enrichProfile(it) }
-                    return@withContext
-                }
+                _sellersFlow.value = profiles.map { SellerPaymentMethodsStorage.enrichProfile(it) }
+                return@withContext
             }
         } catch (e: Exception) {
             android.util.Log.e("AdminRepositoryImpl", "Error al cargar profiles de vendedores: ${e.message}", e)
         }
 
-        if (_sellersFlow.value.isEmpty()) {
+        if (_sellersFlow.value.isEmpty() && postgrest == null) {
             _sellersFlow.value = defaultSellers
         }
     }
 
-    private suspend fun refreshIncidents() = withContext(Dispatchers.IO) {
+    override suspend fun refreshIncidents(): Unit = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val remoteIncidents = postgrest.from("order_incidents")
@@ -222,19 +216,26 @@ class AdminRepositoryImpl(
     override suspend fun createMeetingPoint(meetingPoint: CampusMeetingPoint): Result<CampusMeetingPoint> = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
-                try {
-                    postgrest.from("campus_meeting_points").insert(meetingPoint)
-                    refreshMeetingPoints()
-                    return@withContext Result.success(meetingPoint)
-                } catch (_: Exception) {
-                    // Fallback local
-                }
+                postgrest.from("campus_meeting_points").insert(
+                    buildJsonObject {
+                        put("id", meetingPoint.id)
+                        put("name", meetingPoint.name)
+                        meetingPoint.pavilion?.let { put("pavilion", it) }
+                        meetingPoint.description?.let { put("description", it) }
+                        put("campus", meetingPoint.campus ?: "Los Olivos")
+                        put("zone_type", meetingPoint.zoneType)
+                        put("is_active", meetingPoint.isActive)
+                    }
+                )
+                refreshMeetingPoints()
+                return@withContext Result.success(meetingPoint)
             }
             val current = _meetingPointsFlow.value.toMutableList()
             current.add(meetingPoint)
             _meetingPointsFlow.value = current
             Result.success(meetingPoint)
         } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al crear punto: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -244,12 +245,16 @@ class AdminRepositoryImpl(
             if (postgrest != null) {
                 try {
                     postgrest.from("campus_meeting_points").update(
-                        mapOf("is_active" to active)
+                        buildJsonObject {
+                            put("is_active", active)
+                        }
                     ) {
                         filter { eq("id", id) }
                     }
                     refreshMeetingPoints()
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    android.util.Log.e("AdminRepo", "Error al cambiar estado de punto: ${e.message}", e)
+                }
             }
 
             var updated: CampusMeetingPoint? = null
@@ -271,49 +276,74 @@ class AdminRepositoryImpl(
         }
     }
 
+    override suspend fun deleteMeetingPoint(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                postgrest.from("campus_meeting_points").delete {
+                    filter { eq("id", id) }
+                }
+                refreshMeetingPoints()
+                return@withContext Result.success(Unit)
+            }
+            val current = _meetingPointsFlow.value.toMutableList()
+            current.removeAll { it.id == id }
+            _meetingPointsFlow.value = current
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al eliminar punto: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     override fun observeSellerApplications(): Flow<List<SellerApplication>> = _applicationsFlow.asStateFlow()
 
     override suspend fun approveSellerApplication(applicationId: String, adminId: String?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
-                try {
-                    postgrest.rpc(
-                        function = "approve_seller_application_rpc",
-                        parameters = buildJsonObject {
-                            put("p_application_id", applicationId)
-                            if (!adminId.isNullOrBlank()) {
-                                put("p_admin_id", adminId)
-                            }
-                        }
-                    )
-                    refreshSellerApplications()
-                    refreshSellers()
-                    return@withContext Result.success(Unit)
-                } catch (_: Exception) {
-                    // Fallback: direct updates
-                    val targetApp = _applicationsFlow.value.find { it.id == applicationId }
-                    postgrest.from("seller_applications").update(
-                        mapOf("status" to "APROBADA")
-                    ) {
-                        filter { eq("id", applicationId) }
-                    }
-                    if (targetApp != null && targetApp.userId.isNotBlank()) {
-                        postgrest.from("profiles").update(
-                            mapOf(
-                                "role" to "emprendedor",
-                                "business_name" to targetApp.storeName,
-                                "business_category" to targetApp.category,
-                                "business_status" to "ABIERTO",
-                                "accepting_orders" to true
-                            )
-                        ) {
-                            filter { eq("id", targetApp.userId) }
+                val targetApp = _applicationsFlow.value.find { it.id == applicationId }
+                    ?: try {
+                        postgrest.from("seller_applications").select { filter { eq("id", applicationId) } }.decodeSingleOrNull<SellerApplication>()
+                    } catch (_: Exception) { null }
+
+                postgrest.from("seller_applications").update(
+                    buildJsonObject {
+                        put("status", "approved")
+                        if (!adminId.isNullOrBlank()) {
+                            put("reviewed_by", adminId)
                         }
                     }
-                    refreshSellerApplications()
-                    refreshSellers()
-                    return@withContext Result.success(Unit)
+                ) {
+                    filter { eq("id", applicationId) }
                 }
+
+                val userId = targetApp?.userId
+                if (!userId.isNullOrBlank()) {
+                    postgrest.from("profiles").update(
+                        buildJsonObject {
+                            put("role", "emprendedor")
+                            put("business_name", targetApp.storeName.ifBlank { "Mi Tienda" })
+                            if (targetApp.category.isNotBlank()) {
+                                put("business_category", targetApp.category)
+                            }
+                            if (targetApp.description.isNotBlank()) {
+                                put("business_description", targetApp.description)
+                            }
+                            if (targetApp.phone.isNotBlank()) {
+                                put("phone", targetApp.phone)
+                            }
+                            if (!targetApp.proposedLocation.isNullOrBlank()) {
+                                put("business_location", targetApp.proposedLocation)
+                            }
+                            put("business_status", "ABIERTO")
+                            put("accepting_orders", true)
+                        }
+                    ) {
+                        filter { eq("id", userId) }
+                    }
+                }
+                refreshSellerApplications()
+                refreshSellers()
+                return@withContext Result.success(Unit)
             }
 
             val current = _applicationsFlow.value.toMutableList()
@@ -326,6 +356,7 @@ class AdminRepositoryImpl(
                 Result.failure(NoSuchElementException("Solicitud no encontrada"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al aprobar solicitud: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -333,18 +364,35 @@ class AdminRepositoryImpl(
     override suspend fun rejectSellerApplication(applicationId: String, reason: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
-                try {
-                    postgrest.from("seller_applications").update(
-                        mapOf(
-                            "status" to "RECHAZADA",
-                            "rejection_reason" to reason
-                        )
-                    ) {
-                        filter { eq("id", applicationId) }
+                val targetApp = _applicationsFlow.value.find { it.id == applicationId }
+                    ?: try {
+                        postgrest.from("seller_applications").select { filter { eq("id", applicationId) } }.decodeSingleOrNull<SellerApplication>()
+                    } catch (_: Exception) { null }
+
+                postgrest.from("seller_applications").update(
+                    buildJsonObject {
+                        put("status", "rejected")
+                        put("rejection_reason", reason)
                     }
-                    refreshSellerApplications()
-                    return@withContext Result.success(Unit)
-                } catch (_: Exception) {}
+                ) {
+                    filter { eq("id", applicationId) }
+                }
+
+                val userId = targetApp?.userId
+                if (!userId.isNullOrBlank()) {
+                    postgrest.from("profiles").update(
+                        buildJsonObject {
+                            put("business_status", "RECHAZADO")
+                            put("accepting_orders", false)
+                            put("suspension_reason", reason)
+                        }
+                    ) {
+                        filter { eq("id", userId) }
+                    }
+                }
+                refreshSellerApplications()
+                refreshSellers()
+                return@withContext Result.success(Unit)
             }
 
             val current = _applicationsFlow.value.toMutableList()
@@ -360,6 +408,7 @@ class AdminRepositoryImpl(
                 Result.failure(NoSuchElementException("Solicitud no encontrada"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al rechazar solicitud: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -388,18 +437,19 @@ class AdminRepositoryImpl(
 
                 try {
                     val targetRole = if (isSuspended) "suspended" else "emprendedor"
-                    val updatePayload = mutableMapOf<String, Any?>(
-                        "role" to targetRole,
-                        "business_status" to if (isSuspended) "CERRADO" else "ABIERTO",
-                        "accepting_orders" to !isSuspended
-                    )
-                    if (isSuspended && !reason.isNullOrBlank()) {
-                        updatePayload["suspension_reason"] = reason
-                    } else if (!isSuspended) {
-                        updatePayload["suspension_reason"] = ""
-                    }
-
-                    postgrest.from("profiles").update(updatePayload) {
+                    postgrest.from("profiles").update(
+                        buildJsonObject {
+                            put("role", targetRole)
+                            put("business_status", if (isSuspended) "CERRADO" else "ABIERTO")
+                            put("accepting_orders", !isSuspended)
+                            if (isSuspended && !reason.isNullOrBlank()) {
+                                put("suspension_reason_text", reason)
+                                put("suspension_reason", reason)
+                            } else if (!isSuspended) {
+                                put("suspension_reason", "")
+                            }
+                        }
+                    ) {
                         filter { eq("id", sellerId) }
                     }
                     refreshSellers()

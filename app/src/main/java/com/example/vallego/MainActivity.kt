@@ -26,12 +26,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val configuration = android.content.res.Configuration(newBase.resources.configuration)
+        configuration.uiMode = android.content.res.Configuration.UI_MODE_NIGHT_NO or
+                (configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv())
+        val context = newBase.createConfigurationContext(configuration)
+        super.attachBaseContext(context)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.decorView.isForceDarkAllowed = false
+            window.isNavigationBarContrastEnforced = false
         }
         androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true

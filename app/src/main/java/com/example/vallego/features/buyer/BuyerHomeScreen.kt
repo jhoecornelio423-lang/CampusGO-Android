@@ -337,7 +337,8 @@ fun BuyerHomeScreen(
                     otherUserAvatarUrl = selectedChat.otherUserAvatarUrl
                 )
             },
-            onClose = { showActiveChatsSheet = false }
+            onClose = { showActiveChatsSheet = false },
+            userAvatarUrl = currentProfile.avatarUrl
         )
         return
     }

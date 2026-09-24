@@ -25,5 +25,28 @@ data class AdminUiState(
     val successMessage: String? = null,
     val showCreateMeetingPointDialog: Boolean = false,
     val selectedApplicationForRejection: SellerApplication? = null,
-    val selectedSellerForSuspension: UserProfile? = null
-)
+    val selectedSellerForSuspension: UserProfile? = null,
+    val pointToDelete: CampusMeetingPoint? = null,
+    val sellerSearchQuery: String = "",
+    val applicationFilter: String = "TODAS"
+) {
+    val filteredSellers: List<UserProfile>
+        get() = if (sellerSearchQuery.isBlank()) {
+            sellers
+        } else {
+            val query = sellerSearchQuery.trim().lowercase()
+            sellers.filter {
+                it.fullName.lowercase().contains(query) ||
+                (it.businessName?.lowercase()?.contains(query) == true) ||
+                (it.businessCategory?.lowercase()?.contains(query) == true)
+            }
+        }
+
+    val filteredApplications: List<SellerApplication>
+        get() = when (applicationFilter.uppercase()) {
+            "PENDIENTE" -> sellerApplications.filter { it.status == com.example.vallego.domain.model.ApplicationStatus.PENDIENTE }
+            "APROBADA" -> sellerApplications.filter { it.status == com.example.vallego.domain.model.ApplicationStatus.APROBADA }
+            "RECHAZADA" -> sellerApplications.filter { it.status == com.example.vallego.domain.model.ApplicationStatus.RECHAZADA }
+            else -> sellerApplications
+        }
+}

@@ -12,8 +12,10 @@ interface AdminRepository {
     suspend fun refreshMeetingPoints()
     suspend fun createMeetingPoint(meetingPoint: CampusMeetingPoint): Result<CampusMeetingPoint>
     suspend fun toggleMeetingPoint(id: String, active: Boolean): Result<CampusMeetingPoint>
+    suspend fun deleteMeetingPoint(id: String): Result<Unit>
 
     fun observeSellerApplications(): Flow<List<SellerApplication>>
+    suspend fun refreshSellerApplications()
     suspend fun approveSellerApplication(applicationId: String, adminId: String? = null): Result<Unit>
     suspend fun rejectSellerApplication(applicationId: String, reason: String): Result<Unit>
 
@@ -22,6 +24,7 @@ interface AdminRepository {
     suspend fun toggleSellerSuspension(sellerId: String, isSuspended: Boolean, reason: String? = null): Result<Unit>
 
     fun observeIncidents(): Flow<List<OrderIncident>>
+    suspend fun refreshIncidents()
 
     fun observeCampusMetrics(): Flow<CampusMetrics>
 }

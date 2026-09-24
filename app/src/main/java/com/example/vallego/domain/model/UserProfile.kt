@@ -33,4 +33,8 @@ data class UserProfile(
         get() = businessDescription?.replace(Regex("<!--PM:[^>]*-->"), "")?.trim()?.takeIf { it.isNotBlank() }
     val effectivePaymentMethods: List<String>
         get() = if (supportedPaymentMethods.isEmpty()) listOf("EFECTIVO", "YAPE", "PLIN") else supportedPaymentMethods
+    val isSellerPendingApproval: Boolean
+        get() = (role == UserRole.EMPRENDEDOR || !businessName.isNullOrBlank()) &&
+                !businessStatus.equals("ABIERTO", ignoreCase = true) &&
+                !businessStatus.equals("APROBADO", ignoreCase = true)
 }

@@ -16,4 +16,7 @@ sqlite_mcp_server.db
 Logo-CampusGo.png
 app/release/
 *.log
-
+.kotlin/
+credenciales.txt
+full_auth_repo_backup.txt
+emulator_screen.png

@@ -9,6 +9,14 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 
 class ValleGoApplication : Application() {
+    override fun attachBaseContext(base: android.content.Context) {
+        val configuration = android.content.res.Configuration(base.resources.configuration)
+        configuration.uiMode = android.content.res.Configuration.UI_MODE_NIGHT_NO or
+                (configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv())
+        val context = base.createConfigurationContext(configuration)
+        super.attachBaseContext(context)
+    }
+
     override fun onCreate() {
         super.onCreate()
         startKoin {

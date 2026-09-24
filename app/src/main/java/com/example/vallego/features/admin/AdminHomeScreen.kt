@@ -38,12 +38,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ReportProblem
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
@@ -95,7 +98,8 @@ fun AdminHomeScreen(
 
     val isAnyModalOpen = uiState.showCreateMeetingPointDialog ||
             uiState.selectedApplicationForRejection != null ||
-            uiState.selectedSellerForSuspension != null
+            uiState.selectedSellerForSuspension != null ||
+            uiState.pointToDelete != null
 
     val backgroundBlurRadius by animateDpAsState(
         targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
@@ -121,7 +125,7 @@ fun AdminHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "Este punto se guardará en Supabase y estará disponible para los alumnos en el campus.",
+                        "Este punto de encuentro oficial estará disponible para la entrega de pedidos a los alumnos en el campus.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -281,6 +285,40 @@ fun AdminHomeScreen(
         )
     }
 
+    // Modal Confirmar Eliminación de Punto de Encuentro
+    if (uiState.pointToDelete != null) {
+        val point = uiState.pointToDelete!!
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDeleteMeetingPointDialog() },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
+            title = {
+                Text("Eliminar Punto de Encuentro", fontWeight = FontWeight.Bold, color = Color(0xFFC8102E))
+            },
+            text = {
+                Text(
+                    "¿Estás seguro de que deseas eliminar permanentemente el punto '${point.name}'? Ya no aparecerá en el mapa de entregas de los estudiantes.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmDeleteMeetingPoint() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissDeleteMeetingPointDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -302,6 +340,24 @@ fun AdminHomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { viewModel.refresh() },
+                        enabled = !uiState.isLoading
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF003366)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Actualizar datos",
+                                tint = Color(0xFF003366)
+                            )
+                        }
+                    }
                     IconButton(onClick = onSignOut) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_logout_custom),
@@ -328,19 +384,24 @@ fun AdminHomeScreen(
                         MeetingPointsTabContent(
                             meetingPoints = uiState.meetingPoints,
                             onToggle = { point -> viewModel.toggleMeetingPoint(point.id, point.isActive) },
+                            onDelete = { point -> viewModel.openDeleteMeetingPointDialog(point) },
                             onCreateClick = { viewModel.openCreateMeetingPointDialog() }
                         )
                     }
                     AdminTab.SELLER_APPLICATIONS -> {
                         SellerApplicationsTabContent(
-                            applications = uiState.sellerApplications,
+                            applications = uiState.filteredApplications,
+                            selectedFilter = uiState.applicationFilter,
+                            onFilterChange = { viewModel.onApplicationFilterChange(it) },
                             onApprove = { app -> viewModel.approveApplication(app.id, profile.id) },
                             onReject = { app -> viewModel.openRejectionDialog(app) }
                         )
                     }
                     AdminTab.SELLERS_DIRECTORY -> {
                         SellersDirectoryTabContent(
-                            sellers = uiState.sellers,
+                            sellers = uiState.filteredSellers,
+                            searchQuery = uiState.sellerSearchQuery,
+                            onSearchQueryChange = { viewModel.onSellerSearchQueryChange(it) },
                             onSuspend = { seller -> viewModel.openSuspensionDialog(seller) },
                             onReactivate = { seller -> viewModel.reactivateSeller(seller.id) }
                         )
@@ -357,6 +418,7 @@ fun AdminHomeScreen(
             // Barra de Navegación Dock Liquid Glass flotante en la parte inferior
             AdminLiquidGlassDock(
                 selectedTab = uiState.selectedTab,
+                pendingApplicationsCount = uiState.metrics.pendingApplicationsCount,
                 onSelectTab = { viewModel.setTab(it) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -385,6 +447,7 @@ fun AdminHomeScreen(
 fun MeetingPointsTabContent(
     meetingPoints: List<CampusMeetingPoint>,
     onToggle: (CampusMeetingPoint) -> Unit,
+    onDelete: (CampusMeetingPoint) -> Unit,
     onCreateClick: () -> Unit
 ) {
     Column(
@@ -398,7 +461,7 @@ fun MeetingPointsTabContent(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Puntos Oficiales del Campus", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Text("Sincronizados en Supabase para el checkout de los alumnos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Puntos oficiales habilitados para las entregas a los alumnos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -443,7 +506,11 @@ fun MeetingPointsTabContent(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(meetingPoints, key = { it.id }) { point ->
-                    CampusMeetingPointItemCard(point = point, onToggle = { onToggle(point) })
+                    CampusMeetingPointItemCard(
+                        point = point,
+                        onToggle = { onToggle(point) },
+                        onDelete = { onDelete(point) }
+                    )
                 }
             }
         }
@@ -453,7 +520,8 @@ fun MeetingPointsTabContent(
 @Composable
 fun CampusMeetingPointItemCard(
     point: CampusMeetingPoint,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -522,11 +590,26 @@ fun CampusMeetingPointItemCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Switch(
-                checked = point.isActive,
-                onCheckedChange = { onToggle() }
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar punto",
+                        tint = Color(0xFFC8102E).copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Switch(
+                    checked = point.isActive,
+                    onCheckedChange = { onToggle() }
+                )
+            }
         }
     }
 }
@@ -534,45 +617,96 @@ fun CampusMeetingPointItemCard(
 @Composable
 fun SellerApplicationsTabContent(
     applications: List<SellerApplication>,
+    selectedFilter: String,
+    onFilterChange: (String) -> Unit,
     onApprove: (SellerApplication) -> Unit,
     onReject: (SellerApplication) -> Unit
 ) {
-    if (applications.isEmpty()) {
-        Card(
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column {
+            Text(
+                "Solicitudes de Vendedor (${applications.size})",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                "Revisión y autorización de nuevos emprendedores en el campus",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Filtros de estado
+        val filterOptions = listOf(
+            "TODAS" to "Todas",
+            "PENDIENTE" to "Pendientes",
+            "APROBADA" to "Aprobadas",
+            "RECHAZADA" to "Rechazadas"
+        )
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.VerifiedUser,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "No hay solicitudes de nuevos vendedores pendientes",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            filterOptions.forEach { (key, label) ->
+                val isSelected = selectedFilter.equals(key, ignoreCase = true)
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onFilterChange(key) },
+                    label = { Text(label, fontSize = 12.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF003366),
+                        selectedLabelColor = Color.White
+                    )
                 )
             }
         }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(applications, key = { it.id }) { app ->
-                SellerApplicationCard(
-                    application = app,
-                    onApprove = { onApprove(app) },
-                    onReject = { onReject(app) }
-                )
+
+        if (applications.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = when (selectedFilter.uppercase()) {
+                            "PENDIENTE" -> "No hay solicitudes pendientes de aprobación"
+                            "APROBADA" -> "No hay solicitudes aprobadas"
+                            "RECHAZADA" -> "No hay solicitudes rechazadas"
+                            else -> "No hay solicitudes de nuevos vendedores registradas"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(applications, key = { it.id }) { app ->
+                    SellerApplicationCard(
+                        application = app,
+                        onApprove = { onApprove(app) },
+                        onReject = { onReject(app) }
+                    )
+                }
             }
         }
     }
@@ -707,6 +841,8 @@ fun SellerApplicationCard(
 @Composable
 fun SellersDirectoryTabContent(
     sellers: List<UserProfile>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onSuspend: (UserProfile) -> Unit,
     onReactivate: (UserProfile) -> Unit
 ) {
@@ -718,6 +854,26 @@ fun SellersDirectoryTabContent(
             Text("Puestos del Campus (${sellers.size})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             Text("Gestión y auditoría de emprendedores registrados en la universidad", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+
+        // Barra de búsqueda con icono y botón para limpiar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Buscar por puesto, titular o rubro...", fontSize = 14.sp) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color(0xFF003366))
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
 
         if (sellers.isEmpty()) {
             Card(
@@ -738,9 +894,10 @@ fun SellersDirectoryTabContent(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "No hay emprendedores registrados en este campus",
+                        text = if (searchQuery.isNotBlank()) "No se encontraron puestos que coincidan con '$searchQuery'" else "No hay emprendedores registrados en este campus",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -1121,6 +1278,7 @@ private data class AdminDockItemData(
 @Composable
 fun AdminLiquidGlassDock(
     selectedTab: AdminTab,
+    pendingApplicationsCount: Int = 0,
     onSelectTab: (AdminTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1213,6 +1371,7 @@ fun AdminLiquidGlassDock(
                     AdminDockItem(
                         item = item,
                         isSelected = selectedTab == item.tab,
+                        badgeCount = if (item.tab == AdminTab.SELLER_APPLICATIONS) pendingApplicationsCount else 0,
                         onClick = { onSelectTab(item.tab) }
                     )
                 }
@@ -1229,6 +1388,7 @@ fun AdminLiquidGlassDock(
 private fun AdminDockItem(
     item: AdminDockItemData,
     isSelected: Boolean,
+    badgeCount: Int = 0,
     onClick: () -> Unit
 ) {
     // Spring physics para magnificación suave y balanceada
@@ -1302,20 +1462,31 @@ private fun AdminDockItem(
             val iconTint = if (isSelected) Color(0xFF003366) else Color(0xFF475569)
             val iconModifier = Modifier.size(20.dp)
 
-            if (item.iconResId != null) {
-                Icon(
-                    painter = painterResource(id = item.iconResId),
-                    contentDescription = item.label,
-                    tint = iconTint,
-                    modifier = iconModifier
-                )
-            } else if (item.iconVector != null) {
-                Icon(
-                    imageVector = item.iconVector,
-                    contentDescription = item.label,
-                    tint = iconTint,
-                    modifier = iconModifier
-                )
+            Box(contentAlignment = Alignment.Center) {
+                if (item.iconResId != null) {
+                    Icon(
+                        painter = painterResource(id = item.iconResId),
+                        contentDescription = item.label,
+                        tint = iconTint,
+                        modifier = iconModifier
+                    )
+                } else if (item.iconVector != null) {
+                    Icon(
+                        imageVector = item.iconVector,
+                        contentDescription = item.label,
+                        tint = iconTint,
+                        modifier = iconModifier
+                    )
+                }
+
+                if (badgeCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .background(Color(0xFFC8102E), CircleShape)
+                            .align(Alignment.TopEnd)
+                    )
+                }
             }
 
             // Si está seleccionado, mostrar etiqueta compacta en color corporativo

@@ -148,7 +148,8 @@ fun SellerDashboardScreen(
                         status = sub.status,
                         subtotal = sub.subtotalAmount,
                         itemsSummary = sub.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
-                        isBuyerPerspective = false
+                        isBuyerPerspective = false,
+                        otherUserAvatarUrl = sub.buyerAvatarUrl
                     )
                 }
         }
@@ -166,11 +167,13 @@ fun SellerDashboardScreen(
                         otherUserId = matchingSub.buyerId ?: "",
                         otherUserName = matchingSub.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                         meetingPoint = matchingSub.meetingPointName ?: "Punto por convenir",
-                        subOrderStatus = matchingSub.status
+                        subOrderStatus = matchingSub.status,
+                        otherUserAvatarUrl = summary.otherUserAvatarUrl ?: matchingSub.buyerAvatarUrl
                     )
                 }
             },
-            onClose = { showActiveChatsSheet = false }
+            onClose = { showActiveChatsSheet = false },
+            userAvatarUrl = curProf.avatarUrl
         )
         return
     }
@@ -1186,7 +1189,8 @@ fun SellerDashboardScreen(
                     otherUserId = subOrder.buyerId ?: "",
                     otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                     meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
-                    subOrderStatus = subOrder.status
+                    subOrderStatus = subOrder.status,
+                    otherUserAvatarUrl = subOrder.buyerAvatarUrl
                 )
             }
         )
@@ -1521,11 +1525,12 @@ fun SellerDashboardScreen(
                                             activeChatSubOrder = subOrder
                                             chatViewModel.initChat(
                                                 subOrderId = subOrder.id,
-                                                currentUserId = profile.id,
+                                                currentUserId = curProf.id,
                                                 otherUserId = subOrder.buyerId ?: "",
                                                 otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                                                 meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
-                                                subOrderStatus = subOrder.status
+                                                subOrderStatus = subOrder.status,
+                                                otherUserAvatarUrl = subOrder.buyerAvatarUrl
                                             )
                                         }
                                     )
@@ -1613,7 +1618,8 @@ fun SellerDashboardScreen(
                                                 otherUserId = subOrder.buyerId ?: "",
                                                 otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                                                 meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
-                                                subOrderStatus = subOrder.status
+                                                subOrderStatus = subOrder.status,
+                                                otherUserAvatarUrl = subOrder.buyerAvatarUrl
                                             )
                                         }
                                     )

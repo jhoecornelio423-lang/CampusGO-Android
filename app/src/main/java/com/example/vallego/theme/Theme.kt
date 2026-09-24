@@ -49,13 +49,12 @@ private val ValleGODarkColorScheme = darkColorScheme(
 
 @Composable
 fun CampusGoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Forzado siempre a modo claro para mantener legibilidad y branding institucional
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) ValleGODarkColorScheme else CampusGoLightColorScheme
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = CampusGoLightColorScheme,
         typography = Typography,
         content = content
     )
@@ -63,9 +62,10 @@ fun CampusGoTheme(
 
 @Composable
 fun ValleGOTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    CampusGoTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, content = content)
+    CampusGoTheme(darkTheme = false, dynamicColor = false, content = content)
 }
+

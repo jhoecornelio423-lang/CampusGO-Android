@@ -31,6 +31,7 @@ data class SubOrder(
     @SerialName("buyer_id") val buyerId: String? = null,
     @SerialName("buyer_name") val buyerName: String? = null,
     @SerialName("buyer_phone") val buyerPhone: String? = null,
+    @SerialName("buyer_avatar_url") val buyerAvatarUrl: String? = null,
     @SerialName("notes") val notes: String? = null,
     @SerialName("is_payment_confirmed") val isPaymentConfirmed: Boolean = false,
     @SerialName("is_delivery_confirmed") val isDeliveryConfirmed: Boolean = false,

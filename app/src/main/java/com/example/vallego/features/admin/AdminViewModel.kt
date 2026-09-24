@@ -51,9 +51,38 @@ class AdminViewModel(
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
+    fun onSellerSearchQueryChange(query: String) {
+        _uiState.update { it.copy(sellerSearchQuery = query) }
+    }
+
+    fun onApplicationFilterChange(filter: String) {
+        _uiState.update { it.copy(applicationFilter = filter) }
+    }
+
+    fun refresh() {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            try {
+                adminRepository.refreshMeetingPoints()
+                adminRepository.refreshSellerApplications()
+                adminRepository.refreshSellers()
+                adminRepository.refreshIncidents()
+                _uiState.update { it.copy(isLoading = false, successMessage = "Datos actualizados correctamente") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Error al actualizar: ${e.message}") }
+            }
+        }
+    }
+
     fun toggleMeetingPoint(pointId: String, currentActive: Boolean) {
         viewModelScope.launch {
-            adminRepository.toggleMeetingPoint(pointId, !currentActive)
+            val result = adminRepository.toggleMeetingPoint(pointId, !currentActive)
+            if (result.isSuccess) {
+                val stateText = if (!currentActive) "activado" else "desactivado"
+                _uiState.update { it.copy(successMessage = "Punto $stateText correctamente.") }
+            } else {
+                _uiState.update { it.copy(errorMessage = "Error al cambiar estado del punto.") }
+            }
         }
     }
 
@@ -66,7 +95,11 @@ class AdminViewModel(
     }
 
     fun createMeetingPoint(name: String, pavilion: String, description: String) {
-        if (name.isBlank()) return
+        if (name.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingresa el nombre del punto de encuentro") }
+            return
+        }
+        _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val point = CampusMeetingPoint(
                 id = UUID.randomUUID().toString(),
@@ -75,15 +108,53 @@ class AdminViewModel(
                 description = description.trim().ifBlank { null },
                 isActive = true
             )
-            adminRepository.createMeetingPoint(point)
+            val result = adminRepository.createMeetingPoint(point)
             dismissCreateMeetingPointDialog()
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Punto '${point.name}' creado con éxito." else null,
+                    errorMessage = if (result.isFailure) "Error al crear: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
+        }
+    }
+
+    fun openDeleteMeetingPointDialog(point: CampusMeetingPoint) {
+        _uiState.update { it.copy(pointToDelete = point) }
+    }
+
+    fun dismissDeleteMeetingPointDialog() {
+        _uiState.update { it.copy(pointToDelete = null) }
+    }
+
+    fun confirmDeleteMeetingPoint() {
+        val point = _uiState.value.pointToDelete ?: return
+        dismissDeleteMeetingPointDialog()
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            val result = adminRepository.deleteMeetingPoint(point.id)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Punto '${point.name}' eliminado con éxito." else null,
+                    errorMessage = if (result.isFailure) "Error al eliminar: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
         }
     }
 
     fun approveApplication(applicationId: String, adminId: String? = null) {
+        _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            adminRepository.approveSellerApplication(applicationId, adminId)
-            _uiState.update { it.copy(successMessage = "Solicitud aprobada con éxito. El usuario ahora es emprendedor.") }
+            val result = adminRepository.approveSellerApplication(applicationId, adminId)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "¡Solicitud aprobada! El usuario ahora tiene acceso como vendedor." else null,
+                    errorMessage = if (result.isFailure) "Error al aprobar solicitud: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
         }
     }
 
@@ -96,10 +167,17 @@ class AdminViewModel(
     }
 
     fun confirmRejection(applicationId: String, reason: String) {
+        _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            adminRepository.rejectSellerApplication(applicationId, reason)
+            val result = adminRepository.rejectSellerApplication(applicationId, reason)
             dismissRejectionDialog()
-            _uiState.update { it.copy(successMessage = "Solicitud rechazada con motivo registrado.") }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Solicitud rechazada con motivo registrado." else null,
+                    errorMessage = if (result.isFailure) "Error al rechazar: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
         }
     }
 
@@ -112,24 +190,30 @@ class AdminViewModel(
     }
 
     fun confirmSellerSuspension(sellerId: String, reason: String) {
+        _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = true, reason = reason)
             dismissSuspensionDialog()
-            if (result.isSuccess) {
-                _uiState.update { it.copy(successMessage = "Puesto suspendido temporalmente.") }
-            } else {
-                _uiState.update { it.copy(errorMessage = "Error al suspender: ${result.exceptionOrNull()?.message}") }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Puesto suspendido temporalmente." else null,
+                    errorMessage = if (result.isFailure) "Error al suspender: ${result.exceptionOrNull()?.message}" else null
+                )
             }
         }
     }
 
     fun reactivateSeller(sellerId: String) {
+        _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = false)
-            if (result.isSuccess) {
-                _uiState.update { it.copy(successMessage = "Puesto reactivado exitosamente.") }
-            } else {
-                _uiState.update { it.copy(errorMessage = "Error al reactivar: ${result.exceptionOrNull()?.message}") }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    successMessage = if (result.isSuccess) "Puesto reactivado exitosamente." else null,
+                    errorMessage = if (result.isFailure) "Error al reactivar: ${result.exceptionOrNull()?.message}" else null
+                )
             }
         }
     }

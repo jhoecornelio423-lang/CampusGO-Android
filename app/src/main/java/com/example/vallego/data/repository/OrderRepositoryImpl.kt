@@ -99,7 +99,8 @@ data class ProfileBasicDto(
     val id: String,
     @SerialName("full_name") val fullName: String? = null,
     val phone: String? = null,
-    @SerialName("business_description") val businessDescription: String? = null
+    @SerialName("business_description") val businessDescription: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null
 )
 
 @Serializable
@@ -155,6 +156,7 @@ class OrderRepositoryImpl(
     private val productNameCache = ConcurrentHashMap<String, String>()
     private val profileNameCache = ConcurrentHashMap<String, String>()
     private val profilePhoneCache = ConcurrentHashMap<String, String>()
+    private val profileAvatarCache = ConcurrentHashMap<String, String>()
     private val sellerSubOrdersCache = ConcurrentHashMap<String, List<SubOrder>>()
     private val cachedOrderItemsByOrder = ConcurrentHashMap<String, List<RemoteOrderItemDto>>()
     private val cachedSubOrdersByOrder = ConcurrentHashMap<String, List<RemoteSubOrderDto>>()
@@ -422,6 +424,7 @@ class OrderRepositoryImpl(
                                     .decodeList<ProfileBasicDto>()
                                 for (pr in profiles) {
                                     profileNameCache[pr.id] = pr.fullName ?: "Emprendedor"
+                                    pr.avatarUrl?.let { profileAvatarCache[pr.id] = it }
                                 }
                             } catch (_: Exception) {}
                         }
@@ -463,6 +466,7 @@ class OrderRepositoryImpl(
                                         buyerId = ro.buyerId,
                                         buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
                                         buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
+                                        buyerAvatarUrl = ro.buyerId?.let { profileAvatarCache[it] },
                                         notes = ro.notes,
                                         isPaymentConfirmed = rso.isPaymentConfirmed,
                                         isDeliveryConfirmed = rso.isDeliveryConfirmed,
@@ -502,6 +506,7 @@ class OrderRepositoryImpl(
                                         buyerId = ro.buyerId,
                                         buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
                                         buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
+                                        buyerAvatarUrl = ro.buyerId?.let { profileAvatarCache[it] },
                                         notes = ro.notes,
                                         isPaymentConfirmed = (subStatus == SubOrderStatus.COMPLETADO),
                                         isDeliveryConfirmed = (subStatus == SubOrderStatus.COMPLETADO),
@@ -703,7 +708,7 @@ class OrderRepositoryImpl(
                         val parentOrdersMap = remoteParentOrders.associateBy { it.id }
 
                         val missingBuyerIds = remoteParentOrders.map { it.buyerId }
-                            .filter { isValidUUID(it) && (!profileNameCache.containsKey(it) || !profilePhoneCache.containsKey(it)) }
+                            .filter { isValidUUID(it) && (!profileNameCache.containsKey(it) || !profilePhoneCache.containsKey(it) || !profileAvatarCache.containsKey(it)) }
                             .distinct()
                         if (missingBuyerIds.isNotEmpty()) {
                             try {
@@ -713,6 +718,7 @@ class OrderRepositoryImpl(
                                 for (b in buyers) {
                                     b.fullName?.let { profileNameCache[b.id] = it }
                                     b.phone?.let { profilePhoneCache[b.id] = it }
+                                    b.avatarUrl?.let { profileAvatarCache[b.id] = it }
                                 }
                             } catch (_: Exception) {}
                         }
@@ -736,6 +742,7 @@ class OrderRepositoryImpl(
                             val buyerId = parentOrder?.buyerId
                             val buyerName = buyerId?.let { profileNameCache[it] } ?: ""
                             val buyerPhone = buyerId?.let { profilePhoneCache[it] } ?: ""
+                            val buyerAvatar = buyerId?.let { profileAvatarCache[it] }
                             val meetingPlace = parentOrder?.meetingPointName?.takeIf { it.isNotBlank() } ?: parentOrder?.deliveryPlace ?: "Punto de encuentro"
                             val scheduledTime = parentOrder?.scheduledTime ?: extractScheduleFromDeliveryPlace(parentOrder?.deliveryPlace)
 
@@ -755,6 +762,7 @@ class OrderRepositoryImpl(
                                 buyerId = buyerId,
                                 buyerName = buyerName,
                                 buyerPhone = buyerPhone,
+                                buyerAvatarUrl = buyerAvatar,
                                 notes = parentOrder?.notes,
                                 isPaymentConfirmed = rso.isPaymentConfirmed,
                                 isDeliveryConfirmed = rso.isDeliveryConfirmed,

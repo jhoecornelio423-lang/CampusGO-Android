@@ -91,4 +91,42 @@ class AuthValidationTest {
         assertTrue(UserRole.SUSPENDED.isSuspended)
         assertTrue(UserRole.SUSPENDED_BUYER.isSuspended)
     }
+
+    @Test
+    fun testSellerPendingApprovalFlow() {
+        val pendingSellerProfile = com.example.vallego.domain.model.UserProfile(
+            id = "seller-123",
+            fullName = "Juan Vendedor",
+            role = UserRole.EMPRENDEDOR,
+            businessName = "Jugos Valle",
+            businessStatus = "PENDIENTE"
+        )
+        assertTrue(pendingSellerProfile.isSellerPendingApproval)
+
+        val revisionSellerProfile = com.example.vallego.domain.model.UserProfile(
+            id = "seller-456",
+            fullName = "Maria Snacks",
+            role = UserRole.EMPRENDEDOR,
+            businessName = "Snacks UCV",
+            businessStatus = "EN_REVISION"
+        )
+        assertTrue(revisionSellerProfile.isSellerPendingApproval)
+
+        val approvedSellerProfile = com.example.vallego.domain.model.UserProfile(
+            id = "seller-789",
+            fullName = "Pedro Pasteles",
+            role = UserRole.EMPRENDEDOR,
+            businessName = "Pasteleria",
+            businessStatus = "ABIERTO"
+        )
+        assertFalse(approvedSellerProfile.isSellerPendingApproval)
+
+        val buyerProfile = com.example.vallego.domain.model.UserProfile(
+            id = "buyer-1",
+            fullName = "Comprador UCV",
+            role = UserRole.COMPRADOR,
+            businessStatus = "ABIERTO"
+        )
+        assertFalse(buyerProfile.isSellerPendingApproval)
+    }
 }

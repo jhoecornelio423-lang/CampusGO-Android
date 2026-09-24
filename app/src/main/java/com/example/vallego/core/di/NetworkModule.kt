@@ -1,4 +1,4 @@
-﻿package com.example.vallego.core.di
+package com.example.vallego.core.di
 
 import com.example.vallego.BuildConfig
 import io.github.jan.supabase.SupabaseClient
@@ -20,7 +20,14 @@ val networkModule = module {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_KEY
         ) {
-            httpEngine = OkHttp.create()
+            httpEngine = OkHttp.create {
+                config {
+                    connectTimeout(java.time.Duration.ofSeconds(30))
+                    readTimeout(java.time.Duration.ofSeconds(30))
+                    writeTimeout(java.time.Duration.ofSeconds(30))
+                }
+            }
+            requestTimeout = kotlin.time.Duration.parse("30s")
             install(Auth)
             install(Postgrest)
             install(Realtime)

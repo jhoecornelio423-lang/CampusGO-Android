@@ -80,34 +80,42 @@ fun MainNavigation(
             }
         }
 
-        when (profile.role) {
-            UserRole.COMPRADOR -> {
-                BuyerHomeScreen(
-                    profile = profile,
-                    onSignOut = onSignOut,
-                    modifier = Modifier.safeDrawingPadding()
-                )
-            }
-            UserRole.EMPRENDEDOR -> {
-                SellerDashboardScreen(
-                    profile = profile,
-                    onSignOut = onSignOut,
-                    modifier = Modifier.safeDrawingPadding()
-                )
-            }
-            UserRole.ADMIN -> {
-                AdminHomeScreen(
-                    profile = profile,
-                    onSignOut = onSignOut,
-                    modifier = Modifier.safeDrawingPadding()
-                )
-            }
-            UserRole.SUSPENDED, UserRole.SUSPENDED_BUYER -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Tu cuenta ha sido suspendida. Contacta a soporte institucional de Campus Go.")
+        if (profile.isSellerPendingApproval) {
+            com.example.vallego.features.auth.SellerPendingApprovalFullScreen(
+                profile = profile,
+                onSignOut = onSignOut,
+                modifier = Modifier.safeDrawingPadding()
+            )
+        } else {
+            when (profile.role) {
+                UserRole.COMPRADOR -> {
+                    BuyerHomeScreen(
+                        profile = profile,
+                        onSignOut = onSignOut,
+                        modifier = Modifier.safeDrawingPadding()
+                    )
+                }
+                UserRole.EMPRENDEDOR -> {
+                    SellerDashboardScreen(
+                        profile = profile,
+                        onSignOut = onSignOut,
+                        modifier = Modifier.safeDrawingPadding()
+                    )
+                }
+                UserRole.ADMIN -> {
+                    AdminHomeScreen(
+                        profile = profile,
+                        onSignOut = onSignOut,
+                        modifier = Modifier.safeDrawingPadding()
+                    )
+                }
+                UserRole.SUSPENDED, UserRole.SUSPENDED_BUYER -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Tu cuenta ha sido suspendida. Contacta a soporte institucional de Campus Go.")
+                    }
                 }
             }
         }

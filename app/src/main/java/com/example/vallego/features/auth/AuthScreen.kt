@@ -1,30 +1,29 @@
 package com.example.vallego.features.auth
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -32,22 +31,35 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,9 +69,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.platform.LocalUriHandler
-import com.example.vallego.ui.components.SetDarkScreenStatusBar
-import com.example.vallego.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,12 +81,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -86,8 +96,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vallego.R
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
+import com.example.vallego.ui.components.SetDarkScreenStatusBar
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -99,9 +111,27 @@ fun AuthRoute(
     val uiState by viewModel.uiState.collectAsState()
     var showWelcome by rememberSaveable { mutableStateOf(true) }
 
-    // Interceptar el botón Atrás nativo de Android: Si está en login/registro, regresa a la bienvenida en vez de salir de la app
-    BackHandler(enabled = !showWelcome) {
-        showWelcome = true
+    LaunchedEffect(uiState.infoMessage, uiState.errorMessage) {
+        if (uiState.infoMessage != null || uiState.errorMessage != null) {
+            showWelcome = false
+        }
+    }
+
+    BackHandler(enabled = !showWelcome || uiState.screenMode != AuthScreenMode.LOGIN) {
+        when (uiState.screenMode) {
+            AuthScreenMode.VERIFY_OTP,
+            AuthScreenMode.FORGOT_PASSWORD_EMAIL,
+            AuthScreenMode.FORGOT_PASSWORD_OTP,
+            AuthScreenMode.SELLER_PENDING_APPROVAL -> {
+                viewModel.backToLogin()
+            }
+            AuthScreenMode.REGISTER -> {
+                viewModel.setLoginMode(true)
+            }
+            AuthScreenMode.LOGIN -> {
+                showWelcome = true
+            }
+        }
     }
 
     LaunchedEffect(uiState.isSuccess, uiState.profile) {
@@ -111,31 +141,92 @@ fun AuthRoute(
         }
     }
 
-    if (showWelcome) {
-        WelcomeScreen(
-            onStartRegister = {
-                viewModel.setLoginMode(false)
-                showWelcome = false
-            },
-            onLogin = {
-                viewModel.setLoginMode(true)
-                showWelcome = false
-            },
-            modifier = modifier
-        )
-    } else {
-        AuthScreen(
-            uiState = uiState,
-            onEmailChange = viewModel::onEmailChange,
-            onPasswordChange = viewModel::onPasswordChange,
-            onFullNameChange = viewModel::onFullNameChange,
-            onPhoneChange = viewModel::onPhoneChange,
-            onRoleChange = viewModel::onRoleChange,
-            onTabSelected = viewModel::setLoginMode,
-            onSubmit = viewModel::submit,
-            onDismissError = viewModel::clearError,
-            modifier = modifier
-        )
+    when (uiState.screenMode) {
+        AuthScreenMode.SELLER_PENDING_APPROVAL -> {
+            SellerPendingApprovalFullScreen(
+                profile = uiState.profile ?: UserProfile(
+                    id = "",
+                    fullName = uiState.fullName,
+                    phone = uiState.phone,
+                    role = UserRole.EMPRENDEDOR,
+                    campus = uiState.campus,
+                    businessName = uiState.storeName,
+                    businessStatus = "PENDIENTE",
+                    supportedMeetingPoints = listOf(uiState.selectedMeetingPoint)
+                ),
+                onSignOut = viewModel::signOutFromPending,
+                modifier = modifier
+            )
+        }
+        AuthScreenMode.VERIFY_OTP -> {
+            OtpVerificationView(
+                uiState = uiState,
+                onOtpChange = viewModel::onOtpCodeChange,
+                onVerify = viewModel::verifyOtp,
+                onResend = viewModel::resendOtp,
+                onBack = { viewModel.setScreenMode(AuthScreenMode.REGISTER) },
+                onDismissError = viewModel::clearError,
+                modifier = modifier
+            )
+        }
+        AuthScreenMode.FORGOT_PASSWORD_EMAIL -> {
+            ForgotPasswordEmailView(
+                uiState = uiState,
+                onEmailChange = viewModel::onEmailChange,
+                onSubmit = viewModel::sendForgotPasswordEmail,
+                onBackToLogin = viewModel::backToLogin,
+                onDismissError = viewModel::clearError,
+                modifier = modifier
+            )
+        }
+        AuthScreenMode.FORGOT_PASSWORD_OTP -> {
+            ForgotPasswordOtpView(
+                uiState = uiState,
+                onOtpChange = viewModel::onOtpCodeChange,
+                onNewPasswordChange = viewModel::onNewPasswordChange,
+                onConfirmPasswordChange = viewModel::onConfirmNewPasswordChange,
+                onSubmit = viewModel::resetPasswordWithOtp,
+                onResend = viewModel::sendForgotPasswordEmail,
+                onBackToLogin = viewModel::backToLogin,
+                onDismissError = viewModel::clearError,
+                modifier = modifier
+            )
+        }
+        AuthScreenMode.LOGIN, AuthScreenMode.REGISTER -> {
+            if (showWelcome && uiState.infoMessage == null) {
+                WelcomeScreen(
+                    onStartRegister = {
+                        viewModel.setLoginMode(false)
+                        showWelcome = false
+                    },
+                    onLogin = {
+                        viewModel.setLoginMode(true)
+                        showWelcome = false
+                    },
+                    modifier = modifier
+                )
+            } else {
+                AuthScreen(
+                    uiState = uiState,
+                    onEmailChange = viewModel::onEmailChange,
+                    onPasswordChange = viewModel::onPasswordChange,
+                    onFullNameChange = viewModel::onFullNameChange,
+                    onPhoneChange = viewModel::onPhoneChange,
+                    onRoleChange = viewModel::onRoleChange,
+                    onCampusChange = viewModel::onCampusChange,
+                    onStoreNameChange = viewModel::onStoreNameChange,
+                    onStoreCategoryChange = viewModel::onStoreCategoryChange,
+                    onStoreDescriptionChange = viewModel::onStoreDescriptionChange,
+                    onMeetingPointChange = viewModel::onMeetingPointChange,
+                    onForgotPasswordClick = viewModel::openForgotPassword,
+                    onTabSelected = viewModel::setLoginMode,
+                    onSubmit = viewModel::submit,
+                    onDismissError = viewModel::clearError,
+                    onDismissInfo = viewModel::clearInfoMessage,
+                    modifier = modifier
+                )
+            }
+        }
     }
 }
 
@@ -147,13 +238,21 @@ fun AuthScreen(
     onFullNameChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onRoleChange: (UserRole) -> Unit,
+    onCampusChange: (String) -> Unit,
+    onStoreNameChange: (String) -> Unit,
+    onStoreCategoryChange: (String) -> Unit,
+    onStoreDescriptionChange: (String) -> Unit,
+    onMeetingPointChange: (String) -> Unit,
+    onForgotPasswordClick: () -> Unit,
     onTabSelected: (Boolean) -> Unit,
     onSubmit: () -> Unit,
     onDismissError: () -> Unit,
+    onDismissInfo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     SetDarkScreenStatusBar(isDark = true)
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
     var showSupportDialog by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
@@ -166,22 +265,23 @@ fun AuthScreen(
     var termsAccepted by remember { mutableStateOf(true) }
 
     // Separación de Nombre y Apellidos para la vista de registro
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
-
-    LaunchedEffect(firstName, lastName) {
-        if (!uiState.isLoginMode) {
-            val combined = "$firstName $lastName".trim()
-            onFullNameChange(combined)
-        }
+    var firstName by remember(uiState.fullName) {
+        val parts = uiState.fullName.split(" ", limit = 2)
+        mutableStateOf(parts.firstOrNull().orEmpty())
     }
+    var lastName by remember(uiState.fullName) {
+        val parts = uiState.fullName.split(" ", limit = 2)
+        mutableStateOf(parts.getOrNull(1).orEmpty())
+    }
+
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var meetingPointDropdownExpanded by remember { mutableStateOf(false) }
 
     val density = LocalDensity.current
     var headerHeightDp by remember { mutableStateOf(240.dp) }
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         val totalScreenHeight = maxHeight
 
@@ -195,10 +295,11 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // SECCIÓN SUPERIOR: HEADER CON LOGO OFICIAL DEL PROTOTIPO
+            // SECCIÓN SUPERIOR: HEADER CON LOGO OFICIAL
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -212,26 +313,24 @@ fun AuthScreen(
                     },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Logo Oficial Completo con letras blancas para fondo oscuro
                 Column(
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = com.example.vallego.R.drawable.campus_logo),
+                        painter = painterResource(id = R.drawable.campus_logo),
                         contentDescription = "Logo Campus Go",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.height(58.dp)
                     )
                     Image(
-                        painter = painterResource(id = com.example.vallego.R.drawable.letras_logo_white),
+                        painter = painterResource(id = R.drawable.letras_logo_white),
                         contentDescription = "Campus Go",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.height(24.dp)
                     )
                 }
 
-                // Titular Motivacional Grande si está en Login
                 if (uiState.isLoginMode) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
@@ -249,18 +348,11 @@ fun AuthScreen(
                             color = Color.White,
                             lineHeight = 34.sp
                         )
-
-                        Text(
-                            text = "Pide desde la comodidad de tu Universidad",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFFD4F3EE)
-                        )
                     }
                 }
             }
 
-            // SECCIÓN INFERIOR: TARJETA BLANCA BORDE A BORDE CON ESQUINAS SUPERIORES CURVAS
+            // SECCIÓN INFERIOR: TARJETA BLANCA BORDE A BORDE
             val cardMinHeight = (totalScreenHeight - headerHeightDp).coerceAtLeast(0.dp)
 
             Surface(
@@ -280,10 +372,10 @@ fun AuthScreen(
                         .defaultMinSize(minHeight = cardMinHeight)
                         .navigationBarsPadding()
                         .padding(horizontal = 24.dp)
-                        .padding(top = 28.dp, bottom = 28.dp),
+                        .padding(top = 28.dp, bottom = 40.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Encabezado según el Modo (Login o Registro)
+                    // Encabezado según el Modo
                     if (uiState.isLoginMode) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
@@ -295,7 +387,7 @@ fun AuthScreen(
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Ingresa con tu cuenta Campus Go",
+                                text = "Ingresa con tu cuenta ValleGO",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 14.sp
                                 ),
@@ -305,20 +397,69 @@ fun AuthScreen(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Crea tu cuenta",
+                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Registro de Vendedor" else "Crea tu cuenta",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 28.sp
+                                    fontSize = 26.sp
                                 ),
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Únete a la experiencia Campus Go",
+                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR)
+                                    "Registra tu emprendimiento y vende en el campus"
+                                else
+                                    "Únete para comprar fácil y rápido en el campus",
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 14.sp
+                                    fontSize = 13.5.sp
                                 ),
                                 color = Color(0xFF64748B)
                             )
+                        }
+                    }
+
+                    // Banner de Información si existe
+                    AnimatedVisibility(
+                        visible = uiState.infoMessage != null,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        Surface(
+                            color = Color(0xFFF0FDF4),
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = uiState.infoMessage.orEmpty(),
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF166534),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = onDismissInfo,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Cerrar",
+                                        tint = Color(0xFF166534),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -368,16 +509,116 @@ fun AuthScreen(
                         }
                     }
 
-                    // FORMULARIO MODO REGISTRO: Nombres & Apellidos en 2 columnas
+                    // MODO REGISTRO: SELECTOR DE ROL AL INICIO (Cliente vs Vendedor)
                     if (!uiState.isLoginMode) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "¿Cómo usarás ValleGO?",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF16324F)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                RoleCardButton(
+                                    title = "Cliente",
+                                    subtitle = "Comprar productos",
+                                    icon = Icons.Default.ShoppingBag,
+                                    isSelected = uiState.selectedRole == UserRole.COMPRADOR,
+                                    onClick = { onRoleChange(UserRole.COMPRADOR) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                RoleCardButton(
+                                    title = "Vendedor",
+                                    subtitle = "Vender y emprender",
+                                    iconPainter = painterResource(id = R.drawable.ic_store_custom),
+                                    isSelected = uiState.selectedRole == UserRole.EMPRENDEDOR,
+                                    onClick = { onRoleChange(UserRole.EMPRENDEDOR) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            // Banner explicativo y visual del rol actualmente activo
+                            Surface(
+                                color = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFFFFFBEB) else Color(0xFFEFF6FF),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFFFDE68A) else Color(0xFFBFDBFE)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Icons.Default.Storefront else Icons.Default.ShoppingBag,
+                                        contentDescription = null,
+                                        tint = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFFD97706) else Color(0xFF2563EB),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = if (uiState.selectedRole == UserRole.EMPRENDEDOR)
+                                            "Modo Vendedor seleccionado: Al verificar tu correo, tu solicitud requerirá aprobación del administrador antes de que puedas acceder."
+                                        else
+                                            "Modo Cliente seleccionado: Podrás navegar y realizar compras en los puestos oficiales del campus en cuanto verifiques tu correo.",
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFF92400E) else Color(0xFF1E40AF)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Sede Universitaria de Lanzamiento (Informativo y limpio)
+                        Surface(
+                            color = Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.School,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Sede de lanzamiento:",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "UCV - Lima Norte (Sede oficial)",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF16324F),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Nombres & Apellidos en 2 columnas
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Nombres
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Nombres",
+                                    text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Nombres titular" else "Nombres",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
@@ -385,7 +626,10 @@ fun AuthScreen(
                                 )
                                 OutlinedTextField(
                                     value = firstName,
-                                    onValueChange = { firstName = it },
+                                    onValueChange = {
+                                        firstName = it
+                                        onFullNameChange("$firstName $lastName".trim())
+                                    },
                                     placeholder = { Text("Tus nombres", fontSize = 13.sp) },
                                     leadingIcon = {
                                         Icon(
@@ -408,10 +652,9 @@ fun AuthScreen(
                                 )
                             }
 
-                            // Apellidos
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Apellidos",
+                                    text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Apellidos titular" else "Apellidos",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
@@ -419,7 +662,10 @@ fun AuthScreen(
                                 )
                                 OutlinedTextField(
                                     value = lastName,
-                                    onValueChange = { lastName = it },
+                                    onValueChange = {
+                                        lastName = it
+                                        onFullNameChange("$firstName $lastName".trim())
+                                    },
                                     placeholder = { Text("Tus apellidos", fontSize = 13.sp) },
                                     leadingIcon = {
                                         Icon(
@@ -443,10 +689,10 @@ fun AuthScreen(
                             }
                         }
 
-                        // Número de teléfono
+                        // Teléfono WhatsApp
                         Column {
                             Text(
-                                text = "Número de teléfono",
+                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "WhatsApp de contacto" else "Número de teléfono",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF16324F),
@@ -455,7 +701,7 @@ fun AuthScreen(
                             OutlinedTextField(
                                 value = uiState.phone,
                                 onValueChange = onPhoneChange,
-                                placeholder = { Text("+51 000 000 000", fontSize = 13.sp) },
+                                placeholder = { Text("+51 987 654 321", fontSize = 13.sp) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Outlined.Phone,
@@ -479,9 +725,221 @@ fun AuthScreen(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+
+                        // CAMPOS EXCLUSIVOS DE VENDEDOR
+                        if (uiState.selectedRole == UserRole.EMPRENDEDOR) {
+                            // Nombre de la Tienda
+                            Column {
+                                Text(
+                                    text = "Nombre de la Tienda / Negocio",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF16324F),
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                OutlinedTextField(
+                                    value = uiState.storeName,
+                                    onValueChange = onStoreNameChange,
+                                    placeholder = { Text("Ej. Jugos y Snacks Doña Luz", fontSize = 13.sp) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Storefront,
+                                            contentDescription = null,
+                                            tint = Color(0xFF00A884),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(14.dp),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFFF8FAFC),
+                                        unfocusedContainerColor = Color(0xFFF4F6F8),
+                                        focusedBorderColor = Color(0xFF00A884),
+                                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            // Categoría de la Tienda (Dropdown)
+                            Column {
+                                Text(
+                                    text = "Categoría del Emprendimiento",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF16324F),
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                @OptIn(ExperimentalMaterial3Api::class)
+                                ExposedDropdownMenuBox(
+                                    expanded = categoryDropdownExpanded,
+                                    onExpandedChange = { expanded ->
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        categoryDropdownExpanded = expanded
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    OutlinedTextField(
+                                        value = uiState.storeCategory,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded)
+                                        },
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFFF8FAFC),
+                                            unfocusedContainerColor = Color(0xFFF4F6F8),
+                                            focusedBorderColor = Color(0xFF00A884),
+                                            unfocusedBorderColor = Color(0xFFE2E8F0),
+                                            focusedTextColor = Color(0xFF16324F),
+                                            unfocusedTextColor = Color(0xFF16324F)
+                                        ),
+                                        modifier = Modifier
+                                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                            .fillMaxWidth()
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = categoryDropdownExpanded,
+                                        onDismissRequest = { categoryDropdownExpanded = false },
+                                        modifier = Modifier
+                                            .exposedDropdownSize()
+                                            .background(Color.White)
+                                    ) {
+                                        AuthUiState.STORE_CATEGORIES.forEach { category ->
+                                            DropdownMenuItem(
+                                                text = { Text(category, fontSize = 13.5.sp, color = Color(0xFF16324F)) },
+                                                onClick = {
+                                                    onStoreCategoryChange(category)
+                                                    categoryDropdownExpanded = false
+                                                    focusManager.clearFocus()
+                                                    keyboardController?.hide()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Descripción del Negocio
+                            Column {
+                                Text(
+                                    text = "Descripción de tus productos",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF16324F),
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                OutlinedTextField(
+                                    value = uiState.storeDescription,
+                                    onValueChange = onStoreDescriptionChange,
+                                    placeholder = { Text("Ej. Venta de jugos naturales, sánguches frescos y postres caseros...", fontSize = 13.sp) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Description,
+                                            contentDescription = null,
+                                            tint = Color(0xFF00A884),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    minLines = 2,
+                                    maxLines = 3,
+                                    shape = RoundedCornerShape(14.dp),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFFF8FAFC),
+                                        unfocusedContainerColor = Color(0xFFF4F6F8),
+                                        focusedBorderColor = Color(0xFF00A884),
+                                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            // Punto de Entrega Preferido (Puntos Oficiales Aprobados)
+                            Column {
+                                Text(
+                                    text = "Punto de entrega preferido (Oficial)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF16324F),
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                @OptIn(ExperimentalMaterial3Api::class)
+                                ExposedDropdownMenuBox(
+                                    expanded = meetingPointDropdownExpanded,
+                                    onExpandedChange = { expanded ->
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        meetingPointDropdownExpanded = expanded
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    OutlinedTextField(
+                                        value = uiState.selectedMeetingPoint.ifBlank { "Selecciona un punto oficial..." },
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Place,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00A884),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = meetingPointDropdownExpanded)
+                                        },
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFFF8FAFC),
+                                            unfocusedContainerColor = Color(0xFFF4F6F8),
+                                            focusedBorderColor = Color(0xFF00A884),
+                                            unfocusedBorderColor = Color(0xFFE2E8F0),
+                                            focusedTextColor = Color(0xFF16324F),
+                                            unfocusedTextColor = Color(0xFF16324F)
+                                        ),
+                                        modifier = Modifier
+                                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                            .fillMaxWidth()
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = meetingPointDropdownExpanded,
+                                        onDismissRequest = { meetingPointDropdownExpanded = false },
+                                        modifier = Modifier
+                                            .exposedDropdownSize()
+                                            .background(Color.White)
+                                    ) {
+                                        uiState.availableMeetingPoints.forEach { point ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Column {
+                                                        Text(point.name, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16324F))
+                                                        val desc = point.description
+                                                        if (!desc.isNullOrBlank()) {
+                                                            Text(desc, fontSize = 11.5.sp, color = Color(0xFF64748B))
+                                                        }
+                                                    }
+                                                },
+                                                onClick = {
+                                                    onMeetingPointChange(point.name)
+                                                    meetingPointDropdownExpanded = false
+                                                    focusManager.clearFocus()
+                                                    keyboardController?.hide()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    // Campo Correo Electrónico
+                    // Campo Correo Electrónico (Cualquier dominio válido)
                     Column {
                         Text(
                             text = "Correo Electrónico",
@@ -493,7 +951,7 @@ fun AuthScreen(
                         OutlinedTextField(
                             value = uiState.email,
                             onValueChange = onEmailChange,
-                            placeholder = { Text("nombre@gmail.com", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
+                            placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Email,
@@ -534,7 +992,7 @@ fun AuthScreen(
                             onValueChange = onPasswordChange,
                             placeholder = {
                                 Text(
-                                    text = if (uiState.isLoginMode) "••••••••" else "Mínimo 8 caracteres",
+                                    text = if (uiState.isLoginMode) "••••••••" else "Mínimo 6 caracteres",
                                     fontSize = 14.sp,
                                     color = Color(0xFF94A3B8)
                                 )
@@ -561,7 +1019,7 @@ fun AuthScreen(
                             shape = RoundedCornerShape(14.dp),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
-                                imeAction = if (uiState.isLoginMode) ImeAction.Done else ImeAction.Next
+                                imeAction = if (uiState.isLoginMode) ImeAction.Done else ImeAction.Done
                             ),
                             keyboardActions = KeyboardActions(
                                 onDone = {
@@ -605,47 +1063,17 @@ fun AuthScreen(
                             }
 
                             Text(
-                                text = "Regístrate ahora",
+                                text = "¿Olvidaste tu contraseña?",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF00A884),
-                                modifier = Modifier.clickable { onTabSelected(false) }
+                                modifier = Modifier.clickable { onForgotPasswordClick() }
                             )
                         }
                     }
 
-                    // MODO REGISTRO: Rol y Términos
+                    // MODO REGISTRO: Checkbox Términos
                     if (!uiState.isLoginMode) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "¿Cómo usarás Campus Go?",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF16324F)
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                RoleCardButton(
-                                    title = "Cliente",
-                                    icon = Icons.Default.ShoppingBag,
-                                    isSelected = uiState.selectedRole == UserRole.COMPRADOR,
-                                    onClick = { onRoleChange(UserRole.COMPRADOR) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                RoleCardButton(
-                                    title = "Vendedor",
-                                    iconPainter = painterResource(id = R.drawable.ic_store_custom),
-                                    isSelected = uiState.selectedRole == UserRole.EMPRENDEDOR,
-                                    onClick = { onRoleChange(UserRole.EMPRENDEDOR) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-
-                        // Checkbox Términos
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -670,12 +1098,8 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Botón Principal Verde Esmeralda (#00A884)
+                    // Botón Principal
                     val isButtonEnabled = uiState.canSubmit && (uiState.isLoginMode || termsAccepted)
-                    val shadowElevation by androidx.compose.animation.core.animateDpAsState(
-                        targetValue = if (isButtonEnabled) 6.dp else 0.dp,
-                        label = "buttonShadowElevation"
-                    )
                     Button(
                         onClick = {
                             focusManager.clearFocus()
@@ -692,19 +1116,12 @@ fun AuthScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
-                            .shadow(
-                                elevation = shadowElevation,
-                                shape = RoundedCornerShape(16.dp),
-                                clip = false,
-                                spotColor = Color(0xFF00A884),
-                                ambientColor = Color(0x3300A884)
-                            )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 color = Color.White,
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.5.dp
+                                strokeWidth = 2.5.dp,
+                                modifier = Modifier.size(24.dp)
                             )
                         } else {
                             Row(
@@ -712,7 +1129,11 @@ fun AuthScreen(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = if (uiState.isLoginMode) "Iniciar sesión" else "Crear mi cuenta",
+                                    text = when {
+                                        uiState.isLoginMode -> "Iniciar sesión"
+                                        uiState.selectedRole == UserRole.EMPRENDEDOR -> "Solicitar Registro de Vendedor"
+                                        else -> "Crear Cuenta de Cliente"
+                                    },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = Color.White
@@ -742,16 +1163,16 @@ fun AuthScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "¿Necesitas ayuda? ",
-                                    fontSize = 12.sp,
+                                    text = "¿No tienes una cuenta? ",
+                                    fontSize = 12.5.sp,
                                     color = Color(0xFF64748B)
                                 )
                                 Text(
-                                    text = "Centro de soporte",
-                                    fontSize = 12.sp,
+                                    text = "Regístrate ahora",
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF00A884),
-                                    modifier = Modifier.clickable { showSupportDialog = true }
+                                    modifier = Modifier.clickable { onTabSelected(false) }
                                 )
                             }
                         } else {
@@ -761,17 +1182,35 @@ fun AuthScreen(
                             ) {
                                 Text(
                                     text = "¿Ya tienes una cuenta? ",
-                                    fontSize = 12.sp,
+                                    fontSize = 12.5.sp,
                                     color = Color(0xFF64748B)
                                 )
                                 Text(
                                     text = "Inicia sesión",
-                                    fontSize = 12.sp,
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF00A884),
                                     modifier = Modifier.clickable { onTabSelected(true) }
                                 )
                             }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "¿Necesitas ayuda? ",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "Centro de soporte",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00A884),
+                                modifier = Modifier.clickable { showSupportDialog = true }
+                            )
                         }
 
                         HorizontalDivider(
@@ -780,23 +1219,14 @@ fun AuthScreen(
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
 
-                        // Firma de Marca KODEX usando kodex_logo.png
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "CON EL RESPALDO DE  ",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF94A3B8),
-                                letterSpacing = 1.sp
-                            )
-                            Image(
-                                painter = painterResource(id = com.example.vallego.R.drawable.kodex_logo),
-                                contentDescription = "Logo Kodex",
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.size(20.dp)
+                                text = "Powered by",
+                                fontSize = 11.sp,
+                                color = Color(0xFF94A3B8)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -807,6 +1237,9 @@ fun AuthScreen(
                                 letterSpacing = 1.2.sp
                             )
                         }
+
+                        // Espacio generoso para que el teclado no obstruya el botón ni los campos
+                        Spacer(modifier = Modifier.height(180.dp))
                     }
                 }
             }
@@ -826,12 +1259,12 @@ fun AuthScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "¿Tienes inconvenientes para iniciar sesión o registrarte? Comunícate con nuestro canal de atención universitaria:",
-                        fontSize = 14.sp,
+                        text = "¿Tienes inconvenientes con tu cuenta, verificación o solicitud de vendedor? Comunícate con nuestro canal oficial:",
+                        fontSize = 13.5.sp,
                         color = Color(0xFF475569)
                     )
                     Text(
-                        text = "📧 Correo: soporte@vallego.app\n💬 WhatsApp: +51 987 654 321\n⏰ Horario: Lun - Sáb 8:00 AM a 8:00 PM",
+                        text = "📧 Correo: soporte@kodexti.com\n⏰ Horario: Lun - Sáb 8:00 AM a 8:00 PM\n📍 Sede oficial: UCV - Lima Norte",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF1E293B)
@@ -842,7 +1275,7 @@ fun AuthScreen(
                 TextButton(
                     onClick = {
                         try {
-                            uriHandler.openUri("mailto:soporte@vallego.app?subject=Soporte%20ValleGO")
+                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20ValleGO")
                         } catch (_: Exception) {}
                     }
                 ) {
@@ -863,6 +1296,7 @@ fun AuthScreen(
 @Composable
 private fun RoleCardButton(
     title: String,
+    subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     isSelected: Boolean,
@@ -871,41 +1305,73 @@ private fun RoleCardButton(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = if (isSelected) Color(0xFFE6F6F3) else Color(0xFFFAFAFA),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) Color(0xFF00A884) else Color(0xFFF1F5F9),
         border = androidx.compose.foundation.BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) Color(0xFF00A884) else Color(0xFFE2E8F0)
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) Color(0xFF00897B) else Color(0xFFCBD5E1)
         ),
-        modifier = modifier.height(46.dp)
+        shadowElevation = if (isSelected) 4.dp else 0.dp,
+        modifier = modifier.height(58.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            if (iconPainter != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) Color.White.copy(alpha = 0.22f) else Color(0xFFE2E8F0)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (iconPainter != null) {
+                        Icon(
+                            painter = iconPainter,
+                            contentDescription = null,
+                            tint = if (isSelected) Color.White else Color(0xFF64748B),
+                            modifier = Modifier.size(19.dp)
+                        )
+                    } else if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (isSelected) Color.White else Color(0xFF64748B),
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(verticalArrangement = Arrangement.Center) {
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 13.5.sp,
+                        color = if (isSelected) Color.White else Color(0xFF1E293B)
+                    )
+                    Text(
+                        text = subtitle,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 10.sp,
+                        color = if (isSelected) Color.White.copy(alpha = 0.88f) else Color(0xFF64748B)
+                    )
+                }
+            }
+            if (isSelected) {
                 Icon(
-                    painter = iconPainter,
-                    contentDescription = null,
-                    tint = if (isSelected) Color(0xFF00A884) else Color(0xFF64748B),
-                    modifier = Modifier.size(18.dp)
-                )
-            } else if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (isSelected) Color(0xFF00A884) else Color(0xFF64748B),
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Seleccionado",
+                    tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                color = if (isSelected) Color(0xFF00A884) else Color(0xFF334155)
-            )
         }
     }
 }

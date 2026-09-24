@@ -1181,29 +1181,6 @@ private fun ChatUserProfileFullScreen(
                     }
                 }
 
-                // Botón destacado inferior para regresar cómodamente al chat
-                OutlinedButton(
-                    onClick = onBack,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, TurquoiseGreen),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseGreen),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Volver a la conversación",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }

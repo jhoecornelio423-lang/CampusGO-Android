@@ -529,7 +529,7 @@ class SellerDashboardViewModel(
                 val rawErr = result.exceptionOrNull()?.message ?: "Error al guardar el puesto."
                 val friendlyErr = when {
                     rawErr.contains("schema cache", ignoreCase = true) || rawErr.contains("supported_meeting_points", ignoreCase = true) ->
-                        "Se requiere actualizar las columnas de puntos de encuentro en la base de datos de Supabase."
+                        "No se pudo guardar la información del puesto. Por favor, intenta de nuevo más tarde."
                     rawErr.contains("network", ignoreCase = true) || rawErr.contains("connect", ignoreCase = true) || rawErr.contains("timeout", ignoreCase = true) ->
                         "Error de conexión. Verifica tu acceso a internet e intenta nuevamente."
                     rawErr.contains("URL:", ignoreCase = true) || rawErr.contains("Headers:", ignoreCase = true) ->

@@ -1,9 +1,33 @@
 package com.example.vallego.domain.model
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
-@Serializable
+object ApplicationStatusSerializer : KSerializer<ApplicationStatus> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("ApplicationStatus", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: ApplicationStatus) {
+        encoder.encodeString(value.name)
+    }
+
+    override fun deserialize(decoder: Decoder): ApplicationStatus {
+        val str = runCatching { decoder.decodeString().trim().lowercase() }.getOrDefault("")
+        return when (str) {
+            "aprobada", "aprobado", "approved" -> ApplicationStatus.APROBADA
+            "rechazada", "rechazado", "rejected" -> ApplicationStatus.RECHAZADA
+            else -> ApplicationStatus.PENDIENTE
+        }
+    }
+}
+
+@Serializable(with = ApplicationStatusSerializer::class)
 enum class ApplicationStatus {
     PENDIENTE,
     APROBADA,
