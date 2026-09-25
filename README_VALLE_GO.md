@@ -1,8 +1,8 @@
-# Valle-Go
+﻿# Campus Go
 
 ## 1. Descripción general
 
-**Valle-Go** es una aplicación móvil nativa para Android orientada a facilitar la compra y venta de productos dentro de un campus universitario.
+**Campus Go** es una aplicación móvil nativa para Android orientada a facilitar la compra y venta de productos dentro de un campus universitario.
 
 La plataforma conectará a tres tipos principales de usuarios:
 
@@ -12,7 +12,7 @@ La plataforma conectará a tres tipos principales de usuarios:
 
 La aplicación funcionará inicialmente dentro de un solo campus universitario, aunque su arquitectura deberá quedar preparada para permitir en el futuro múltiples campus, sedes o universidades.
 
-Valle-Go no funcionará inicialmente como un servicio de delivery tradicional. La entrega se realizará mediante **puntos de encuentro definidos dentro del campus**.
+Campus Go no funcionará inicialmente como un servicio de delivery tradicional. La entrega se realizará mediante **puntos de encuentro definidos dentro del campus**.
 
 El pago será **contra entrega**. La aplicación no procesará dinero directamente. El comprador realizará el pago al momento del encuentro mediante efectivo, Yape, Plin, transferencia u otro medio aceptado, y posteriormente el emprendedor confirmará desde la aplicación que recibió el pago.
 
@@ -20,7 +20,7 @@ El pago será **contra entrega**. La aplicación no procesará dinero directamen
 
 # 2. Objetivo principal
 
-El objetivo de Valle-Go es permitir que los estudiantes puedan descubrir y comprar productos ofrecidos por emprendimientos de la comunidad universitaria de forma rápida, ordenada y segura.
+El objetivo de Campus Go es permitir que los estudiantes puedan descubrir y comprar productos ofrecidos por emprendimientos de la comunidad universitaria de forma rápida, ordenada y segura.
 
 El flujo general será:
 
@@ -94,12 +94,12 @@ El estudiante podrá:
 
 # 4. Carrito con múltiples emprendimientos
 
-Valle-Go permitirá que un comprador agregue productos pertenecientes a diferentes emprendimientos dentro de un mismo carrito.
+Campus Go permitirá que un comprador agregue productos pertenecientes a diferentes emprendimientos dentro de un mismo carrito.
 
 Ejemplo:
 
 ```text
-CARRITO VALLE-GO
+CARRITO Campus Go
 
 Papu Burger
 --------------------------------
@@ -374,7 +374,7 @@ Esto podrá mostrarse al comprador antes de agregar productos.
 
 # 11. Rol administrador
 
-El administrador será responsable del ecosistema Valle-Go.
+El administrador será responsable del ecosistema Campus Go.
 
 Podrá:
 
@@ -449,7 +449,7 @@ Podrá:
 
 # 12. Lógica del pago
 
-Valle-Go utilizará **pago contra entrega**.
+Campus Go utilizará **pago contra entrega**.
 
 La aplicación no procesará dinero.
 
@@ -466,7 +466,7 @@ Comprador realiza el pago
       ↓
 Vendedor verifica el pago
       ↓
-Vendedor confirma desde Valle-Go
+Vendedor confirma desde Campus Go
       ↓
 Pago confirmado
       ↓
@@ -888,7 +888,7 @@ En una fase posterior se podrá implementar Firebase Cloud Messaging.
 Ejemplo:
 
 ```text
-VALLE-GO
+Campus Go
 
 ¿Qué estás buscando?
 
@@ -1173,7 +1173,7 @@ EMPREND.  EMPREND.  EMPREND.
 # 33. Arquitectura general
 
 ```text
-                VALLE-GO
+                Campus Go
 
                Android App
                     │
@@ -1336,7 +1336,7 @@ La definición exacta de endpoints deberá realizarse después de cerrar los req
 
 # 37. Diagramas necesarios
 
-Para documentar Valle-Go se recomienda desarrollar los siguientes diagramas.
+Para documentar Campus Go se recomienda desarrollar los siguientes diagramas.
 
 ## Diagrama de contexto
 
@@ -1346,7 +1346,7 @@ Mostrará:
 Comprador
     │
     ▼
- VALLE-GO
+ Campus Go
     ▲
     │
 Emprendedor
@@ -1354,7 +1354,7 @@ Emprendedor
 Administrador
     │
     ▼
- VALLE-GO
+ Campus Go
 ```
 
 ## Diagrama de casos de uso
@@ -1475,7 +1475,7 @@ NO_ENTREGADO
 
 ---
 
-# 40. ETL en Valle-Go
+# 40. ETL en Campus Go
 
 ETL no será necesario para ejecutar la compra.
 
@@ -1576,7 +1576,7 @@ Se podrá analizar:
 Ejemplo:
 
 ```text
-VALLE-GO ADMIN
+Campus Go ADMIN
 
 Usuarios:
 1,280
@@ -1603,7 +1603,7 @@ Ventas registradas:
 S/ 4,850
 ```
 
-El concepto será **ventas registradas**, ya que Valle-Go no procesa directamente el dinero.
+El concepto será **ventas registradas**, ya que Campus Go no procesa directamente el dinero.
 
 ---
 
@@ -1629,7 +1629,7 @@ Pedidos por horario
 
 ---
 
-# 44. MVP de Valle-Go
+# 44. MVP de Campus Go
 
 La primera versión funcional debería incluir:
 
@@ -1672,7 +1672,7 @@ La primera versión funcional debería incluir:
 
 ---
 
-# 45. Valle-Go V2
+# 45. Campus Go V2
 
 Agregar:
 
@@ -1698,7 +1698,7 @@ Disponibilidad del vendedor
 
 ---
 
-# 46. Valle-Go V3
+# 46. Campus Go V3
 
 Agregar:
 
@@ -1732,7 +1732,7 @@ Vendedor confirma
 
 ---
 
-# 47. Valle-Go V4
+# 47. Campus Go V4
 
 Preparar el sistema para:
 
@@ -1786,9 +1786,9 @@ puntos de encuentro
 18. El stock debe liberarse si el pedido es rechazado o cancelado.
 19. El comprador debe seleccionar punto de encuentro.
 20. El comprador debe seleccionar un horario.
-21. Los puntos deben ser administrados por Valle-Go.
+21. Los puntos deben ser administrados por Campus Go.
 22. El pago se realiza contra entrega.
-23. Valle-Go no procesa el dinero.
+23. Campus Go no procesa el dinero.
 24. El pago se gestiona independientemente por subpedido.
 25. El vendedor confirma la recepción del dinero.
 26. Un subpedido no puede completarse sin confirmación de pago.
@@ -1859,11 +1859,11 @@ Antes de programar, se recomienda trabajar en el siguiente orden:
 
 ---
 
-# 50. Idea central definitiva de Valle-Go
+# 50. Idea central definitiva de Campus Go
 
 La característica diferencial del sistema será:
 
-> Un estudiante podrá realizar una compra con productos de múltiples emprendimientos desde un mismo carrito y coordinar la entrega dentro del campus mediante un punto y horario de encuentro. Valle-Go organizará internamente la compra en subpedidos independientes para que cada emprendedor pueda aceptar, preparar, cobrar y confirmar únicamente los productos que le corresponden.
+> Un estudiante podrá realizar una compra con productos de múltiples emprendimientos desde un mismo carrito y coordinar la entrega dentro del campus mediante un punto y horario de encuentro. Campus Go organizará internamente la compra en subpedidos independientes para que cada emprendedor pueda aceptar, preparar, cobrar y confirmar únicamente los productos que le corresponden.
 
 Esto permite ofrecer al comprador una experiencia sencilla sin perder el control individual de cada vendedor.
 

@@ -711,7 +711,7 @@ fun PaymentMethodLogoByName(
 }
 
 /**
- * Constantes y estilos profesionales para ventanas emergentes / diálogos en Valle-GO.
+ * Constantes y estilos profesionales para ventanas emergentes / diálogos en Campus Go.
  */
 val ValleGoDialogShape = RoundedCornerShape(24.dp)
 val ValleGoDialogContainerColor = Color.White

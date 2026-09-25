@@ -512,7 +512,11 @@ fun AdminHomeScreen(
         )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier)
+    ) {
         if (uiState.selectedSellerDetail != null) {
             AdminSellerDetailScreen(
                 seller = uiState.selectedSellerDetail!!,
@@ -540,7 +544,7 @@ fun AdminHomeScreen(
         } else {
             Scaffold(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
-                modifier = if (backgroundBlurRadius > 0.dp) Modifier.fillMaxSize().blur(backgroundBlurRadius) else Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 topBar = {
                     TopAppBar(
                         title = {

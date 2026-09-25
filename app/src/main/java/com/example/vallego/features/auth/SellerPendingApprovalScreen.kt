@@ -227,7 +227,7 @@ fun SellerPendingApprovalFullScreen(
             // Botón Contactar Soporte
             Button(
                 onClick = {
-                    uriHandler.openUri("mailto:soporte@kodexti.com?subject=Consulta%20Solicitud%20Vendedor%20ValleGO%20-%20${profile.businessName ?: profile.fullName}")
+                    uriHandler.openUri("mailto:soporte@kodexti.com?subject=Consulta%20Solicitud%20Vendedor%20Campus%20Go%20-%20${profile.businessName ?: profile.fullName}")
                 },
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(

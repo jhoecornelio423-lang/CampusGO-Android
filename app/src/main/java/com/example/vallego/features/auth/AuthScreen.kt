@@ -2,6 +2,8 @@ package com.example.vallego.features.auth
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -79,6 +81,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -100,6 +103,10 @@ import com.example.vallego.R
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
 import com.example.vallego.ui.components.SetDarkScreenStatusBar
+import com.example.vallego.ui.components.ValleGoDialogContainerColor
+import com.example.vallego.ui.components.ValleGoDialogShape
+import com.example.vallego.ui.components.ValleGoDialogTonalElevation
+import com.example.vallego.ui.components.valleGoDialogStyle
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -280,6 +287,12 @@ fun AuthScreen(
     val density = LocalDensity.current
     var headerHeightDp by remember { mutableStateOf(240.dp) }
 
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (showSupportDialog) 20.dp else 0.dp,
+        animationSpec = tween(280),
+        label = "auth_dialog_blur"
+    )
+
     BoxWithConstraints(
         modifier = modifier.fillMaxSize()
     ) {
@@ -289,12 +302,15 @@ fun AuthScreen(
             painter = painterResource(id = R.drawable.fondo_login_register),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier)
         )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier)
                 .imePadding()
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -387,7 +403,7 @@ fun AuthScreen(
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Ingresa con tu cuenta ValleGO",
+                                text = "Ingresa con tu cuenta Campus Go",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 14.sp
                                 ),
@@ -513,7 +529,7 @@ fun AuthScreen(
                     if (!uiState.isLoginMode) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "¿Cómo usarás ValleGO?",
+                                text = "¿Cómo usarás Campus Go?",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF16324F)
@@ -1200,12 +1216,12 @@ fun AuthScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "¿Necesitas ayuda? ",
+                                text = "¿Necesitas ayuda o reportar un problema? ",
                                 fontSize = 12.sp,
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "Centro de soporte",
+                                text = "Centro de ayuda y reportes",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF00A884),
@@ -1226,7 +1242,18 @@ fun AuthScreen(
                             Text(
                                 text = "Powered by",
                                 fontSize = 11.sp,
-                                color = Color(0xFF94A3B8)
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF94A3B8),
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.width(7.dp))
+                            Image(
+                                painter = painterResource(id = R.drawable.kodex_logo),
+                                contentDescription = "Logo Kodex",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(RoundedCornerShape(5.dp))
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -1249,9 +1276,13 @@ fun AuthScreen(
     if (showSupportDialog) {
         AlertDialog(
             onDismissRequest = { showSupportDialog = false },
+            shape = ValleGoDialogShape,
+            containerColor = ValleGoDialogContainerColor,
+            tonalElevation = ValleGoDialogTonalElevation,
+            modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text(
-                    text = "Centro de Soporte ValleGO",
+                    text = "Centro de Soporte y Reportes Campus Go",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF16324F)
                 )
@@ -1259,7 +1290,7 @@ fun AuthScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "¿Tienes inconvenientes con tu cuenta, verificación o solicitud de vendedor? Comunícate con nuestro canal oficial:",
+                        text = "¿Tienes inconvenientes con tu cuenta, verificación, reportes o solicitud de vendedor? Comunícate con nuestro canal oficial de Campus Go:",
                         fontSize = 13.5.sp,
                         color = Color(0xFF475569)
                     )
@@ -1275,7 +1306,7 @@ fun AuthScreen(
                 TextButton(
                     onClick = {
                         try {
-                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20ValleGO")
+                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20Campus%20Go")
                         } catch (_: Exception) {}
                     }
                 ) {
@@ -1286,9 +1317,7 @@ fun AuthScreen(
                 TextButton(onClick = { showSupportDialog = false }) {
                     Text("Cerrar", color = Color(0xFF64748B))
                 }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White
+            }
         )
     }
 }

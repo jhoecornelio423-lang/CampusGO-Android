@@ -890,7 +890,7 @@ fun SubOrderTrackingItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = subOrder.sellerName.ifEmpty { "Emprendimiento Valle-Go" },
+                    text = subOrder.sellerName.ifEmpty { "Emprendimiento Campus Go" },
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodyMedium
                 )

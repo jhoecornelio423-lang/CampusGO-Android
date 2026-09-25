@@ -56,6 +56,9 @@ import com.example.vallego.ui.components.IncidentContextType
 import com.example.vallego.ui.components.ReportIncidentDialog
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.blur
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -115,9 +118,17 @@ fun BuyerSellerProfileScreen(
     var enlargedPhotoTitle by remember { mutableStateOf("") }
     var enlargedPhotoRole by remember { mutableStateOf("") }
     var isEnlargedBanner by remember { mutableStateOf(false) }
+    val isAnyModalOpen = showReportDialog || showEnlargedPhoto
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
+        animationSpec = tween(280),
+        label = "buyer_seller_profile_blur"
+    )
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(

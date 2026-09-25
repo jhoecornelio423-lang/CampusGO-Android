@@ -1,6 +1,8 @@
 package com.example.vallego.features.cart
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -56,9 +59,17 @@ fun OrderSummaryReceiptScreen(
     val coroutineScope = rememberCoroutineScope()
     var showReportDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
+    val backgroundBlurRadius by animateDpAsState(
+        targetValue = if (showReportDialog) 20.dp else 0.dp,
+        animationSpec = tween(280),
+        label = "order_summary_blur"
+    )
     BackHandler(onBack = onNavigateBack)
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier),
         topBar = {
             Surface(
                 color = Color.White,

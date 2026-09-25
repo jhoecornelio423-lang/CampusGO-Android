@@ -1,7 +1,7 @@
 @echo off
-title ValleGO - Instalar en Emulador
+title Campus Go - Instalar en Emulador
 echo =====================================================
-echo    Instalando ultima version de ValleGO en Emulador
+echo    Instalando ultima version de Campus Go en Emulador
 echo =====================================================
 echo.
 echo Conectando con el emulador...

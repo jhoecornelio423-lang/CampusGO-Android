@@ -1,7 +1,7 @@
 @echo off
-title ValleGO - Emulador Android
+title Campus Go - Emulador Android
 echo =====================================================
-echo       Iniciando Emulador de ValleGO en tu pantalla
+echo       Iniciando Emulador de Campus Go en tu pantalla
 echo =====================================================
 echo.
 
