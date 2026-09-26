@@ -33,11 +33,19 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material3.*
+import android.widget.Toast
+import com.example.vallego.domain.repository.OrderRepository
+import com.example.vallego.ui.components.IncidentContextType
+import com.example.vallego.ui.components.ReportIncidentDialog
+import org.koin.compose.koinInject
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,8 +101,13 @@ fun OrderChatBottomSheet(
     var showEnlargedPhoto by remember { mutableStateOf(false) }
     var enlargedPhotoUrl by remember { mutableStateOf<String?>(null) }
     var enlargedPhotoName by remember { mutableStateOf("") }
-    var enlargedPhotoRole by remember { mutableStateOf("Campus Go") }
+    var enlargedPhotoRole by remember { mutableStateOf("CampusGO") }
     var isEnlargedBanner by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+    val orderRepository: OrderRepository = koinInject()
+    var showReportDialog by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
 
     // Asegurar iconos blancos en la barra de estado mientras el chat esté abierto
     val view = LocalView.current
@@ -156,6 +169,7 @@ fun OrderChatBottomSheet(
             otherUserName = uiState.otherUserName,
             otherUserAvatarUrl = uiState.otherUserAvatarUrl,
             meetingPoint = uiState.meetingPoint,
+            deliveryCode = uiState.deliveryCode,
             onBack = { showFullScreenProfile = false },
             onOpenEnlargedPhoto = { url, name, role, isBanner ->
                 enlargedPhotoUrl = url
@@ -163,6 +177,9 @@ fun OrderChatBottomSheet(
                 enlargedPhotoRole = role
                 isEnlargedBanner = isBanner
                 showEnlargedPhoto = true
+            },
+            onReportUser = {
+                showReportDialog = true
             }
         )
         if (showEnlargedPhoto) {
@@ -172,6 +189,35 @@ fun OrderChatBottomSheet(
                 roleDescription = enlargedPhotoRole,
                 isBanner = isEnlargedBanner,
                 onDismiss = { showEnlargedPhoto = false }
+            )
+        }
+        if (showReportDialog) {
+            val isReportingSeller = uiState.otherUserProfile?.role == UserRole.EMPRENDEDOR
+            ReportIncidentDialog(
+                title = if (isReportingSeller) "Reportar Puesto Comercial" else "Reportar Comprador",
+                subtitle = "Usuario: ${uiState.otherUserName}",
+                contextType = if (isReportingSeller) IncidentContextType.SELLER else IncidentContextType.BUYER,
+                isSubmitting = isSubmittingReport,
+                onDismiss = { showReportDialog = false },
+                onSubmit = { reasonKey, reasonLabel, details ->
+                    coroutineScope.launch {
+                        isSubmittingReport = true
+                        val result = orderRepository.reportIncident(
+                            subOrderId = uiState.subOrderId.takeIf { it.isNotBlank() },
+                            reporterId = uiState.currentUserId.takeIf { it.isNotBlank() },
+                            reportedUserId = uiState.otherUserId.takeIf { it.isNotBlank() },
+                            incidentType = reasonKey,
+                            details = details.ifBlank { reasonLabel }
+                        )
+                        isSubmittingReport = false
+                        showReportDialog = false
+                        if (result.isSuccess) {
+                            Toast.makeText(context, "Reporte enviado al Administrador del Campus.", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Error al enviar reporte: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
             )
         }
         return
@@ -202,11 +248,14 @@ fun OrderChatBottomSheet(
             ) {
                 // A. TOP BAR ESTILO CAMPUS GO (Azul amigable y luminoso, no oscuro)
                 CampusGoTopBar(
+                    deliveryCode = uiState.deliveryCode,
+                    subOrderId = uiState.subOrderId,
                     otherUserName = uiState.otherUserName,
                     otherUserAvatarUrl = uiState.otherUserAvatarUrl,
                     meetingPoint = uiState.meetingPoint,
                     onBack = onDismiss,
-                    onOpenProfile = { showFullScreenProfile = true }
+                    onOpenProfile = { showFullScreenProfile = true },
+                    onOpenReport = { showReportDialog = true }
                 )
 
                 // B. AVISO DE PRIVACIDAD EFÍMERO (Flota directamente sobre el fondo de chat, sin fondo blanco)
@@ -285,16 +334,50 @@ fun OrderChatBottomSheet(
                 }
             )
         }
+
+        // 7. DIÁLOGO DE REPORTE DE INCIDENCIA
+        if (showReportDialog) {
+            val isReportingSeller = uiState.otherUserProfile?.role == UserRole.EMPRENDEDOR
+            ReportIncidentDialog(
+                title = if (isReportingSeller) "Reportar Puesto Comercial" else "Reportar Comprador",
+                subtitle = "Usuario: ${uiState.otherUserName}",
+                contextType = if (isReportingSeller) IncidentContextType.SELLER else IncidentContextType.BUYER,
+                isSubmitting = isSubmittingReport,
+                onDismiss = { showReportDialog = false },
+                onSubmit = { reasonKey, reasonLabel, details ->
+                    coroutineScope.launch {
+                        isSubmittingReport = true
+                        val result = orderRepository.reportIncident(
+                            subOrderId = uiState.subOrderId.takeIf { it.isNotBlank() },
+                            reporterId = uiState.currentUserId.takeIf { it.isNotBlank() },
+                            reportedUserId = uiState.otherUserId.takeIf { it.isNotBlank() },
+                            incidentType = reasonKey,
+                            details = details.ifBlank { reasonLabel }
+                        )
+                        isSubmittingReport = false
+                        showReportDialog = false
+                        if (result.isSuccess) {
+                            Toast.makeText(context, "Reporte enviado al Administrador del Campus.", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Error al enviar reporte: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            )
+        }
     }
 }
 
 @Composable
 private fun CampusGoTopBar(
+    deliveryCode: String = "",
+    subOrderId: String = "",
     otherUserName: String,
     otherUserAvatarUrl: String?,
     meetingPoint: String,
     onBack: () -> Unit,
-    onOpenProfile: () -> Unit
+    onOpenProfile: () -> Unit,
+    onOpenReport: () -> Unit
 ) {
     Surface(
         color = CampusBlue, // Azul amigable, fresco y luminoso (no oscuro)
@@ -356,8 +439,13 @@ private fun CampusGoTopBar(
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
+                            val locationText = meetingPoint.ifBlank { "Punto por convenir" }
+                            val codeDisplay = deliveryCode.ifBlank {
+                                if (subOrderId.isNotBlank()) (kotlin.math.abs(subOrderId.hashCode()) % 9000 + 1000).toString() else ""
+                            }
+                            val orderTag = if (codeDisplay.isNotBlank()) "Código #$codeDisplay • " else ""
                             Text(
-                                text = meetingPoint.ifBlank { "Punto por convenir" },
+                                text = "$orderTag$locationText",
                                 fontSize = 11.5.sp,
                                 color = Color.White.copy(alpha = 0.85f),
                                 maxLines = 1,
@@ -365,6 +453,15 @@ private fun CampusGoTopBar(
                             )
                         }
                     }
+                }
+
+                IconButton(onClick = onOpenReport) {
+                    Icon(
+                        imageVector = Icons.Default.ReportProblem,
+                        contentDescription = "Reportar",
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
                 IconButton(onClick = onOpenProfile) {
@@ -705,8 +802,10 @@ private fun ChatUserProfileFullScreen(
     otherUserName: String,
     otherUserAvatarUrl: String?,
     meetingPoint: String,
+    deliveryCode: String = "",
     onBack: () -> Unit,
-    onOpenEnlargedPhoto: (url: String?, name: String, role: String, isBanner: Boolean) -> Unit
+    onOpenEnlargedPhoto: (url: String?, name: String, role: String, isBanner: Boolean) -> Unit,
+    onReportUser: () -> Unit
 ) {
     BackHandler(onBack = onBack)
 
@@ -785,7 +884,7 @@ private fun ChatUserProfileFullScreen(
                                         onOpenEnlargedPhoto(
                                             otherUserAvatarUrl,
                                             otherUserName,
-                                            "Usuario Campus Go",
+                                            "Usuario CampusGO",
                                             false
                                         )
                                     }
@@ -809,7 +908,7 @@ private fun ChatUserProfileFullScreen(
                                 shape = RoundedCornerShape(20.dp)
                             ) {
                                 Text(
-                                    text = "Usuario Campus Go",
+                                    text = "Usuario CampusGO",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF475569),
@@ -1179,6 +1278,71 @@ private fun ChatUserProfileFullScreen(
                             }
                         }
                     }
+                }
+
+                if (deliveryCode.isNotBlank()) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00796B),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "Código de Entrega:",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF004D40)
+                                )
+                            }
+                            Text(
+                                text = "#$deliveryCode",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                letterSpacing = 2.sp,
+                                color = Color(0xFF004D40)
+                            )
+                        }
+                    }
+                }
+
+                // Botón de Reportar Incidencia / Usuario
+                OutlinedButton(
+                    onClick = onReportUser,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFDC2626)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ReportProblem,
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isSeller) "Reportar Puesto Comercial" else "Reportar Comprador",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

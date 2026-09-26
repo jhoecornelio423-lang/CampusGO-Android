@@ -1,7 +1,7 @@
 @echo off
-title Campus Go - Instalar en Emulador
+title CampusGO - Instalar en Emulador
 echo =====================================================
-echo    Instalando ultima version de Campus Go en Emulador
+echo    Instalando ultima version de CampusGO en Emulador
 echo =====================================================
 echo.
 echo Conectando con el emulador...

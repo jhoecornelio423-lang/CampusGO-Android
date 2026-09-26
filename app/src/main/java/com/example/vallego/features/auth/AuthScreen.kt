@@ -93,6 +93,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -335,13 +336,13 @@ fun AuthScreen(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.campus_logo),
-                        contentDescription = "Logo Campus Go",
+                        contentDescription = "Logo CampusGO",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.height(58.dp)
                     )
                     Image(
                         painter = painterResource(id = R.drawable.letras_logo_white),
-                        contentDescription = "Campus Go",
+                        contentDescription = "CampusGO",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.height(24.dp)
                     )
@@ -403,7 +404,7 @@ fun AuthScreen(
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Ingresa con tu cuenta Campus Go",
+                                text = "Ingresa con tu cuenta CampusGO",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 14.sp
                                 ),
@@ -529,7 +530,7 @@ fun AuthScreen(
                     if (!uiState.isLoginMode) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "¿Cómo usarás Campus Go?",
+                                text = "¿Cómo usarás CampusGO?",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF16324F)
@@ -1282,7 +1283,7 @@ fun AuthScreen(
             modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text(
-                    text = "Centro de Soporte y Reportes Campus Go",
+                    text = "Centro de Soporte y Reportes CampusGO",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF16324F)
                 )
@@ -1290,7 +1291,7 @@ fun AuthScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "¿Tienes inconvenientes con tu cuenta, verificación, reportes o solicitud de vendedor? Comunícate con nuestro canal oficial de Campus Go:",
+                        text = "¿Tienes inconvenientes con tu cuenta, verificación, reportes o solicitud de vendedor? Comunícate con nuestro canal oficial de CampusGO:",
                         fontSize = 13.5.sp,
                         color = Color(0xFF475569)
                     )
@@ -1306,7 +1307,7 @@ fun AuthScreen(
                 TextButton(
                     onClick = {
                         try {
-                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20Campus%20Go")
+                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20CampusGO")
                         } catch (_: Exception) {}
                     }
                 ) {
@@ -1340,13 +1341,13 @@ private fun RoleCardButton(
             width = if (isSelected) 2.dp else 1.dp,
             color = if (isSelected) Color(0xFF00897B) else Color(0xFFCBD5E1)
         ),
-        shadowElevation = if (isSelected) 4.dp else 0.dp,
-        modifier = modifier.height(58.dp)
+        shadowElevation = if (isSelected) 3.dp else 0.dp,
+        modifier = modifier.defaultMinSize(minHeight = 60.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -1356,8 +1357,8 @@ private fun RoleCardButton(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(if (isSelected) Color.White.copy(alpha = 0.22f) else Color(0xFFE2E8F0)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1366,39 +1367,47 @@ private fun RoleCardButton(
                             painter = iconPainter,
                             contentDescription = null,
                             tint = if (isSelected) Color.White else Color(0xFF64748B),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
                             tint = if (isSelected) Color.White else Color(0xFF64748B),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(verticalArrangement = Arrangement.Center) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
                     Text(
                         text = title,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 13.5.sp,
-                        color = if (isSelected) Color.White else Color(0xFF1E293B)
+                        fontSize = 13.sp,
+                        color = if (isSelected) Color.White else Color(0xFF1E293B),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = subtitle,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 10.sp,
-                        color = if (isSelected) Color.White.copy(alpha = 0.88f) else Color(0xFF64748B)
+                        fontSize = 9.5.sp,
+                        color = if (isSelected) Color.White.copy(alpha = 0.88f) else Color(0xFF64748B),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             if (isSelected) {
+                Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Seleccionado",
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }

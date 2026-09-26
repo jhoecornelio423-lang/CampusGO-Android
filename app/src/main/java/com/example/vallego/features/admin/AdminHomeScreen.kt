@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,6 +81,7 @@ import com.example.vallego.domain.model.SellerApplication
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
 import com.example.vallego.ui.components.PaymentMethodLogoByName
+import com.example.vallego.ui.components.StrikeBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import java.util.UUID
 import org.koin.androidx.compose.koinViewModel
@@ -633,6 +635,7 @@ fun AdminHomeScreen(
                             AdminTab.SELLERS_DIRECTORY -> {
                                 SellersDirectoryTabContent(
                                     sellers = uiState.filteredSellers,
+                                    strikesMap = uiState.userStrikesMap,
                                     searchQuery = uiState.sellerSearchQuery,
                                     onSearchQueryChange = { viewModel.onSellerSearchQueryChange(it) },
                                     onSelectSeller = { seller -> viewModel.onSelectSeller(seller) },
@@ -644,6 +647,7 @@ fun AdminHomeScreen(
                             AdminTab.BUYERS_DIRECTORY -> {
                                 BuyersDirectoryTabContent(
                                     buyers = uiState.filteredBuyers,
+                                    strikesMap = uiState.userStrikesMap,
                                     searchQuery = uiState.buyerSearchQuery,
                                     onSearchQueryChange = { viewModel.onBuyerSearchQueryChange(it) },
                                     onSelectBuyer = { buyer -> viewModel.onSelectBuyer(buyer) },
@@ -886,7 +890,7 @@ fun SellerApplicationsTabContent(
     onSuspendForIncident: (OrderIncident, UserProfile) -> Unit = { _, _ -> },
     onResolveIncident: (OrderIncident) -> Unit = {}
 ) {
-    var activeSubSection by remember { mutableStateOf(0) } // 0 = Solicitudes, 1 = Reportes e Incidencias
+    var activeSubSection by rememberSaveable { mutableStateOf(0) } // 0 = Solicitudes, 1 = Reportes e Incidencias
     val pendingIncidentsCount = remember(allIncidents) { allIncidents.count { it.isPending } }
 
     Column(
@@ -1520,6 +1524,7 @@ fun SellerApplicationCard(
 @Composable
 fun SellersDirectoryTabContent(
     sellers: List<UserProfile>,
+    strikesMap: Map<String, Int> = emptyMap(),
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSelectSeller: (UserProfile) -> Unit,
@@ -1591,6 +1596,7 @@ fun SellersDirectoryTabContent(
                 items(sellers, key = { it.id }) { seller ->
                     SellerDirectoryCard(
                         seller = seller,
+                        strikes = strikesMap[seller.id] ?: 0,
                         onSelectSeller = { onSelectSeller(seller) },
                         onSuspend = { onSuspend(seller) },
                         onReactivate = { onReactivate(seller) },
@@ -1605,6 +1611,7 @@ fun SellersDirectoryTabContent(
 @Composable
 fun SellerDirectoryCard(
     seller: UserProfile,
+    strikes: Int = 0,
     onSelectSeller: () -> Unit,
     onSuspend: () -> Unit,
     onReactivate: () -> Unit,
@@ -1658,17 +1665,20 @@ fun SellerDirectoryCard(
                         )
                     }
                 }
-                Surface(
-                    color = if (isSuspended) Color(0xFFC8102E) else if (seller.acceptingOrders) Color(0xFF2E7D32) else Color.Gray,
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = if (isSuspended) "SUSPENDIDO" else if (seller.acceptingOrders) "ABIERTO" else "CERRADO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Surface(
+                        color = if (isSuspended) Color(0xFFC8102E) else if (seller.acceptingOrders) Color(0xFF2E7D32) else Color.Gray,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = if (isSuspended) "SUSPENDIDO" else if (seller.acceptingOrders) "ABIERTO" else "CERRADO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    StrikeBadge(strikes = strikes, showAutoSuspensionLabel = true)
                 }
             }
 
@@ -1714,16 +1724,18 @@ fun SellerDirectoryCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onIssueWarning,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Llamar la atención",
-                            tint = Color(0xFFE65100),
-                            modifier = Modifier.size(18.dp)
-                        )
+                    if (strikes < 5) {
+                        IconButton(
+                            onClick = onIssueWarning,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Llamar la atención",
+                                tint = Color(0xFFE65100),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
 
                     Button(
@@ -1767,6 +1779,7 @@ fun SellerDirectoryCard(
 @Composable
 fun BuyersDirectoryTabContent(
     buyers: List<UserProfile>,
+    strikesMap: Map<String, Int> = emptyMap(),
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSelectBuyer: (UserProfile) -> Unit,
@@ -1838,6 +1851,7 @@ fun BuyersDirectoryTabContent(
                 items(buyers, key = { it.id }) { buyer ->
                     BuyerDirectoryCard(
                         buyer = buyer,
+                        strikes = strikesMap[buyer.id] ?: 0,
                         onSelectBuyer = { onSelectBuyer(buyer) },
                         onSuspend = { onSuspend(buyer) },
                         onReactivate = { onReactivate(buyer) },
@@ -1852,6 +1866,7 @@ fun BuyersDirectoryTabContent(
 @Composable
 fun BuyerDirectoryCard(
     buyer: UserProfile,
+    strikes: Int = 0,
     onSelectBuyer: () -> Unit,
     onSuspend: () -> Unit,
     onReactivate: () -> Unit,
@@ -1906,17 +1921,20 @@ fun BuyerDirectoryCard(
                         )
                     }
                 }
-                Surface(
-                    color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF2E7D32),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = if (isSuspended) "SUSPENDIDO" else "ACTIVO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Surface(
+                        color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF2E7D32),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = if (isSuspended) "SUSPENDIDO" else "ACTIVO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    StrikeBadge(strikes = strikes, showAutoSuspensionLabel = true)
                 }
             }
 
@@ -1995,16 +2013,18 @@ fun BuyerDirectoryCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onIssueWarning,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Llamar la atención",
-                            tint = Color(0xFFE65100),
-                            modifier = Modifier.size(18.dp)
-                        )
+                    if (strikes < 5) {
+                        IconButton(
+                            onClick = onIssueWarning,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Llamar la atención",
+                                tint = Color(0xFFE65100),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
 
                     Button(

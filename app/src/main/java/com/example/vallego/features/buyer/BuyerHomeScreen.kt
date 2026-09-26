@@ -163,11 +163,12 @@ fun BuyerHomeScreen(
                     ActiveChatSummary(
                         subOrderId = sub.id,
                         otherUserId = sub.sellerId,
-                        otherUserName = sub.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus-Go" },
+                        otherUserName = sub.sellerName.ifBlank { store?.sellerName ?: "Vendedor CampusGO" },
                         meetingPoint = sub.meetingPointName ?: "Punto por convenir",
                         status = sub.status,
                         subtotal = sub.subtotalAmount,
                         itemsSummary = sub.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                        deliveryCode = sub.verificationCode,
                         isBuyerPerspective = true,
                         otherUserAvatarUrl = sellerAvatar
                     )
@@ -241,7 +242,7 @@ fun BuyerHomeScreen(
                         bName.isNotBlank() && fName.isNotBlank() && !bName.equals(fName, ignoreCase = true) -> "$bName - $fName"
                         bName.isNotBlank() -> bName
                         fName.isNotBlank() -> fName
-                        else -> "Emprendimiento Campus Go"
+                        else -> "Emprendimiento CampusGO"
                     }
                     val loc = seller.businessLocation?.trim()?.takeIf { it.isNotBlank() } ?: "Campus ${currentProfile.campus}"
                     StoreCatalogGroup(
@@ -337,7 +338,8 @@ fun BuyerHomeScreen(
                     otherUserName = selectedChat.otherUserName,
                     meetingPoint = selectedChat.meetingPoint,
                     subOrderStatus = selectedChat.status,
-                    otherUserAvatarUrl = selectedChat.otherUserAvatarUrl
+                    otherUserAvatarUrl = selectedChat.otherUserAvatarUrl,
+                    deliveryCode = selectedChat.deliveryCode
                 )
             },
             onClose = { showActiveChatsSheet = false },
@@ -381,6 +383,7 @@ fun BuyerHomeScreen(
                     status = subOrder.status,
                     subtotal = subOrder.subtotalAmount,
                     itemsSummary = subOrder.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                    deliveryCode = subOrder.verificationCode,
                     isBuyerPerspective = true,
                     otherUserAvatarUrl = sellerAvatar
                 )
@@ -392,7 +395,8 @@ fun BuyerHomeScreen(
                     otherUserName = sellerName,
                     meetingPoint = meetingPt,
                     subOrderStatus = subOrder.status,
-                    otherUserAvatarUrl = sellerAvatar
+                    otherUserAvatarUrl = sellerAvatar,
+                    deliveryCode = subOrder.verificationCode
                 )
             },
             modifier = modifier
@@ -1024,6 +1028,7 @@ fun BuyerHomeScreen(
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.width(16.dp))
                     }
 
                     // 2. Carrusel de Categorías con Iconografía Vectorial Moderna (Lucide Vectors)
@@ -1077,6 +1082,7 @@ fun BuyerHomeScreen(
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.width(16.dp))
                     }
 
                     // 3. Tarjeta informativa de puesto seleccionado (si hay filtro activo)

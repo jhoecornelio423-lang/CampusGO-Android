@@ -41,6 +41,8 @@ import com.example.vallego.domain.model.UserRole
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
 import com.example.vallego.ui.components.PaymentMethodLogoByName
 import com.example.vallego.ui.components.StoreStatusBadge
+import com.example.vallego.ui.components.StrikeBadge
+import com.example.vallego.ui.components.StrikeManagementCard
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import com.example.vallego.ui.components.ValleGoBusinessBanner
 import com.example.vallego.ui.components.ValleGoProductImage
@@ -109,11 +111,17 @@ fun AdminSellerDetailScreen(
                     }
                 },
                 actions = {
-                    StoreStatusBadge(
-                        status = seller.businessStatus,
-                        acceptingOrders = seller.acceptingOrders,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(end = 12.dp)
-                    )
+                    ) {
+                        StrikeBadge(strikes = warnings.size, showAutoSuspensionLabel = true)
+                        StoreStatusBadge(
+                            status = seller.businessStatus,
+                            acceptingOrders = seller.acceptingOrders
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -694,102 +702,15 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 7. HISTORIAL DE LLAMADAS DE ATENCIÓN / ADVERTENCIAS
+            // 7. HISTORIAL DE STRIKES Y MEDIDAS DISCIPLINARIAS
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.WarningAmber,
-                                    contentDescription = null,
-                                    tint = if (warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF003366),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Llamadas de Atención al Puesto",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color(0xFF003366)
-                                )
-                            }
-
-                            Surface(
-                                color = if (warnings.isNotEmpty()) Color(0xFFFFF3E0) else Color(0xFFE8F5E9),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = if (warnings.size == 1) "1 advertencia" else "${warnings.size} advertencias",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF2E7D32),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                        if (warnings.isEmpty()) {
-                            Text(
-                                text = "El emprendedor no tiene llamadas de atención ni sanciones registradas en la plataforma.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                warnings.forEach { warning ->
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.surface,
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFCC80)),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Column(modifier = Modifier.padding(10.dp)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "Llamada de Atención Oficial",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 12.sp,
-                                                    color = Color(0xFFE65100)
-                                                )
-                                                Text(
-                                                    text = warning.createdAt?.take(10) ?: "Reciente",
-                                                    fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = warning.reason,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    StrikeManagementCard(
+                        strikes = warnings.size,
+                        warnings = warnings,
+                        isSeller = true,
+                        isSuspended = isSuspended
+                    )
                 }
             }
 
@@ -801,7 +722,7 @@ fun AdminSellerDetailScreen(
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (onIssueWarning != null) {
+                    if (onIssueWarning != null && warnings.size < 5) {
                         Button(
                             onClick = { onIssueWarning(seller) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
@@ -812,7 +733,7 @@ fun AdminSellerDetailScreen(
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Llamar la Atención al Puesto", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Llamar la Atención (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 

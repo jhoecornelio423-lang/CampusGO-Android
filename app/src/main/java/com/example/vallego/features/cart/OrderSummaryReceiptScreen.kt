@@ -17,7 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Store
@@ -100,7 +100,7 @@ fun OrderSummaryReceiptScreen(
                     )
                     IconButton(onClick = onNavigateToTracking) {
                         Icon(
-                            imageVector = Icons.Default.ReceiptLong,
+                            imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                             contentDescription = "Seguimiento",
                             tint = Color(0xFF003366)
                         )
@@ -417,6 +417,30 @@ fun OrderSummaryReceiptScreen(
                                             color = Color(0xFF1E293B)
                                         )
                                     }
+                                }
+
+                                HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val ptText = subOrder.meetingPointName?.takeIf { it.isNotBlank() } ?: order.meetingPointName.ifBlank { "Campus" }
+                                    val pmText = subOrder.paymentMethod?.name ?: order.paymentMethod?.name ?: "Efectivo"
+                                    Text(
+                                        text = "📍 $ptText",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF003366),
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Text(
+                                        text = "💳 $pmText",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF475569),
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }

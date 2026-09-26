@@ -2,7 +2,7 @@ package com.example.vallego.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta Oficial Campus Go
+// Paleta Oficial CampusGO
 val TurquoiseGreen = Color(0xFF16A085)  // Principal: Botones ("Pedir ahora", "Agregar al carrito", "Confirmar"), CTA, "Go" del logo
 val WarmYellow = Color(0xFFF4B942)      // Secundario: Promociones, insignias de estado, estrellas, acentos
 val DarkBlue = Color(0xFF16324F)        // Contraste: Encabezados, títulos, navegación, "Campus" del logo

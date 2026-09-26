@@ -10,7 +10,9 @@ class CreateOrderWithSubordersUseCase {
         scheduledTime: String,
         paymentMethod: PaymentMethod,
         cartResult: CartCalculationResult,
-        notes: String? = null
+        notes: String? = null,
+        meetingPointsBySeller: Map<String, CampusMeetingPoint> = emptyMap(),
+        paymentMethodsBySeller: Map<String, PaymentMethod> = emptyMap()
     ): Order {
         val orderId = UUID.randomUUID().toString()
         val subOrders = cartResult.storeGroups.map { group ->
@@ -26,6 +28,8 @@ class CreateOrderWithSubordersUseCase {
                     subtotal = cartItem.subtotal
                 )
             }
+            val sellerPoint = meetingPointsBySeller[group.sellerId] ?: meetingPoint
+            val sellerPm = paymentMethodsBySeller[group.sellerId] ?: paymentMethod
             SubOrder(
                 id = subOrderId,
                 orderId = orderId,
@@ -34,15 +38,23 @@ class CreateOrderWithSubordersUseCase {
                 items = subOrderItems,
                 subtotalAmount = group.subtotal,
                 status = SubOrderStatus.PENDIENTE,
-                paymentMethod = paymentMethod
+                paymentMethod = sellerPm,
+                meetingPointId = sellerPoint.id,
+                meetingPointName = sellerPoint.name,
+                scheduledTime = scheduledTime,
+                buyerId = buyerProfile.id,
+                buyerName = buyerProfile.fullName,
+                buyerPhone = buyerProfile.phone,
+                notes = notes
             )
         }
+        val defaultPoint = meetingPoint
         return Order(
             id = orderId,
             buyerId = buyerProfile.id,
             buyerName = buyerProfile.fullName,
-            meetingPointId = meetingPoint.id,
-            meetingPointName = meetingPoint.name,
+            meetingPointId = defaultPoint.id,
+            meetingPointName = defaultPoint.name,
             scheduledTime = scheduledTime,
             totalAmount = cartResult.grandTotal,
             status = OrderStatus.PENDIENTE,

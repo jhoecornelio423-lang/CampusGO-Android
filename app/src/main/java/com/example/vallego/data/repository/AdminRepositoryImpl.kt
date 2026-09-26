@@ -159,6 +159,8 @@ class AdminRepositoryImpl(
     private val _sellersFlow = MutableStateFlow<List<UserProfile>>(defaultSellers)
     private val _buyersFlow = MutableStateFlow<List<UserProfile>>(defaultBuyers)
     private val _incidentsFlow = MutableStateFlow<List<OrderIncident>>(emptyList())
+    private val _userStrikesFlow = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val inMemoryWarnings = mutableListOf<ProfileWarning>()
 
     init {
         scope.launch {
@@ -172,6 +174,7 @@ class AdminRepositoryImpl(
         refreshSellers()
         refreshBuyers()
         refreshIncidents()
+        refreshUserStrikes()
     }
 
     override suspend fun refreshMeetingPoints() = withContext(Dispatchers.IO) {
@@ -481,6 +484,21 @@ class AdminRepositoryImpl(
 
     override suspend fun toggleSellerSuspension(sellerId: String, isSuspended: Boolean, reason: String?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            // Si se reactiva (isSuspended == false), comprobar si tenía 5 o más strikes para resetearlos a 0
+            val currentStrikes = _userStrikesFlow.value[sellerId] ?: 0
+            if (!isSuspended && currentStrikes >= 5) {
+                if (postgrest != null) {
+                    try {
+                        postgrest.from("profile_warnings").delete {
+                            filter { eq("profile_id", sellerId) }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("AdminRepo", "Error al borrar warnings para reactivacion: ${e.message}")
+                    }
+                }
+                inMemoryWarnings.removeAll { it.profileId == sellerId }
+            }
+
             if (postgrest != null) {
                 try {
                     postgrest.rpc(
@@ -494,6 +512,7 @@ class AdminRepositoryImpl(
                         }
                     )
                     refreshSellers()
+                    refreshUserStrikes()
                     return@withContext Result.success(Unit)
                 } catch (e: Exception) {
                     android.util.Log.e("AdminRepo", "RPC toggle_seller_suspension_rpc fallo: ${e.message}")
@@ -517,6 +536,7 @@ class AdminRepositoryImpl(
                         filter { eq("id", sellerId) }
                     }
                     refreshSellers()
+                    refreshUserStrikes()
                     return@withContext Result.success(Unit)
                 } catch (e: Exception) {
                     android.util.Log.e("AdminRepo", "Direct update profiles fallo: ${e.message}")
@@ -535,6 +555,7 @@ class AdminRepositoryImpl(
                 )
                 _sellersFlow.value = current
             }
+            refreshUserStrikes()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -545,6 +566,21 @@ class AdminRepositoryImpl(
 
     override suspend fun toggleBuyerSuspension(buyerId: String, isSuspended: Boolean, reason: String?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            // Si se reactiva (isSuspended == false), comprobar si tenía 5 o más strikes para resetearlos a 0
+            val currentStrikes = _userStrikesFlow.value[buyerId] ?: 0
+            if (!isSuspended && currentStrikes >= 5) {
+                if (postgrest != null) {
+                    try {
+                        postgrest.from("profile_warnings").delete {
+                            filter { eq("profile_id", buyerId) }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("AdminRepo", "Error al borrar warnings para reactivacion: ${e.message}")
+                    }
+                }
+                inMemoryWarnings.removeAll { it.profileId == buyerId }
+            }
+
             if (postgrest != null) {
                 val targetRole = if (isSuspended) "suspended_buyer" else "comprador"
                 postgrest.from("profiles").update(
@@ -560,6 +596,7 @@ class AdminRepositoryImpl(
                     filter { eq("id", buyerId) }
                 }
                 refreshBuyers()
+                refreshUserStrikes()
                 return@withContext Result.success(Unit)
             }
 
@@ -573,6 +610,7 @@ class AdminRepositoryImpl(
                 )
                 _buyersFlow.value = current
             }
+            refreshUserStrikes()
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("AdminRepo", "Error al cambiar suspension de comprador: ${e.message}", e)
@@ -580,19 +618,94 @@ class AdminRepositoryImpl(
         }
     }
 
+    override fun observeUserStrikes(): Flow<Map<String, Int>> = _userStrikesFlow.asStateFlow()
+
+    override suspend fun refreshUserStrikes() = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val allWarnings = postgrest.from("profile_warnings").select().decodeList<ProfileWarning>()
+                val strikesMap = allWarnings.groupBy { it.profileId }.mapValues { it.value.size }
+                _userStrikesFlow.value = strikesMap
+
+                // Auto-suspensión inmediata si alguien alcanza 5 o más strikes y aún no está suspendido
+                strikesMap.forEach { (profileId, count) ->
+                    if (count >= 5) {
+                        val currentSeller = _sellersFlow.value.find { it.id == profileId }
+                        if (currentSeller != null && currentSeller.role != UserRole.SUSPENDED) {
+                            toggleSellerSuspension(
+                                sellerId = profileId,
+                                isSuspended = true,
+                                reason = "Suspensión automática del sistema por acumulación de $count strikes."
+                            )
+                        }
+                        val currentBuyer = _buyersFlow.value.find { it.id == profileId }
+                        if (currentBuyer != null && currentBuyer.role != UserRole.SUSPENDED_BUYER && currentBuyer.role != UserRole.SUSPENDED) {
+                            toggleBuyerSuspension(
+                                buyerId = profileId,
+                                isSuspended = true,
+                                reason = "Suspensión automática del sistema por acumulación de $count strikes."
+                            )
+                        }
+                    }
+                }
+                return@withContext
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error al refrescar strikes de usuarios: ${e.message}", e)
+        }
+
+        val strikesMap = inMemoryWarnings.groupBy { it.profileId }.mapValues { it.value.size }
+        _userStrikesFlow.value = strikesMap
+        strikesMap.forEach { (profileId, count) ->
+            if (count >= 5) {
+                val currentSeller = _sellersFlow.value.find { it.id == profileId }
+                if (currentSeller != null && currentSeller.role != UserRole.SUSPENDED) {
+                    toggleSellerSuspension(
+                        sellerId = profileId,
+                        isSuspended = true,
+                        reason = "Suspensión automática del sistema por acumulación de $count strikes."
+                    )
+                }
+                val currentBuyer = _buyersFlow.value.find { it.id == profileId }
+                if (currentBuyer != null && currentBuyer.role != UserRole.SUSPENDED_BUYER && currentBuyer.role != UserRole.SUSPENDED) {
+                    toggleBuyerSuspension(
+                        buyerId = profileId,
+                        isSuspended = true,
+                        reason = "Suspensión automática del sistema por acumulación de $count strikes."
+                    )
+                }
+            }
+        }
+    }
+
     override suspend fun issueWarning(profileId: String, reason: String, createdBy: String?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            val currentStrikes = _userStrikesFlow.value[profileId] ?: 0
+            if (currentStrikes >= 5) {
+                return@withContext Result.failure(IllegalStateException("El usuario ya alcanzó el tope máximo de 5 strikes y su cuenta está suspendida."))
+            }
+
+            val warningId = UUID.randomUUID().toString()
+            val newWarning = ProfileWarning(
+                id = warningId,
+                profileId = profileId,
+                reason = reason.trim(),
+                createdBy = createdBy,
+                createdAt = java.time.Instant.now().toString()
+            )
             if (postgrest != null) {
                 postgrest.from("profile_warnings").insert(
                     buildJsonObject {
-                        put("id", UUID.randomUUID().toString())
+                        put("id", warningId)
                         put("profile_id", profileId)
                         put("reason", reason.trim())
                         createdBy?.let { put("created_by", it) }
                     }
                 )
-                return@withContext Result.success(Unit)
+            } else {
+                inMemoryWarnings.add(0, newWarning)
             }
+            refreshUserStrikes()
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("AdminRepo", "Error al emitir advertencia: ${e.message}", e)
@@ -611,7 +724,8 @@ class AdminRepositoryImpl(
                 }.decodeList<ProfileWarning>()
                 return@withContext Result.success(warnings)
             }
-            Result.success(emptyList())
+            val warnings = inMemoryWarnings.filter { it.profileId == profileId }
+            Result.success(warnings)
         } catch (e: Exception) {
             android.util.Log.e("AdminRepo", "Error al obtener advertencias: ${e.message}", e)
             Result.failure(e)

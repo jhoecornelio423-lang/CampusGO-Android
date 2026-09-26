@@ -61,7 +61,7 @@ class ValleGoPushService : Service(), KoinComponent {
         ValleGoNotificationHelper.createNotificationChannels(this)
         val ongoingNotification = ValleGoNotificationHelper.getForegroundServiceNotification(
             context = this,
-            title = "Campus Go",
+            title = "CampusGO",
             content = "Monitoreando pedidos y notificaciones en campus"
         )
         try {
@@ -79,7 +79,9 @@ class ValleGoPushService : Service(), KoinComponent {
         }
 
         val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ValleGo:PushServiceWakeLock")
+        wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ValleGo:PushServiceWakeLock")?.apply {
+            setReferenceCounted(false)
+        }
 
         Log.d(TAG, "ValleGoPushService iniciado en primer plano.")
     }
@@ -172,7 +174,7 @@ class ValleGoPushService : Service(), KoinComponent {
             Log.d(TAG, "Iniciando bucle de monitoreo de pedidos en segundo plano...")
             while (isActive) {
                 try {
-                    wakeLock?.acquire(3000L)
+                    try { wakeLock?.acquire(3000L) } catch (_: Exception) {}
                     val user = auth.currentUserOrNull()
                     if (user != null) {
                         val userId = user.id
@@ -540,11 +542,11 @@ class ValleGoPushService : Service(), KoinComponent {
             val profile = postgrest.from("profiles")
                 .select { filter { eq("id", senderId) } }
                 .decodeSingleOrNull<ProfileBasicDto>()
-            val name = profile?.fullName?.takeIf { it.isNotBlank() } ?: "Usuario de Campus Go"
+            val name = profile?.fullName?.takeIf { it.isNotBlank() } ?: "Usuario de CampusGO"
             profileNameCache[senderId] = name
             name
         } catch (_: Exception) {
-            "Usuario de Campus Go"
+            "Usuario de CampusGO"
         }
     }
 

@@ -72,6 +72,9 @@ data class RemoteSubOrderDto(
     @SerialName("is_delivery_confirmed") val isDeliveryConfirmed: Boolean = false,
     @SerialName("delivery_code") val deliveryCode: String? = null,
     @SerialName("stock_reserved") val stockReserved: Boolean = true,
+    @SerialName("meeting_point_id") val meetingPointId: String? = null,
+    @SerialName("meeting_point_name") val meetingPointName: String? = null,
+    @SerialName("scheduled_time") val scheduledTime: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
@@ -205,6 +208,15 @@ class OrderRepositoryImpl(
                             put("id", subId)
                             put("seller_id", sub.sellerId)
                             put("payment_method", subPm)
+                            if (!sub.meetingPointId.isNullOrBlank()) {
+                                put("meeting_point_id", sub.meetingPointId)
+                            }
+                            if (!sub.meetingPointName.isNullOrBlank()) {
+                                put("meeting_point_name", sub.meetingPointName)
+                            }
+                            if (!sub.scheduledTime.isNullOrBlank()) {
+                                put("scheduled_time", sub.scheduledTime)
+                            }
                             put("items", buildJsonArray {
                                 for (item in sub.items) {
                                     val itemId = if (isValidUUID(item.id)) item.id else UUID.randomUUID().toString()
@@ -461,13 +473,13 @@ class OrderRepositoryImpl(
                                         status = subStatus,
                                         rejectionReason = rso.rejectionReason,
                                         paymentMethod = parsePaymentMethod(rso.paymentMethod),
-                                        meetingPointId = ro.meetingPointId,
-                                        meetingPointName = meetingPlace,
-                                        scheduledTime = schedule,
+                                        meetingPointId = rso.meetingPointId ?: ro.meetingPointId,
+                                        meetingPointName = rso.meetingPointName ?: meetingPlace,
+                                        scheduledTime = rso.scheduledTime ?: schedule,
                                         buyerId = ro.buyerId,
                                         buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
                                         buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
-                                        buyerAvatarUrl = ro.buyerId?.let { profileAvatarCache[it] },
+                                        buyerAvatarUrl = profileAvatarCache[ro.buyerId],
                                         notes = ro.notes,
                                         isPaymentConfirmed = rso.isPaymentConfirmed,
                                         isDeliveryConfirmed = rso.isDeliveryConfirmed,
@@ -507,7 +519,7 @@ class OrderRepositoryImpl(
                                         buyerId = ro.buyerId,
                                         buyerName = profileNameCache[ro.buyerId] ?: "Comprador",
                                         buyerPhone = profilePhoneCache[ro.buyerId] ?: "",
-                                        buyerAvatarUrl = ro.buyerId?.let { profileAvatarCache[it] },
+                                        buyerAvatarUrl = profileAvatarCache[ro.buyerId],
                                         notes = ro.notes,
                                         isPaymentConfirmed = (subStatus == SubOrderStatus.COMPLETADO),
                                         isDeliveryConfirmed = (subStatus == SubOrderStatus.COMPLETADO),
@@ -757,9 +769,9 @@ class OrderRepositoryImpl(
                                 status = subStatus,
                                 rejectionReason = rso.rejectionReason,
                                 paymentMethod = parsePaymentMethod(rso.paymentMethod),
-                                meetingPointId = parentOrder?.meetingPointId,
-                                meetingPointName = meetingPlace,
-                                scheduledTime = scheduledTime,
+                                meetingPointId = rso.meetingPointId ?: parentOrder?.meetingPointId,
+                                meetingPointName = rso.meetingPointName ?: meetingPlace,
+                                scheduledTime = rso.scheduledTime ?: scheduledTime,
                                 buyerId = buyerId,
                                 buyerName = buyerName,
                                 buyerPhone = buyerPhone,

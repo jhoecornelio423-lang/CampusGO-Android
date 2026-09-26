@@ -39,6 +39,7 @@ data class AdminUiState(
     val buyerStats: BuyerOrderStats? = null,
     val isLoadingBuyerDetail: Boolean = false,
     val userWarnings: List<ProfileWarning> = emptyList(),
+    val userStrikesMap: Map<String, Int> = emptyMap(),
     val userIncidents: List<OrderIncident> = emptyList(),
     val isLoadingWarnings: Boolean = false,
     val isLoading: Boolean = false,

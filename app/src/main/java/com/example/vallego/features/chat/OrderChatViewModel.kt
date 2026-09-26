@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 
 data class OrderChatUiState(
     val subOrderId: String = "",
+    val deliveryCode: String = "",
     val currentUserId: String = "",
     val otherUserId: String = "",
     val otherUserName: String = "",
@@ -51,16 +52,21 @@ class OrderChatViewModel(
         otherUserName: String,
         meetingPoint: String,
         subOrderStatus: SubOrderStatus,
-        otherUserAvatarUrl: String? = null
+        otherUserAvatarUrl: String? = null,
+        deliveryCode: String = ""
     ) {
         // Registrar de inmediato la conversación activa para silenciar notificaciones locales
         ActiveChatSessionManager.activeSubOrderId = subOrderId
         ActiveChatSessionManager.activeOtherUserId = otherUserId
 
         val isFinished = subOrderStatus.isFinal
+        val effectiveCode = deliveryCode.ifBlank {
+            if (subOrderId.isNotBlank()) (kotlin.math.abs(subOrderId.hashCode()) % 9000 + 1000).toString() else ""
+        }
         _uiState.update {
             it.copy(
                 subOrderId = subOrderId,
+                deliveryCode = effectiveCode,
                 currentUserId = currentUserId,
                 otherUserId = otherUserId,
                 otherUserName = otherUserName,

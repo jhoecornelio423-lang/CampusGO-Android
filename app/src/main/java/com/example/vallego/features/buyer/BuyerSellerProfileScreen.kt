@@ -548,7 +548,7 @@ fun BuyerSellerProfileScreen(
                     }
                     Text(
                         text = store.description?.takeIf { it.isNotBlank() }
-                            ?: "Emprendimiento estudiantil de Campus Go. Ofrece productos preparados y seleccionados especialmente para los estudiantes y docentes del campus universitario.",
+                            ?: "Emprendimiento estudiantil de CampusGO. Ofrece productos preparados y seleccionados especialmente para los estudiantes y docentes del campus universitario.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF334155),
                         lineHeight = 20.sp

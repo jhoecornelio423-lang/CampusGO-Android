@@ -1,13 +1,19 @@
 package com.example.vallego.features.seller
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ReportProblem
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.ui.draw.clip
+import com.example.vallego.ui.components.ValleGoUserAvatar
+import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +56,7 @@ fun SellerOrderDetailDialog(
     val coroutineScope = rememberCoroutineScope()
     var showReportBuyerDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
+    var showEnlargedBuyerPhoto by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = ValleGoDialogShape,
@@ -130,40 +137,105 @@ fun SellerOrderDetailDialog(
                     }
                 }
 
-                // Datos del Comprador
+                // Datos del Comprador (Foto de perfil, rol e información visible)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Datos del Cliente",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF003366)
-                        )
-                        Text(
-                            text = "Comprador: ${subOrder.buyerName ?: "Estudiante Universitario"}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        if (!subOrder.buyerPhone.isNullOrBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "Teléfono: ${subOrder.buyerPhone}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Datos del Cliente",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color(0xFF003366)
                             )
+                            Surface(
+                                color = Color(0xFFE0F2FE),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = "🎓 Estudiante / Comprador",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0369A1),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
                         }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.BottomEnd,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        if (!subOrder.buyerAvatarUrl.isNullOrBlank()) {
+                                            showEnlargedBuyerPhoto = true
+                                        }
+                                    }
+                            ) {
+                                ValleGoUserAvatar(
+                                    avatarUrl = subOrder.buyerAvatarUrl,
+                                    name = subOrder.buyerName,
+                                    size = 48.dp
+                                )
+                                if (!subOrder.buyerAvatarUrl.isNullOrBlank()) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFF003366),
+                                        border = BorderStroke(1.5.dp, Color.White),
+                                        modifier = Modifier.size(18.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.ZoomIn,
+                                                contentDescription = "Ampliar foto",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+                        }
+
                         if (!subOrder.notes.isNullOrBlank()) {
-                            Text(
-                                text = "Instrucciones: ${subOrder.notes}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Surface(
+                                color = Color(0xFFF8FAFC),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(0.5.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Nota: ${subOrder.notes}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF475569),
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
                         }
 
                         Row(
@@ -400,6 +472,16 @@ fun SellerOrderDetailDialog(
                     }
                 }
             }
+        )
+    }
+
+    if (showEnlargedBuyerPhoto) {
+        EnlargedPhotoViewerDialog(
+            photoUrl = subOrder.buyerAvatarUrl,
+            name = subOrder.buyerName ?: "Comprador",
+            roleDescription = "Estudiante CampusGO",
+            isBanner = false,
+            onDismiss = { showEnlargedBuyerPhoto = false }
         )
     }
 }

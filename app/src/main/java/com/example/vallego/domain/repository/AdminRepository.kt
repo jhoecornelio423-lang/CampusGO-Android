@@ -33,6 +33,8 @@ interface AdminRepository {
 
     suspend fun issueWarning(profileId: String, reason: String, createdBy: String? = null): Result<Unit>
     suspend fun getProfileWarnings(profileId: String): Result<List<ProfileWarning>>
+    fun observeUserStrikes(): Flow<Map<String, Int>>
+    suspend fun refreshUserStrikes()
     suspend fun getBuyerOrderStats(buyerId: String): Result<BuyerOrderStats>
 
     fun observeIncidents(): Flow<List<OrderIncident>>

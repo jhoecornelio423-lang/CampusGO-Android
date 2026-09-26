@@ -136,15 +136,47 @@ data class CartUiState(
     val isSubmitting: Boolean = false,
     val placedOrder: Order? = null,
     val errorMessage: String? = null,
-    val meetingPointWarning: String? = null
+    val meetingPointWarning: String? = null,
+    // Soporte multi-vendedor independiente
+    val sellerMeetingPoints: Map<String, List<CampusMeetingPoint>> = emptyMap(),
+    val selectedMeetingPointsBySeller: Map<String, CampusMeetingPoint> = emptyMap(),
+    val sellerPaymentMethods: Map<String, List<PaymentMethod>> = emptyMap(),
+    val selectedPaymentMethodsBySeller: Map<String, PaymentMethod> = emptyMap(),
+    val isSplitDeliveryMode: Boolean = false,
+    val isSplitPaymentMode: Boolean = false
 ) {
     val isEmpty: Boolean get() = calculation.storeGroups.isEmpty()
+    val isMultiSeller: Boolean get() = calculation.storeGroups.size > 1
+    val hasCommonMeetingPoints: Boolean get() = meetingPoints.isNotEmpty()
+    val hasCommonPaymentMethods: Boolean get() = availablePaymentMethods.isNotEmpty()
+
+    val isSplitDeliveryEffective: Boolean
+        get() = isMultiSeller && (!hasCommonMeetingPoints || isSplitDeliveryMode)
+
+    val isSplitPaymentEffective: Boolean
+        get() = isMultiSeller && (!hasCommonPaymentMethods || isSplitPaymentMode)
+
+    val canProceedToPayment: Boolean
+        get() {
+            if (isEmpty || selectedTimeSlot.isBlank()) return false
+            if (isSplitDeliveryEffective) {
+                return calculation.storeGroups.all { group ->
+                    selectedMeetingPointsBySeller[group.sellerId] != null || selectedMeetingPoint != null
+                }
+            }
+            return selectedMeetingPoint != null
+        }
+
     val canCheckout: Boolean
-        get() = !isEmpty &&
-                selectedMeetingPoint != null &&
-                selectedTimeSlot.isNotBlank() &&
-                !isSubmitting &&
-                meetingPointWarning == null &&
-                paymentMethodWarning == null &&
-                availablePaymentMethods.contains(selectedPaymentMethod)
+        get() {
+            if (!canProceedToPayment || isSubmitting) return false
+            if (isSplitPaymentEffective) {
+                return calculation.storeGroups.all { group ->
+                    val chosen = selectedPaymentMethodsBySeller[group.sellerId] ?: selectedPaymentMethod
+                    val allowed = sellerPaymentMethods[group.sellerId] ?: availablePaymentMethods
+                    allowed.isEmpty() || chosen in allowed
+                }
+            }
+            return availablePaymentMethods.isEmpty() || availablePaymentMethods.contains(selectedPaymentMethod)
+        }
 }

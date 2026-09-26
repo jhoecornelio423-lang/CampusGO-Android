@@ -144,11 +144,12 @@ fun SellerDashboardScreen(
                     ActiveChatSummary(
                         subOrderId = sub.id,
                         otherUserId = sub.buyerId ?: "",
-                        otherUserName = sub.buyerName?.ifBlank { "Comprador Campus-Go" } ?: "Comprador Campus-Go",
+                        otherUserName = sub.buyerName?.ifBlank { "Comprador CampusGO" } ?: "Comprador CampusGO",
                         meetingPoint = sub.meetingPointName ?: "Punto por acordar",
                         status = sub.status,
                         subtotal = sub.subtotalAmount,
                         itemsSummary = sub.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                        deliveryCode = sub.verificationCode,
                         isBuyerPerspective = false,
                         otherUserAvatarUrl = sub.buyerAvatarUrl
                     )
@@ -169,7 +170,8 @@ fun SellerDashboardScreen(
                         otherUserName = matchingSub.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                         meetingPoint = matchingSub.meetingPointName ?: "Punto por convenir",
                         subOrderStatus = matchingSub.status,
-                        otherUserAvatarUrl = summary.otherUserAvatarUrl ?: matchingSub.buyerAvatarUrl
+                        otherUserAvatarUrl = summary.otherUserAvatarUrl ?: matchingSub.buyerAvatarUrl,
+                        deliveryCode = summary.deliveryCode
                     )
                 }
             },
@@ -1192,7 +1194,8 @@ fun SellerDashboardScreen(
                     otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                     meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
                     subOrderStatus = subOrder.status,
-                    otherUserAvatarUrl = subOrder.buyerAvatarUrl
+                    otherUserAvatarUrl = subOrder.buyerAvatarUrl,
+                    deliveryCode = subOrder.verificationCode
                 )
             }
         )
@@ -1538,7 +1541,8 @@ fun SellerDashboardScreen(
                                                 otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                                                 meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
                                                 subOrderStatus = subOrder.status,
-                                                otherUserAvatarUrl = subOrder.buyerAvatarUrl
+                                                otherUserAvatarUrl = subOrder.buyerAvatarUrl,
+                                                deliveryCode = subOrder.verificationCode
                                             )
                                         }
                                     )
@@ -1627,7 +1631,8 @@ fun SellerDashboardScreen(
                                                 otherUserName = subOrder.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
                                                 meetingPoint = subOrder.meetingPointName ?: "Punto de entrega",
                                                 subOrderStatus = subOrder.status,
-                                                otherUserAvatarUrl = subOrder.buyerAvatarUrl
+                                                otherUserAvatarUrl = subOrder.buyerAvatarUrl,
+                                                deliveryCode = subOrder.verificationCode
                                             )
                                         }
                                     )
@@ -2012,11 +2017,22 @@ fun SellerSubOrderCard(
                             }
                         }
                         if (!subOrder.buyerName.isNullOrBlank()) {
-                            Text(
-                                text = "Comprador: ${subOrder.buyerName}" + if (!subOrder.buyerPhone.isNullOrBlank()) " (${subOrder.buyerPhone})" else "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(top = 2.dp)
+                            ) {
+                                ValleGoUserAvatar(
+                                    avatarUrl = subOrder.buyerAvatarUrl,
+                                    name = subOrder.buyerName,
+                                    size = 20.dp
+                                )
+                                Text(
+                                    text = "Comprador: ${subOrder.buyerName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

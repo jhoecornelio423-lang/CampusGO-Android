@@ -72,6 +72,11 @@ class AdminViewModel(
                 _uiState.update { it.copy(metrics = metrics) }
             }
         }
+        viewModelScope.launch {
+            adminRepository.observeUserStrikes().collect { strikes ->
+                _uiState.update { it.copy(userStrikesMap = strikes) }
+            }
+        }
         loadDetailedMetrics(MetricsPeriod.HOY)
     }
 
@@ -197,6 +202,7 @@ class AdminViewModel(
                 adminRepository.refreshSellers()
                 adminRepository.refreshBuyers()
                 adminRepository.refreshIncidents()
+                adminRepository.refreshUserStrikes()
                 loadDetailedMetrics(_uiState.value.selectedMetricsPeriod)
                 _uiState.value.selectedSellerDetail?.let { seller ->
                     val prods = productRepository.getProductsBySeller(seller.id).getOrDefault(emptyList())
@@ -368,6 +374,7 @@ class AdminViewModel(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = false)
+            val updatedWarnings = adminRepository.getProfileWarnings(sellerId).getOrDefault(emptyList())
             _uiState.update { currentState ->
                 val updatedDetail = if (currentState.selectedSellerDetail?.id == sellerId) {
                     currentState.selectedSellerDetail.copy(
@@ -379,6 +386,7 @@ class AdminViewModel(
                 } else currentState.selectedSellerDetail
                 currentState.copy(
                     selectedSellerDetail = updatedDetail,
+                    userWarnings = if (currentState.selectedSellerDetail?.id == sellerId) updatedWarnings else currentState.userWarnings,
                     isLoading = false,
                     successMessage = if (result.isSuccess) "Puesto reactivado exitosamente." else null,
                     errorMessage = if (result.isFailure) "Error al reactivar: ${result.exceptionOrNull()?.message}" else null
@@ -430,6 +438,7 @@ class AdminViewModel(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val result = adminRepository.toggleBuyerSuspension(buyerId, isSuspended = false)
+            val updatedWarnings = adminRepository.getProfileWarnings(buyerId).getOrDefault(emptyList())
             _uiState.update { currentState ->
                 val updatedDetail = if (currentState.selectedBuyerDetail?.id == buyerId) {
                     currentState.selectedBuyerDetail.copy(
@@ -439,6 +448,7 @@ class AdminViewModel(
                 } else currentState.selectedBuyerDetail
                 currentState.copy(
                     selectedBuyerDetail = updatedDetail,
+                    userWarnings = if (currentState.selectedBuyerDetail?.id == buyerId) updatedWarnings else currentState.userWarnings,
                     isLoading = false,
                     successMessage = if (result.isSuccess) "Comprador reactivado exitosamente." else null,
                     errorMessage = if (result.isFailure) "Error al reactivar comprador: ${result.exceptionOrNull()?.message}" else null
@@ -448,6 +458,11 @@ class AdminViewModel(
     }
 
     fun openWarningDialog(user: UserProfile) {
+        val currentStrikes = _uiState.value.userStrikesMap[user.id] ?: 0
+        if (currentStrikes >= 5) {
+            _uiState.update { it.copy(errorMessage = "El usuario ya alcanzó el tope máximo de 5 strikes y está suspendido.") }
+            return
+        }
         _uiState.update { it.copy(selectedUserForWarning = user) }
     }
 
@@ -456,6 +471,11 @@ class AdminViewModel(
     }
 
     fun openWarningDialogForIncident(incident: OrderIncident, reportedUser: UserProfile) {
+        val currentStrikes = _uiState.value.userStrikesMap[reportedUser.id] ?: 0
+        if (currentStrikes >= 5) {
+            _uiState.update { it.copy(errorMessage = "El usuario ya alcanzó el tope máximo de 5 strikes y está suspendido.") }
+            return
+        }
         _uiState.update {
             it.copy(
                 selectedUserForWarning = reportedUser,
@@ -504,6 +524,12 @@ class AdminViewModel(
     fun confirmIssueWarning(userId: String, reason: String, adminId: String? = null) {
         if (reason.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Debes indicar el motivo de la llamada de atención") }
+            return
+        }
+        val currentStrikes = _uiState.value.userStrikesMap[userId] ?: 0
+        if (currentStrikes >= 5) {
+            dismissWarningDialog()
+            _uiState.update { it.copy(errorMessage = "El usuario ya alcanzó el tope máximo de 5 strikes.") }
             return
         }
         _uiState.update { it.copy(isLoading = true) }

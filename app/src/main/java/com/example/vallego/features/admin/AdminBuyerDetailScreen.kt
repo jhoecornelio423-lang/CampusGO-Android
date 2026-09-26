@@ -32,6 +32,8 @@ import com.example.vallego.domain.model.ProfileWarning
 import com.example.vallego.domain.model.UserProfile
 import com.example.vallego.domain.model.UserRole
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
+import com.example.vallego.ui.components.StrikeBadge
+import com.example.vallego.ui.components.StrikeManagementCard
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -98,18 +100,24 @@ fun AdminBuyerDetailScreen(
                     }
                 },
                 actions = {
-                    Surface(
-                        color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF2E7D32),
-                        shape = RoundedCornerShape(8.dp),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
-                        Text(
-                            text = if (isSuspended) "SUSPENDIDO" else "ACTIVO",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                        StrikeBadge(strikes = warnings.size, showAutoSuspensionLabel = true)
+                        Surface(
+                            color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF2E7D32),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (isSuspended) "SUSPENDIDO" else "ACTIVO",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -440,110 +448,31 @@ fun AdminBuyerDetailScreen(
                 }
             }
 
-            // 5. HISTORIAL DE LLAMADAS DE ATENCIÓN / ADVERTENCIAS
+            // 5. HISTORIAL DE STRIKES Y MEDIDAS DISCIPLINARIAS
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
+                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    if (isLoadingWarnings) {
+                        Card(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.WarningAmber,
-                                    contentDescription = null,
-                                    tint = if (warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF003366),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Llamadas de Atención",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color(0xFF003366)
-                                )
-                            }
-
-                            Surface(
-                                color = if (warnings.isNotEmpty()) Color(0xFFFFF3E0) else Color(0xFFE8F5E9),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = if (warnings.size == 1) "1 advertencia" else "${warnings.size} advertencias",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF2E7D32),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                        if (isLoadingWarnings) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 12.dp),
+                                    .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color(0xFF003366))
                             }
-                        } else if (warnings.isEmpty()) {
-                            Text(
-                                text = "El comprador no tiene llamadas de atención ni advertencias registradas en la plataforma.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                warnings.forEach { warning ->
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.surface,
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFFFCC80)),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Column(modifier = Modifier.padding(10.dp)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "Advertencia Oficial",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 12.sp,
-                                                    color = Color(0xFFE65100)
-                                                )
-                                                Text(
-                                                    text = formatIsoDate(warning.createdAt),
-                                                    fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = warning.reason,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                }
-                            }
                         }
+                    } else {
+                        StrikeManagementCard(
+                            strikes = warnings.size,
+                            warnings = warnings,
+                            isSeller = false,
+                            isSuspended = isSuspended
+                        )
                     }
                 }
             }
@@ -556,18 +485,20 @@ fun AdminBuyerDetailScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Botón para Llamar la Atención
-                    Button(
-                        onClick = { onIssueWarning(buyer) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Llamar la Atención al Comprador", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    // Botón para Llamar la Atención (Solo si no ha alcanzado el tope de 5 strikes)
+                    if (warnings.size < 5) {
+                        Button(
+                            onClick = { onIssueWarning(buyer) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Llamar la Atención (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
 
                     // Botón para Suspender o Reactivar

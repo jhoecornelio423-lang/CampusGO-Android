@@ -80,7 +80,7 @@ fun WelcomeScreen(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.mascota_campusgo),
-                    contentDescription = "Mascota Campus Go",
+                    contentDescription = "Mascota CampusGO",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .size(290.dp)
@@ -119,7 +119,7 @@ fun WelcomeScreen(
                             color = Color(0xFF102A43)
                         )
                         Text(
-                            text = "Crea tu cuenta en pocos pasos o ingresa si ya eres parte de Campus Go.",
+                            text = "Crea tu cuenta en pocos pasos o ingresa si ya eres parte de CampusGO.",
                             fontSize = 13.5.sp,
                             color = Color(0xFF627D98),
                             lineHeight = 19.sp

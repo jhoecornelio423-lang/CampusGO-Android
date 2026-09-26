@@ -1,8 +1,8 @@
-﻿# Campus Go
+﻿# CampusGO
 
 ## 1. Descripción general
 
-**Campus Go** es una aplicación móvil nativa para Android orientada a facilitar la compra y venta de productos dentro de un campus universitario.
+**CampusGO** es una aplicación móvil nativa para Android orientada a facilitar la compra y venta de productos dentro de un campus universitario.
 
 La plataforma conectará a tres tipos principales de usuarios:
 
@@ -12,7 +12,7 @@ La plataforma conectará a tres tipos principales de usuarios:
 
 La aplicación funcionará inicialmente dentro de un solo campus universitario, aunque su arquitectura deberá quedar preparada para permitir en el futuro múltiples campus, sedes o universidades.
 
-Campus Go no funcionará inicialmente como un servicio de delivery tradicional. La entrega se realizará mediante **puntos de encuentro definidos dentro del campus**.
+CampusGO no funcionará inicialmente como un servicio de delivery tradicional. La entrega se realizará mediante **puntos de encuentro definidos dentro del campus**.
 
 El pago será **contra entrega**. La aplicación no procesará dinero directamente. El comprador realizará el pago al momento del encuentro mediante efectivo, Yape, Plin, transferencia u otro medio aceptado, y posteriormente el emprendedor confirmará desde la aplicación que recibió el pago.
 
@@ -20,7 +20,7 @@ El pago será **contra entrega**. La aplicación no procesará dinero directamen
 
 # 2. Objetivo principal
 
-El objetivo de Campus Go es permitir que los estudiantes puedan descubrir y comprar productos ofrecidos por emprendimientos de la comunidad universitaria de forma rápida, ordenada y segura.
+El objetivo de CampusGO es permitir que los estudiantes puedan descubrir y comprar productos ofrecidos por emprendimientos de la comunidad universitaria de forma rápida, ordenada y segura.
 
 El flujo general será:
 
@@ -94,12 +94,12 @@ El estudiante podrá:
 
 # 4. Carrito con múltiples emprendimientos
 
-Campus Go permitirá que un comprador agregue productos pertenecientes a diferentes emprendimientos dentro de un mismo carrito.
+CampusGO permitirá que un comprador agregue productos pertenecientes a diferentes emprendimientos dentro de un mismo carrito.
 
 Ejemplo:
 
 ```text
-CARRITO Campus Go
+CARRITO CampusGO
 
 Papu Burger
 --------------------------------
@@ -374,7 +374,7 @@ Esto podrá mostrarse al comprador antes de agregar productos.
 
 # 11. Rol administrador
 
-El administrador será responsable del ecosistema Campus Go.
+El administrador será responsable del ecosistema CampusGO.
 
 Podrá:
 
@@ -449,7 +449,7 @@ Podrá:
 
 # 12. Lógica del pago
 
-Campus Go utilizará **pago contra entrega**.
+CampusGO utilizará **pago contra entrega**.
 
 La aplicación no procesará dinero.
 
@@ -466,7 +466,7 @@ Comprador realiza el pago
       ↓
 Vendedor verifica el pago
       ↓
-Vendedor confirma desde Campus Go
+Vendedor confirma desde CampusGO
       ↓
 Pago confirmado
       ↓
@@ -888,7 +888,7 @@ En una fase posterior se podrá implementar Firebase Cloud Messaging.
 Ejemplo:
 
 ```text
-Campus Go
+CampusGO
 
 ¿Qué estás buscando?
 
@@ -1173,7 +1173,7 @@ EMPREND.  EMPREND.  EMPREND.
 # 33. Arquitectura general
 
 ```text
-                Campus Go
+                CampusGO
 
                Android App
                     │
@@ -1336,7 +1336,7 @@ La definición exacta de endpoints deberá realizarse después de cerrar los req
 
 # 37. Diagramas necesarios
 
-Para documentar Campus Go se recomienda desarrollar los siguientes diagramas.
+Para documentar CampusGO se recomienda desarrollar los siguientes diagramas.
 
 ## Diagrama de contexto
 
@@ -1346,7 +1346,7 @@ Mostrará:
 Comprador
     │
     ▼
- Campus Go
+ CampusGO
     ▲
     │
 Emprendedor
@@ -1354,7 +1354,7 @@ Emprendedor
 Administrador
     │
     ▼
- Campus Go
+ CampusGO
 ```
 
 ## Diagrama de casos de uso
@@ -1475,7 +1475,7 @@ NO_ENTREGADO
 
 ---
 
-# 40. ETL en Campus Go
+# 40. ETL en CampusGO
 
 ETL no será necesario para ejecutar la compra.
 
@@ -1576,7 +1576,7 @@ Se podrá analizar:
 Ejemplo:
 
 ```text
-Campus Go ADMIN
+CampusGO ADMIN
 
 Usuarios:
 1,280
@@ -1603,7 +1603,7 @@ Ventas registradas:
 S/ 4,850
 ```
 
-El concepto será **ventas registradas**, ya que Campus Go no procesa directamente el dinero.
+El concepto será **ventas registradas**, ya que CampusGO no procesa directamente el dinero.
 
 ---
 
@@ -1629,7 +1629,7 @@ Pedidos por horario
 
 ---
 
-# 44. MVP de Campus Go
+# 44. MVP de CampusGO
 
 La primera versión funcional debería incluir:
 
@@ -1672,7 +1672,7 @@ La primera versión funcional debería incluir:
 
 ---
 
-# 45. Campus Go V2
+# 45. CampusGO V2
 
 Agregar:
 
@@ -1698,7 +1698,7 @@ Disponibilidad del vendedor
 
 ---
 
-# 46. Campus Go V3
+# 46. CampusGO V3
 
 Agregar:
 
@@ -1732,7 +1732,7 @@ Vendedor confirma
 
 ---
 
-# 47. Campus Go V4
+# 47. CampusGO V4
 
 Preparar el sistema para:
 
@@ -1786,9 +1786,9 @@ puntos de encuentro
 18. El stock debe liberarse si el pedido es rechazado o cancelado.
 19. El comprador debe seleccionar punto de encuentro.
 20. El comprador debe seleccionar un horario.
-21. Los puntos deben ser administrados por Campus Go.
+21. Los puntos deben ser administrados por CampusGO.
 22. El pago se realiza contra entrega.
-23. Campus Go no procesa el dinero.
+23. CampusGO no procesa el dinero.
 24. El pago se gestiona independientemente por subpedido.
 25. El vendedor confirma la recepción del dinero.
 26. Un subpedido no puede completarse sin confirmación de pago.
@@ -1859,11 +1859,11 @@ Antes de programar, se recomienda trabajar en el siguiente orden:
 
 ---
 
-# 50. Idea central definitiva de Campus Go
+# 50. Idea central definitiva de CampusGO
 
 La característica diferencial del sistema será:
 
-> Un estudiante podrá realizar una compra con productos de múltiples emprendimientos desde un mismo carrito y coordinar la entrega dentro del campus mediante un punto y horario de encuentro. Campus Go organizará internamente la compra en subpedidos independientes para que cada emprendedor pueda aceptar, preparar, cobrar y confirmar únicamente los productos que le corresponden.
+> Un estudiante podrá realizar una compra con productos de múltiples emprendimientos desde un mismo carrito y coordinar la entrega dentro del campus mediante un punto y horario de encuentro. CampusGO organizará internamente la compra en subpedidos independientes para que cada emprendedor pueda aceptar, preparar, cobrar y confirmar únicamente los productos que le corresponden.
 
 Esto permite ofrecer al comprador una experiencia sencilla sin perder el control individual de cada vendedor.
 

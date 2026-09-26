@@ -254,7 +254,7 @@ private fun FallbackStoreBannerContent(storeName: String?) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = storeName?.trim()?.takeIf { it.isNotBlank() } ?: "Puesto Universitario • Campus Go",
+            text = storeName?.trim()?.takeIf { it.isNotBlank() } ?: "Puesto Universitario • CampusGO",
             color = Color.White,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
@@ -711,7 +711,7 @@ fun PaymentMethodLogoByName(
 }
 
 /**
- * Constantes y estilos profesionales para ventanas emergentes / diálogos en Campus Go.
+ * Constantes y estilos profesionales para ventanas emergentes / diálogos en CampusGO.
  */
 val ValleGoDialogShape = RoundedCornerShape(24.dp)
 val ValleGoDialogContainerColor = Color.White

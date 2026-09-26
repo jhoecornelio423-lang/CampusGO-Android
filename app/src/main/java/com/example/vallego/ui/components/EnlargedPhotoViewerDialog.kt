@@ -63,7 +63,7 @@ import coil.request.ImageRequest
 fun EnlargedPhotoViewerDialog(
     photoUrl: String?,
     name: String,
-    roleDescription: String = "Campus Go",
+    roleDescription: String = "CampusGO",
     isBanner: Boolean = false,
     title: String? = null,
     onDismiss: () -> Unit,
@@ -278,7 +278,7 @@ fun EnlargedPhotoViewerDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = name.ifBlank { "Usuario Campus Go" },
+                            text = name.ifBlank { "Usuario CampusGO" },
                             color = Color.White,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,

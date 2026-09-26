@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.vallego.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -258,7 +259,8 @@ fun OrderTrackingScreen(
                     otherUserId = subOrder.sellerId,
                     otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
                     meetingPoint = subOrder.meetingPointName ?: detailOrder.meetingPointName,
-                    subOrderStatus = subOrder.status
+                    subOrderStatus = subOrder.status,
+                    deliveryCode = subOrder.verificationCode
                 )
             },
             onDismiss = { selectedOrderForDetail = null }
@@ -304,7 +306,7 @@ fun OrderTrackingScreen(
                     TopAppBar(
                         title = {
                             Text(
-                                text = "Mis Pedidos Campus-Go",
+                                text = "Mis Pedidos CampusGO",
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF003366)
                             )
@@ -441,7 +443,8 @@ fun OrderTrackingScreen(
                                             otherUserId = subOrder.sellerId,
                                             otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
                                             meetingPoint = subOrder.meetingPointName ?: order.meetingPointName,
-                                            subOrderStatus = subOrder.status
+                                            subOrderStatus = subOrder.status,
+                                            deliveryCode = subOrder.verificationCode
                                         )
                                     },
                                     onChatPickerVisibilityChanged = { isChatPickerOpen = it }
@@ -890,7 +893,7 @@ fun SubOrderTrackingItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = subOrder.sellerName.ifEmpty { "Emprendimiento Campus Go" },
+                    text = subOrder.sellerName.ifEmpty { "Emprendimiento CampusGO" },
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1349,6 +1352,43 @@ fun BuyerOrderDetailDialog(
                                 )
                             }
 
+                            val subMeetingPoint = subOrder.meetingPointName ?: order.meetingPointName
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!subMeetingPoint.isNullOrBlank()) {
+                                    Text(
+                                        text = "📍 $subMeetingPoint",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF64748B),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                }
+                                subOrder.paymentMethod?.let { spm ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        PaymentMethodLogo(method = spm, size = 12.dp)
+                                        Text(
+                                            text = when (spm) {
+                                                PaymentMethod.YAPE -> "YAPE"
+                                                PaymentMethod.PLIN -> "PLIN"
+                                                PaymentMethod.EFECTIVO -> "EFECTIVO"
+                                                else -> spm.name
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF475569)
+                                        )
+                                    }
+                                }
+                            }
+
                             if (subOrder.status == SubOrderStatus.ACEPTADO ||
                                 subOrder.status == SubOrderStatus.EN_PREPARACION ||
                                 subOrder.status == SubOrderStatus.LISTO ||
@@ -1511,12 +1551,18 @@ fun BuyerOrderDetailDialog(
                 HorizontalDivider()
 
                 // Resumen de Pago
+                val uniquePaymentMethods = order.subOrders.mapNotNull { it.paymentMethod }.distinct()
+                val isSplitPayment = uniquePaymentMethods.size > 1
                 val pm = order.paymentMethod ?: order.subOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO
-                val (pmBg, pmColor, pmName) = when (pm) {
-                    PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                    PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                    PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                    else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), pm.name)
+                val (pmBg, pmColor, pmName) = if (isSplitPayment) {
+                    Triple(Color(0xFFE0E7FF), Color(0xFF3730A3), "Pagos por puesto (${uniquePaymentMethods.size})")
+                } else {
+                    when (pm) {
+                        PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
+                        PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
+                        PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
+                        else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), pm.name)
+                    }
                 }
 
                 Row(
@@ -1533,9 +1579,11 @@ fun BuyerOrderDetailDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            PaymentMethodLogo(method = pm, size = 14.dp)
+                            if (!isSplitPayment) {
+                                PaymentMethodLogo(method = pm, size = 14.dp)
+                            }
                             Text(
-                                text = "Pago: $pmName",
+                                text = if (isSplitPayment) pmName else "Pago: $pmName",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = pmColor

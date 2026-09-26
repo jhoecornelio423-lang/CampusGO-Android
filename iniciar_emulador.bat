@@ -1,7 +1,7 @@
 @echo off
-title Campus Go - Emulador Android
+title CampusGO - Emulador Android
 echo =====================================================
-echo       Iniciando Emulador de Campus Go en tu pantalla
+echo       Iniciando Emulador de CampusGO en tu pantalla
 echo =====================================================
 echo.
 

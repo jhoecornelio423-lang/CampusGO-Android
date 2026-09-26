@@ -306,7 +306,7 @@ fun BuyerProfileScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Estudiante / Comprador Campus Go",
+                                    text = "Estudiante / Comprador CampusGO",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF2E7D32)

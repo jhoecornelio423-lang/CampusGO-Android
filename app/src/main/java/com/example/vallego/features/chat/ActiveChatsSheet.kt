@@ -1,6 +1,7 @@
 package com.example.vallego.features.chat
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,6 +42,7 @@ data class ActiveChatSummary(
     val status: SubOrderStatus,
     val subtotal: Double,
     val itemsSummary: String,
+    val deliveryCode: String = "",
     val isBuyerPerspective: Boolean = true,
     val otherUserAvatarUrl: String? = null,
     val unreadCount: Int = 0
@@ -260,7 +262,47 @@ private fun ActiveChatItemCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Mención breve y distintiva del pedido (código de entrega y productos)
+                val codeDisplay = chat.deliveryCode.ifBlank {
+                    (kotlin.math.abs(chat.subOrderId.hashCode()) % 9000 + 1000).toString()
+                }
+                val deliveryTag = "Código #$codeDisplay"
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFFF1F5F9),
+                    border = BorderStroke(0.5.dp, Color(0xFFCBD5E1)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_orders_bag),
+                            contentDescription = null,
+                            tint = Color(0xFF003366),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = if (chat.itemsSummary.isNotBlank()) {
+                                "$deliveryTag • ${chat.itemsSummary}"
+                            } else {
+                                deliveryTag
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1E293B),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(

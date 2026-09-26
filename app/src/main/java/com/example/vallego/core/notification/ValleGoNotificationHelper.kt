@@ -14,19 +14,26 @@ import com.example.vallego.R
 
 object ValleGoNotificationHelper {
 
-    const val CHANNEL_ORDERS = "vallego_orders_channel"
-    const val CHANNEL_CHAT = "vallego_chat_channel"
-    const val CHANNEL_SERVICE = "vallego_service_channel"
+    const val CHANNEL_ORDERS = "campusgo_orders_channel_v2"
+    const val CHANNEL_CHAT = "campusgo_chat_channel_v2"
+    const val CHANNEL_SERVICE = "campusgo_service_channel_v2"
     const val SERVICE_NOTIFICATION_ID = 9001
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+            // Limpieza proactiva de canales antiguos con nombres heredados
+            try {
+                notificationManager.deleteNotificationChannel("vallego_orders_channel")
+                notificationManager.deleteNotificationChannel("vallego_chat_channel")
+                notificationManager.deleteNotificationChannel("vallego_service_channel")
+            } catch (_: Exception) {}
+
             // Canal para notificaciones inmediatas de pedidos (Alta prioridad, sonido y vibración)
             val orderChannel = NotificationChannel(
                 CHANNEL_ORDERS,
-                "Pedidos y Actualizaciones Campus Go",
+                "Pedidos y Actualizaciones CampusGO",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notificaciones de nuevos pedidos, cambios de estado y entregas"
@@ -40,7 +47,7 @@ object ValleGoNotificationHelper {
             // Canal para mensajes de chat (Alta prioridad tipo WhatsApp)
             val chatChannel = NotificationChannel(
                 CHANNEL_CHAT,
-                "Mensajes de Chat Campus Go",
+                "Mensajes de Chat CampusGO",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Mensajes de chat entre compradores y vendedores"
@@ -54,7 +61,7 @@ object ValleGoNotificationHelper {
             // Canal para el servicio en segundo plano (Baja prioridad, silencioso)
             val serviceChannel = NotificationChannel(
                 CHANNEL_SERVICE,
-                "Servicio en Segundo Plano Campus Go",
+                "Servicio en Segundo Plano CampusGO",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Mantiene activa la escucha de pedidos en tiempo real"
@@ -204,7 +211,7 @@ object ValleGoNotificationHelper {
 
     fun getForegroundServiceNotification(
         context: Context,
-        title: String = "Campus Go Activo",
+        title: String = "CampusGO Activo",
         content: String = "Escuchando actualizaciones de pedidos en campus"
     ): Notification {
         val intent = Intent(context, MainActivity::class.java).apply {

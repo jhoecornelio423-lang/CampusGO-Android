@@ -173,9 +173,9 @@ fun OfficialWarningDetailDialog(
                         )
                         Text(
                             text = if (isSeller) {
-                                "El Administrador del Campus emitió estas advertencias por incumplimiento de entrega, calidad o conducta. La acumulación reiterada conlleva la suspensión del puesto comercial."
+                                "El Administrador del Campus emitió estas advertencias por incumplimiento de entrega, calidad o conducta. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial."
                             } else {
-                                "El Administrador del Campus registró estas llamadas de atención por incidencias reportadas (como no acudir a recoger pedidos o quejas de conducta). Evita suspensiones cumpliendo las normas."
+                                "El Administrador del Campus registró estas llamadas de atención por incidencias reportadas. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF880E4F),
@@ -183,6 +183,9 @@ fun OfficialWarningDetailDialog(
                         )
                     }
                 }
+
+                // Medidor visual de 5 strikes
+                StrikeMeter(strikes = warnings.size, maxStrikes = 5)
 
                 Text(
                     text = "Registro de ${warnings.size} ${if (warnings.size == 1) "advertencia emitida" else "advertencias emitidas"}:",

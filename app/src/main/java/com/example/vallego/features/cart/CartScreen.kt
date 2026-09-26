@@ -296,7 +296,7 @@ fun CartScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    val canProceedToPayment = uiState.selectedMeetingPoint != null && uiState.meetingPointWarning == null
+                    val canProceedToPayment = uiState.canProceedToPayment
 
                     // Barra de progreso interactiva por secciones
                     CartStepIndicator(
@@ -647,104 +647,251 @@ fun CartScreen(
                                                     )
                                                 }
 
-                                                // Aviso si no hay intersección de puntos de entrega
-                                                if (uiState.meetingPointWarning != null) {
-                                                    Card(
-                                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    ) {
+                                                // Opciones multi-vendedor para Puntos de Entrega
+                                                if (uiState.isMultiSeller) {
+                                                    if (uiState.hasCommonMeetingPoints) {
                                                         Row(
-                                                            modifier = Modifier.padding(10.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
-                                                            Icon(
-                                                                painter = painterResource(id = R.drawable.ic_info_custom),
-                                                                contentDescription = null,
-                                                                tint = Color(0xFFD97706),
-                                                                modifier = Modifier.size(20.dp)
+                                                            FilterChip(
+                                                                selected = !uiState.isSplitDeliveryMode,
+                                                                onClick = { viewModel.setSplitDeliveryMode(false) },
+                                                                label = { Text("Mismo punto (${uiState.meetingPoints.size})", style = MaterialTheme.typography.labelMedium) },
+                                                                modifier = Modifier.weight(1f)
                                                             )
-                                                            Spacer(modifier = Modifier.width(8.dp))
-                                                            Text(
-                                                                text = uiState.meetingPointWarning!!,
-                                                                style = MaterialTheme.typography.bodySmall,
-                                                                color = Color(0xFF92400E)
+                                                            FilterChip(
+                                                                selected = uiState.isSplitDeliveryMode,
+                                                                onClick = { viewModel.setSplitDeliveryMode(true) },
+                                                                label = { Text("Por cada puesto", style = MaterialTheme.typography.labelMedium) },
+                                                                modifier = Modifier.weight(1f)
                                                             )
+                                                        }
+                                                    } else {
+                                                        // Mensaje informativo amigable: puntos independientes
+                                                        Surface(
+                                                            color = Color(0xFFEFF6FF),
+                                                            shape = RoundedCornerShape(8.dp),
+                                                            border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    painter = painterResource(id = R.drawable.ic_info_custom),
+                                                                    contentDescription = null,
+                                                                    tint = Color(0xFF1D4ED8),
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text(
+                                                                    text = "Los puestos seleccionados atienden en diferentes zonas del campus. Selecciona el punto de entrega de cada puesto a continuación:",
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    color = Color(0xFF1E40AF)
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
 
-                                                // Dropdown de Puntos de Encuentro
-                                                var expanded by remember { mutableStateOf(false) }
-                                                ExposedDropdownMenuBox(
-                                                    expanded = expanded,
-                                                    onExpandedChange = { expanded = !expanded }
-                                                ) {
-                                                    val selectedText = uiState.selectedMeetingPoint?.let { pt ->
-                                                        val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " • Exterior" else " • Interior"
-                                                        "${pt.name}$zonePart"
-                                                    } ?: if (uiState.meetingPoints.isEmpty()) "Sin puntos de entrega disponibles" else "Selecciona un punto de entrega"
-
-                                                    OutlinedTextField(
-                                                        value = selectedText,
-                                                        onValueChange = {},
-                                                        readOnly = true,
-                                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                                        modifier = Modifier
-                                                            .menuAnchor()
-                                                            .fillMaxWidth()
-                                                    )
-                                                    ExposedDropdownMenu(
-                                                        expanded = expanded,
-                                                        onDismissRequest = { expanded = false }
+                                                if (uiState.isSplitDeliveryEffective) {
+                                                    // Lista de selección independiente por puesto
+                                                    Column(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                                     ) {
-                                                        if (uiState.meetingPoints.isEmpty()) {
-                                                            DropdownMenuItem(
-                                                                text = { Text("No hay puntos de entrega compatibles") },
-                                                                onClick = { expanded = false },
-                                                                enabled = false
-                                                            )
-                                                        } else {
-                                                            uiState.meetingPoints.forEach { point ->
-                                                                DropdownMenuItem(
-                                                                    text = {
-                                                                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                                Text(
-                                                                                    text = point.name,
-                                                                                    style = MaterialTheme.typography.bodyMedium,
-                                                                                    fontWeight = FontWeight.SemiBold,
-                                                                                    modifier = Modifier.weight(1f, fill = false)
-                                                                                )
-                                                                                Spacer(modifier = Modifier.width(6.dp))
-                                                                                Surface(
-                                                                                    color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
-                                                                                    shape = RoundedCornerShape(4.dp)
-                                                                                ) {
-                                                                                    Text(
-                                                                                        text = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) "Exterior" else "Interior",
-                                                                                        style = MaterialTheme.typography.labelSmall,
-                                                                                        color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFF16A085) else Color(0xFF1D4ED8),
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                                    )
-                                                                                }
-                                                                            }
-                                                                            if (!point.description.isNullOrBlank()) {
-                                                                                Spacer(modifier = Modifier.height(2.dp))
-                                                                                Text(
-                                                                                    text = point.description,
-                                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                                    color = Color(0xFF64748B)
+                                                        uiState.calculation.storeGroups.forEach { group ->
+                                                            val storePoints = uiState.sellerMeetingPoints[group.sellerId] ?: uiState.meetingPoints
+                                                            val selectedStorePoint = uiState.selectedMeetingPointsBySeller[group.sellerId]
+                                                            var storeDropdownExpanded by remember { mutableStateOf(false) }
+
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                                            ) {
+                                                                Column(
+                                                                    modifier = Modifier.padding(12.dp),
+                                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                            Icon(
+                                                                                painter = painterResource(id = R.drawable.ic_store_custom),
+                                                                                contentDescription = null,
+                                                                                tint = Color(0xFF003366),
+                                                                                modifier = Modifier.size(16.dp)
+                                                                            )
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text(
+                                                                                text = group.sellerName,
+                                                                                style = MaterialTheme.typography.titleSmall,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = Color(0xFF1E293B)
+                                                                            )
+                                                                        }
+                                                                        Surface(
+                                                                            color = Color(0xFFEFF6FF),
+                                                                            shape = RoundedCornerShape(6.dp)
+                                                                        ) {
+                                                                            Text(
+                                                                                text = "${group.items.sumOf { it.quantity }} prod.",
+                                                                                style = MaterialTheme.typography.labelSmall,
+                                                                                color = Color(0xFF1D4ED8),
+                                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                            )
+                                                                        }
+                                                                    }
+
+                                                                    ExposedDropdownMenuBox(
+                                                                        expanded = storeDropdownExpanded,
+                                                                        onExpandedChange = { storeDropdownExpanded = !storeDropdownExpanded }
+                                                                    ) {
+                                                                        val selectedStoreText = selectedStorePoint?.let { pt ->
+                                                                            val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " • Exterior" else " • Interior"
+                                                                            "${pt.name}$zonePart"
+                                                                        } ?: if (storePoints.isEmpty()) "Sin puntos disponibles" else "Selecciona punto para este puesto"
+
+                                                                        OutlinedTextField(
+                                                                            value = selectedStoreText,
+                                                                            onValueChange = {},
+                                                                            readOnly = true,
+                                                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = storeDropdownExpanded) },
+                                                                            modifier = Modifier
+                                                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                                                .fillMaxWidth()
+                                                                        )
+                                                                        ExposedDropdownMenu(
+                                                                            expanded = storeDropdownExpanded,
+                                                                            onDismissRequest = { storeDropdownExpanded = false }
+                                                                        ) {
+                                                                            storePoints.forEach { point ->
+                                                                                DropdownMenuItem(
+                                                                                    text = {
+                                                                                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                                                Text(
+                                                                                                    text = point.name,
+                                                                                                    style = MaterialTheme.typography.bodyMedium,
+                                                                                                    fontWeight = FontWeight.SemiBold,
+                                                                                                    modifier = Modifier.weight(1f, fill = false)
+                                                                                                )
+                                                                                                Spacer(modifier = Modifier.width(6.dp))
+                                                                                                Surface(
+                                                                                                    color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                                                                    shape = RoundedCornerShape(4.dp)
+                                                                                                ) {
+                                                                                                    Text(
+                                                                                                        text = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) "Exterior" else "Interior",
+                                                                                                        style = MaterialTheme.typography.labelSmall,
+                                                                                                        color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                                                                        fontWeight = FontWeight.Bold,
+                                                                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                                                    )
+                                                                                                }
+                                                                                            }
+                                                                                            if (!point.description.isNullOrBlank()) {
+                                                                                                Spacer(modifier = Modifier.height(2.dp))
+                                                                                                Text(
+                                                                                                    text = point.description,
+                                                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                                                    color = Color(0xFF64748B)
+                                                                                                )
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    onClick = {
+                                                                                        viewModel.selectSellerMeetingPoint(group.sellerId, point)
+                                                                                        storeDropdownExpanded = false
+                                                                                    }
                                                                                 )
                                                                             }
                                                                         }
-                                                                    },
-                                                                    onClick = {
-                                                                        viewModel.selectMeetingPoint(point)
-                                                                        expanded = false
                                                                     }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    // Dropdown de Punto de Encuentro Único
+                                                    var expanded by remember { mutableStateOf(false) }
+                                                    ExposedDropdownMenuBox(
+                                                        expanded = expanded,
+                                                        onExpandedChange = { expanded = !expanded }
+                                                    ) {
+                                                        val selectedText = uiState.selectedMeetingPoint?.let { pt ->
+                                                            val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " • Exterior" else " • Interior"
+                                                            "${pt.name}$zonePart"
+                                                        } ?: if (uiState.meetingPoints.isEmpty()) "Sin puntos de entrega disponibles" else "Selecciona un punto de entrega"
+
+                                                        OutlinedTextField(
+                                                            value = selectedText,
+                                                            onValueChange = {},
+                                                            readOnly = true,
+                                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                                            modifier = Modifier
+                                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                                .fillMaxWidth()
+                                                        )
+                                                        ExposedDropdownMenu(
+                                                            expanded = expanded,
+                                                            onDismissRequest = { expanded = false }
+                                                        ) {
+                                                            if (uiState.meetingPoints.isEmpty()) {
+                                                                DropdownMenuItem(
+                                                                    text = { Text("No hay puntos de entrega compatibles") },
+                                                                    onClick = { expanded = false },
+                                                                    enabled = false
                                                                 )
+                                                            } else {
+                                                                uiState.meetingPoints.forEach { point ->
+                                                                    DropdownMenuItem(
+                                                                        text = {
+                                                                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                                    Text(
+                                                                                        text = point.name,
+                                                                                        style = MaterialTheme.typography.bodyMedium,
+                                                                                        fontWeight = FontWeight.SemiBold,
+                                                                                        modifier = Modifier.weight(1f, fill = false)
+                                                                                    )
+                                                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                                                    Surface(
+                                                                                        color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                                                        shape = RoundedCornerShape(4.dp)
+                                                                                    ) {
+                                                                                        Text(
+                                                                                            text = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) "Exterior" else "Interior",
+                                                                                            style = MaterialTheme.typography.labelSmall,
+                                                                                            color = if (point.zoneType.equals("EXTERIOR", ignoreCase = true)) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                                                            fontWeight = FontWeight.Bold,
+                                                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                                        )
+                                                                                    }
+                                                                                }
+                                                                                if (!point.description.isNullOrBlank()) {
+                                                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                                                    Text(
+                                                                                        text = point.description,
+                                                                                        style = MaterialTheme.typography.bodySmall,
+                                                                                        color = Color(0xFF64748B)
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        onClick = {
+                                                                            viewModel.selectMeetingPoint(point)
+                                                                            expanded = false
+                                                                        }
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -967,14 +1114,30 @@ fun CartScreen(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.width(64.dp)
                                                     )
-                                                    Text(
-                                                        text = uiState.selectedMeetingPoint?.let { pt ->
-                                                            val zone = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " (Exterior)" else " (Interior)"
-                                                            "${pt.name}$zone"
-                                                        } ?: "No seleccionado",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.SemiBold
-                                                    )
+                                                    if (uiState.isSplitDeliveryEffective) {
+                                                        Column(
+                                                            modifier = Modifier.weight(1f),
+                                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                        ) {
+                                                            uiState.calculation.storeGroups.forEach { group ->
+                                                                val pt = uiState.selectedMeetingPointsBySeller[group.sellerId]
+                                                                Text(
+                                                                    text = "${group.sellerName}: ${pt?.name ?: "No seleccionado"}",
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    fontWeight = FontWeight.SemiBold
+                                                                )
+                                                            }
+                                                        }
+                                                    } else {
+                                                        Text(
+                                                            text = uiState.selectedMeetingPoint?.let { pt ->
+                                                                val zone = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " (Exterior)" else " (Interior)"
+                                                                "${pt.name}$zone"
+                                                            } ?: "No seleccionado",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
                                                 }
 
                                                 // Horario
@@ -1102,29 +1265,50 @@ fun CartScreen(
                                                     )
                                                 }
 
-                                                if (uiState.paymentMethodWarning != null) {
-                                                    Surface(
-                                                        color = Color(0xFFFEF2F2),
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    ) {
+                                                // Opciones multi-vendedor para Métodos de Pago
+                                                if (uiState.isMultiSeller) {
+                                                    if (uiState.hasCommonPaymentMethods) {
                                                         Row(
-                                                            modifier = Modifier.padding(10.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
-                                                            Icon(
-                                                                painter = painterResource(id = R.drawable.ic_info_custom),
-                                                                contentDescription = null,
-                                                                tint = Color(0xFFDC2626),
-                                                                modifier = Modifier.size(20.dp)
+                                                            FilterChip(
+                                                                selected = !uiState.isSplitPaymentMode,
+                                                                onClick = { viewModel.setSplitPaymentMode(false) },
+                                                                label = { Text("Mismo método para todos", style = MaterialTheme.typography.labelMedium) },
+                                                                modifier = Modifier.weight(1f)
                                                             )
-                                                            Spacer(modifier = Modifier.width(8.dp))
-                                                            Text(
-                                                                text = uiState.paymentMethodWarning!!,
-                                                                style = MaterialTheme.typography.bodySmall,
-                                                                color = Color(0xFF991B1B)
+                                                            FilterChip(
+                                                                selected = uiState.isSplitPaymentMode,
+                                                                onClick = { viewModel.setSplitPaymentMode(true) },
+                                                                label = { Text("Por cada puesto", style = MaterialTheme.typography.labelMedium) },
+                                                                modifier = Modifier.weight(1f)
                                                             )
+                                                        }
+                                                    } else {
+                                                        Surface(
+                                                            color = Color(0xFFEFF6FF),
+                                                            shape = RoundedCornerShape(8.dp),
+                                                            border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    painter = painterResource(id = R.drawable.ic_info_custom),
+                                                                    contentDescription = null,
+                                                                    tint = Color(0xFF1D4ED8),
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text(
+                                                                    text = "Los puestos seleccionados manejan diferentes métodos de pago. Selecciona la opción de pago para cada puesto:",
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    color = Color(0xFF1E40AF)
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1135,74 +1319,199 @@ fun CartScreen(
                                                     PaymentMethod.EFECTIVO to ("Efectivo" to Color(0xFF003366))
                                                 )
 
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    standardPaymentMethods.forEach { (method, info) ->
-                                                        val (label, containerColor) = info
-                                                        val isAvailable = method in uiState.availablePaymentMethods
-                                                        val isSelected = isAvailable && uiState.selectedPaymentMethod == method
+                                                if (uiState.isSplitPaymentEffective) {
+                                                    // Selección de método de pago independiente por puesto
+                                                    Column(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                                    ) {
+                                                        uiState.calculation.storeGroups.forEach { group ->
+                                                            val allowedMethods = uiState.sellerPaymentMethods[group.sellerId] ?: listOf(PaymentMethod.YAPE, PaymentMethod.PLIN, PaymentMethod.EFECTIVO)
+                                                            val selectedMethod = uiState.selectedPaymentMethodsBySeller[group.sellerId] ?: uiState.selectedPaymentMethod
 
-                                                        Surface(
-                                                            onClick = {
-                                                                if (isAvailable) {
-                                                                    disabledPaymentNotice = null
-                                                                    viewModel.selectPaymentMethod(method)
-                                                                } else {
-                                                                    val notice = "El método de pago $label no está disponible para este pedido porque el vendedor lo tiene deshabilitado."
-                                                                    disabledPaymentNotice = notice
-                                                                    Toast.makeText(context, "El vendedor no acepta $label actualmente", Toast.LENGTH_SHORT).show()
-                                                                }
-                                                            },
-                                                            shape = RoundedCornerShape(10.dp),
-                                                            color = when {
-                                                                !isAvailable -> Color(0xFFF1F5F9)
-                                                                isSelected -> containerColor
-                                                                else -> Color.White
-                                                            },
-                                                            border = BorderStroke(
-                                                                width = if (isSelected) 1.5.dp else 1.dp,
-                                                                color = when {
-                                                                    !isAvailable -> Color(0xFFCBD5E1).copy(alpha = 0.6f)
-                                                                    isSelected -> containerColor
-                                                                    else -> Color(0xFFCBD5E1)
-                                                                }
-                                                            ),
-                                                            modifier = Modifier.weight(1f)
-                                                        ) {
-                                                            Row(
-                                                                modifier = Modifier
-                                                                    .fillMaxWidth()
-                                                                    .padding(horizontal = 4.dp, vertical = 9.dp),
-                                                                horizontalArrangement = Arrangement.Center,
-                                                                verticalAlignment = Alignment.CenterVertically
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                                                             ) {
-                                                                PaymentMethodLogo(
-                                                                    method = method,
-                                                                    size = 16.dp,
-                                                                    enabled = isAvailable
-                                                                )
-                                                                Spacer(modifier = Modifier.width(5.dp))
-                                                                Text(
-                                                                    text = label,
-                                                                    style = MaterialTheme.typography.labelMedium,
-                                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                Column(
+                                                                    modifier = Modifier.padding(12.dp),
+                                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                            Icon(
+                                                                                painter = painterResource(id = R.drawable.ic_store_custom),
+                                                                                contentDescription = null,
+                                                                                tint = Color(0xFF003366),
+                                                                                modifier = Modifier.size(16.dp)
+                                                                            )
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text(
+                                                                                text = group.sellerName,
+                                                                                style = MaterialTheme.typography.titleSmall,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = Color(0xFF1E293B)
+                                                                            )
+                                                                        }
+                                                                        Text(
+                                                                            text = "S/ %.2f".format(group.subtotal),
+                                                                            style = MaterialTheme.typography.titleSmall,
+                                                                            fontWeight = FontWeight.ExtraBold,
+                                                                            color = Color(0xFF003366)
+                                                                        )
+                                                                    }
+
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                    ) {
+                                                                        standardPaymentMethods.forEach { (method, info) ->
+                                                                            val (label, containerColor) = info
+                                                                            val isAvailable = method in allowedMethods
+                                                                            val isSelected = isAvailable && selectedMethod == method
+
+                                                                            Surface(
+                                                                                onClick = {
+                                                                                    if (isAvailable) {
+                                                                                        viewModel.selectSellerPaymentMethod(group.sellerId, method)
+                                                                                    } else {
+                                                                                        Toast.makeText(context, "${group.sellerName} no acepta $label actualmente", Toast.LENGTH_SHORT).show()
+                                                                                    }
+                                                                                },
+                                                                                shape = RoundedCornerShape(10.dp),
+                                                                                color = when {
+                                                                                    !isAvailable -> Color(0xFFF1F5F9)
+                                                                                    isSelected -> containerColor
+                                                                                    else -> Color.White
+                                                                                },
+                                                                                border = BorderStroke(
+                                                                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                                                                    color = when {
+                                                                                        !isAvailable -> Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                                                                        isSelected -> containerColor
+                                                                                        else -> Color(0xFFCBD5E1)
+                                                                                    }
+                                                                                ),
+                                                                                modifier = Modifier.weight(1f)
+                                                                            ) {
+                                                                                Row(
+                                                                                    modifier = Modifier
+                                                                                        .fillMaxWidth()
+                                                                                        .padding(horizontal = 4.dp, vertical = 9.dp),
+                                                                                    horizontalArrangement = Arrangement.Center,
+                                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                                ) {
+                                                                                    PaymentMethodLogo(
+                                                                                        method = method,
+                                                                                        size = 16.dp,
+                                                                                        enabled = isAvailable
+                                                                                    )
+                                                                                    Spacer(modifier = Modifier.width(5.dp))
+                                                                                    Text(
+                                                                                        text = label,
+                                                                                        style = MaterialTheme.typography.labelMedium,
+                                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                                        color = when {
+                                                                                            !isAvailable -> Color(0xFF94A3B8)
+                                                                                            isSelected -> Color.White
+                                                                                            else -> Color(0xFF1E293B)
+                                                                                        },
+                                                                                        maxLines = 1
+                                                                                    )
+                                                                                    if (isSelected) {
+                                                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                                                        Icon(
+                                                                                            imageVector = Icons.Default.Check,
+                                                                                            contentDescription = null,
+                                                                                            tint = Color.White,
+                                                                                            modifier = Modifier.size(13.dp)
+                                                                                        )
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    // Selector único general
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        standardPaymentMethods.forEach { (method, info) ->
+                                                            val (label, containerColor) = info
+                                                            val isAvailable = method in uiState.availablePaymentMethods
+                                                            val isSelected = isAvailable && uiState.selectedPaymentMethod == method
+
+                                                            Surface(
+                                                                onClick = {
+                                                                    if (isAvailable) {
+                                                                        disabledPaymentNotice = null
+                                                                        viewModel.selectPaymentMethod(method)
+                                                                    } else {
+                                                                        val notice = "El método de pago $label no está disponible para este pedido porque el vendedor lo tiene deshabilitado."
+                                                                        disabledPaymentNotice = notice
+                                                                        Toast.makeText(context, "El vendedor no acepta $label actualmente", Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                },
+                                                                shape = RoundedCornerShape(10.dp),
+                                                                color = when {
+                                                                    !isAvailable -> Color(0xFFF1F5F9)
+                                                                    isSelected -> containerColor
+                                                                    else -> Color.White
+                                                                },
+                                                                border = BorderStroke(
+                                                                    width = if (isSelected) 1.5.dp else 1.dp,
                                                                     color = when {
-                                                                        !isAvailable -> Color(0xFF94A3B8)
-                                                                        isSelected -> Color.White
-                                                                        else -> Color(0xFF1E293B)
-                                                                    },
-                                                                    maxLines = 1
-                                                                )
-                                                                if (isSelected) {
-                                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                                    Icon(
-                                                                        imageVector = Icons.Default.Check,
-                                                                        contentDescription = null,
-                                                                        tint = Color.White,
-                                                                        modifier = Modifier.size(13.dp)
+                                                                        !isAvailable -> Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                                                        isSelected -> containerColor
+                                                                        else -> Color(0xFFCBD5E1)
+                                                                    }
+                                                                ),
+                                                                modifier = Modifier.weight(1f)
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .padding(horizontal = 4.dp, vertical = 9.dp),
+                                                                    horizontalArrangement = Arrangement.Center,
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    PaymentMethodLogo(
+                                                                        method = method,
+                                                                        size = 16.dp,
+                                                                        enabled = isAvailable
                                                                     )
+                                                                    Spacer(modifier = Modifier.width(5.dp))
+                                                                    Text(
+                                                                        text = label,
+                                                                        style = MaterialTheme.typography.labelMedium,
+                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                        color = when {
+                                                                            !isAvailable -> Color(0xFF94A3B8)
+                                                                            isSelected -> Color.White
+                                                                            else -> Color(0xFF1E293B)
+                                                                        },
+                                                                        maxLines = 1
+                                                                    )
+                                                                    if (isSelected) {
+                                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.Check,
+                                                                            contentDescription = null,
+                                                                            tint = Color.White,
+                                                                            modifier = Modifier.size(13.dp)
+                                                                        )
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -1344,13 +1653,22 @@ fun CartScreen(
                                                             style = MaterialTheme.typography.labelSmall,
                                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                                         )
-                                                        PaymentMethodLogo(method = uiState.selectedPaymentMethod, size = 13.dp)
-                                                        Text(
-                                                            text = uiState.selectedPaymentMethod.name.lowercase().replaceFirstChar { it.uppercase() },
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
+                                                        if (uiState.isSplitPaymentEffective) {
+                                                            Text(
+                                                                text = "Por cada puesto (${uiState.calculation.storeGroups.size})",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = Color(0xFF003366)
+                                                            )
+                                                        } else {
+                                                            PaymentMethodLogo(method = uiState.selectedPaymentMethod, size = 13.dp)
+                                                            Text(
+                                                                text = uiState.selectedPaymentMethod.name.lowercase().replaceFirstChar { it.uppercase() },
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
                                                     }
                                                 }
                                                 Spacer(modifier = Modifier.width(8.dp))

@@ -157,7 +157,7 @@ class AuthRepositoryImpl(
             val user = auth.currentUserOrNull()
                 ?: throw IllegalStateException("Sesión no iniciada correctamente")
             val meta = user.userMetadata
-            val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Usuario Campus Go"
+            val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Usuario CampusGO"
             val metaRoleStr = meta?.get("role")?.jsonPrimitive?.contentOrNull ?: "comprador"
             val metaStoreName = meta?.get("business_name")?.jsonPrimitive?.contentOrNull
             val metaStatus = meta?.get("business_status")?.jsonPrimitive?.contentOrNull
@@ -460,7 +460,7 @@ class AuthRepositoryImpl(
                 ?: throw IllegalStateException("No se pudo iniciar sesión tras verificar el código")
 
             val meta = user.userMetadata
-            val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Usuario Campus Go"
+            val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Usuario CampusGO"
             val metaPhone = meta?.get("phone")?.jsonPrimitive?.contentOrNull ?: ""
             val metaCampus = meta?.get("campus")?.jsonPrimitive?.contentOrNull ?: "UCV - Lima Norte"
             val metaStoreName = meta?.get("business_name")?.jsonPrimitive?.contentOrNull
