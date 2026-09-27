@@ -5,13 +5,31 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.vallego.features.buyer.components.BuyerProductGridCard
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -62,6 +80,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.vallego.features.buyer.components.BuyerBottomNavTab
+import com.example.vallego.features.buyer.components.CampusGoBottomNavBar
+import com.example.vallego.features.buyer.components.BuyerFavoritesView
+import com.example.vallego.features.buyer.components.BuyerNotificationsDialog
 import com.example.vallego.ui.components.OfficialWarningBanner
 import com.example.vallego.domain.model.Category
 import com.example.vallego.domain.model.Product
@@ -131,12 +155,31 @@ fun BuyerHomeScreen(
     val unreadChatCount by remember(profile.id) {
         chatRepository.observeUnreadCount(profile.id)
     }.collectAsState(initial = 0)
-    var showProfile by remember { mutableStateOf(false) }
-    var showCart by remember { mutableStateOf(false) }
-    var showTracking by remember { mutableStateOf(false) }
+    var currentTab by rememberSaveable { mutableStateOf(BuyerBottomNavTab.INICIO) }
+    var favoriteProductIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    var showNotificationsDialog by remember { mutableStateOf(false) }
     var selectedStoreForProfile by remember { mutableStateOf<StoreCatalogGroup?>(null) }
     val allMeetingPoints by adminRepository.observeMeetingPoints().collectAsState(initial = emptyList())
     val cartCalculation by cartRepository.cartCalculation.collectAsState()
+    val cartScale = remember { Animatable(1f) }
+    var prevCartCount by remember { mutableStateOf(cartCalculation.totalItemCount) }
+
+    LaunchedEffect(cartCalculation.totalItemCount) {
+        if (cartCalculation.totalItemCount > prevCartCount) {
+            cartScale.animateTo(
+                targetValue = 1.18f,
+                animationSpec = tween(durationMillis = 150)
+            )
+            cartScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+        }
+        prevCartCount = cartCalculation.totalItemCount
+    }
     val buyerOrders by orderRepository.observeOrdersForBuyer(profile.id).collectAsState(initial = emptyList())
     val buyerWarnings by orderRepository.observeUserWarnings(profile.id).collectAsState(initial = emptyList())
     val readyOrdersInfo = remember(buyerOrders) {
@@ -146,8 +189,115 @@ fun BuyerHomeScreen(
                 .map { sub -> Triple(order, sub, "${order.id}_${sub.id}") }
         }
     }
-    var dismissedReadyAlerts by remember { mutableStateOf(setOf<String>()) }
-    var showActiveChatsSheet by remember { mutableStateOf(false) }
+    val preparingOrdersInfo = remember(buyerOrders) {
+        buyerOrders.flatMap { order ->
+            order.subOrders
+                .filter { it.status == SubOrderStatus.EN_PREPARACION }
+                .map { sub -> Triple(order, sub, "${order.id}_${sub.id}") }
+        }
+    }
+    var readNotificationIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    val currentNotificationIds = remember(readyOrdersInfo, preparingOrdersInfo, buyerWarnings) {
+        val ids = mutableListOf<String>()
+        readyOrdersInfo.forEach { ids.add("ready_${it.third}") }
+        preparingOrdersInfo.forEach { ids.add("prep_${it.third}") }
+        buyerWarnings.forEach { ids.add("warning_${it.id}") }
+        ids.toSet()
+    }
+    val hasPendingNotifications = remember(currentNotificationIds, readNotificationIds) {
+        currentNotificationIds.any { it !in readNotificationIds }
+    }
+
+    LaunchedEffect(showNotificationsDialog) {
+        if (showNotificationsDialog && currentNotificationIds.isNotEmpty()) {
+            readNotificationIds = readNotificationIds + currentNotificationIds
+        }
+    }
+    var dismissedAlertSignatures by remember { mutableStateOf(setOf<String>()) }
+
+    val currentNotificationData = remember(readyOrdersInfo, preparingOrdersInfo, dismissedAlertSignatures) {
+        val readyKey = if (readyOrdersInfo.isNotEmpty()) {
+            "ready_${readyOrdersInfo.size}_${readyOrdersInfo.map { it.third }.sorted().joinToString(",")}"
+        } else null
+
+        val prepKey = if (preparingOrdersInfo.isNotEmpty()) {
+            "prep_${preparingOrdersInfo.size}_${preparingOrdersInfo.map { it.third }.sorted().joinToString(",")}"
+        } else null
+
+        when {
+            readyKey != null && readyKey !in dismissedAlertSignatures -> {
+                val count = readyOrdersInfo.size
+                val text = if (count == 1) "Tienes 1 pedido Listo" else "Tienes $count pedidos listos"
+                Triple(readyKey, text, true) // true = isReady
+            }
+            prepKey != null && prepKey !in dismissedAlertSignatures -> {
+                val count = preparingOrdersInfo.size
+                val text = if (count == 1) "Tienes un pedido en preparacion" else "Tienes $count pedidos en preparación"
+                Triple(prepKey, text, false) // false = isPreparing
+            }
+            else -> null
+        }
+    }
+
+    val timerProgress = remember { Animatable(1f) }
+    var isNotificationVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentNotificationData?.first) {
+        val sig = currentNotificationData?.first
+        if (sig != null) {
+            isNotificationVisible = true
+            timerProgress.snapTo(1f)
+            timerProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 5000, easing = LinearEasing)
+            )
+            isNotificationVisible = false
+            dismissedAlertSignatures = dismissedAlertSignatures + sig
+        } else {
+            isNotificationVisible = false
+        }
+    }
+
+    val alarmTransition = rememberInfiniteTransition(label = "alarm_shake_transition")
+    val bellRotation by alarmTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1200
+                0f at 0
+                -18f at 100
+                18f at 200
+                -14f at 300
+                14f at 400
+                -10f at 500
+                10f at 600
+                -5f at 700
+                5f at 800
+                0f at 900
+                0f at 1200
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "bell_rotation"
+    )
+    val bellScale by alarmTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1200
+                1f at 0
+                1.14f at 200
+                1.14f at 600
+                1f at 900
+                1f at 1200
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "bell_scale"
+    )
+    var showCartScreen by rememberSaveable { mutableStateOf(false) }
     var activeChatSummary by remember { mutableStateOf<ActiveChatSummary?>(null) }
     val chatViewModel: OrderChatViewModel = koinInject()
 
@@ -163,7 +313,7 @@ fun BuyerHomeScreen(
                     ActiveChatSummary(
                         subOrderId = sub.id,
                         otherUserId = sub.sellerId,
-                        otherUserName = sub.sellerName.ifBlank { store?.sellerName ?: "Vendedor CampusGO" },
+                        otherUserName = sub.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" },
                         meetingPoint = sub.meetingPointName ?: "Punto por convenir",
                         status = sub.status,
                         subtotal = sub.subtotalAmount,
@@ -187,25 +337,18 @@ fun BuyerHomeScreen(
     BackHandler(enabled = activeChatSummary != null) {
         activeChatSummary = null
         chatViewModel.clearChat()
-        showActiveChatsSheet = true
     }
-    BackHandler(enabled = activeChatSummary == null && showActiveChatsSheet) {
-        showActiveChatsSheet = false
+    BackHandler(enabled = activeChatSummary == null && showCartScreen) {
+        showCartScreen = false
     }
-    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail != null) {
+    BackHandler(enabled = activeChatSummary == null && !showCartScreen && selectedProductForDetail != null) {
         selectedProductForDetail = null
     }
-    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile != null) {
+    BackHandler(enabled = activeChatSummary == null && !showCartScreen && selectedProductForDetail == null && selectedStoreForProfile != null) {
         selectedStoreForProfile = null
     }
-    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile == null && showCart) {
-        showCart = false
-    }
-    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && showTracking) {
-        showTracking = false
-    }
-    BackHandler(enabled = activeChatSummary == null && !showActiveChatsSheet && selectedProductForDetail == null && selectedStoreForProfile == null && !showCart && !showTracking && showProfile) {
-        showProfile = false
+    BackHandler(enabled = activeChatSummary == null && !showCartScreen && selectedProductForDetail == null && selectedStoreForProfile == null && currentTab != BuyerBottomNavTab.INICIO) {
+        currentTab = BuyerBottomNavTab.INICIO
     }
 
     var categoriesList by remember { mutableStateOf<List<Category>>(emptyList()) }
@@ -282,99 +425,36 @@ fun BuyerHomeScreen(
         }
     }
 
-    if (showProfile) {
-        BuyerProfileScreen(
-            profile = currentProfile,
-            warnings = buyerWarnings,
-            onNavigateBack = { showProfile = false },
-            onSaveProfile = { updated ->
-                coroutineScope.launch {
-                    val res = productRepository.updateUserProfile(updated)
-                    if (res.isSuccess) {
-                        currentProfile = res.getOrNull() ?: updated
-                    }
-                }
-            },
-            onUploadAvatar = { bytes, onUploaded ->
-                coroutineScope.launch {
-                    val path = "avatars/${currentProfile.id}_${System.currentTimeMillis()}.jpg"
-                    val res = productRepository.uploadImage("business-assets", path, bytes)
-                    res.onSuccess { url ->
-                        onUploaded(url)
-                        val updated = currentProfile.copy(avatarUrl = url)
-                        productRepository.updateUserProfile(updated)
-                        currentProfile = updated
-                    }
-                }
-            },
-            onSignOut = onSignOut,
-            modifier = modifier
-        )
-        return
-    }
-
     if (activeChatSummary != null) {
         OrderChatBottomSheet(
             viewModel = chatViewModel,
             onDismiss = {
                 activeChatSummary = null
                 chatViewModel.clearChat()
-                showActiveChatsSheet = true
             }
         )
         return
     }
 
-    if (showActiveChatsSheet) {
-        ActiveChatsSheet(
-            chats = activeBuyerChats,
-            onSelectChat = { selectedChat ->
-                showActiveChatsSheet = false
-                activeChatSummary = selectedChat
-                chatViewModel.initChat(
-                    subOrderId = selectedChat.subOrderId,
-                    currentUserId = profile.id,
-                    otherUserId = selectedChat.otherUserId,
-                    otherUserName = selectedChat.otherUserName,
-                    meetingPoint = selectedChat.meetingPoint,
-                    subOrderStatus = selectedChat.status,
-                    otherUserAvatarUrl = selectedChat.otherUserAvatarUrl,
-                    deliveryCode = selectedChat.deliveryCode
-                )
-            },
-            onClose = { showActiveChatsSheet = false },
-            userAvatarUrl = currentProfile.avatarUrl
-        )
-        return
-    }
-
-    if (showTracking) {
-        OrderTrackingScreen(
-            buyerProfile = currentProfile,
-            onNavigateBack = { showTracking = false },
-            onNavigateToCart = {
-                showTracking = false
-                showCart = true
-            },
-            modifier = modifier
-        )
-        return
-    }
-
-    if (showCart) {
+    // Pantalla completa de Carrito de Compras (oculta barra inferior y muestra flecha de volver)
+    if (showCartScreen) {
         CartScreen(
             buyerProfile = currentProfile,
-            onNavigateBack = { showCart = false },
+            onNavigateBack = { showCartScreen = false },
             onNavigateToTracking = {
-                showCart = false
-                showTracking = true
+                showCartScreen = false
+                currentTab = BuyerBottomNavTab.PEDIDOS
+            },
+            onExploreStalls = {
+                showCartScreen = false
+                currentTab = BuyerBottomNavTab.INICIO
             },
             onOpenChatForOrder = { order, subOrder ->
-                showCart = false
+                showCartScreen = false
                 val store = realStoresWithProducts.find { it.sellerId == subOrder.sellerId }
                 val sellerAvatar = store?.avatarUrl
                 val meetingPt = subOrder.meetingPointName ?: order.meetingPointName.ifBlank { "Punto por convenir" }
-                val sellerName = subOrder.sellerName.ifBlank { store?.sellerName ?: "Vendedor" }
+                val sellerName = subOrder.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" }
                 val chatSummary = ActiveChatSummary(
                     subOrderId = subOrder.id,
                     otherUserId = subOrder.sellerId,
@@ -424,7 +504,7 @@ fun BuyerHomeScreen(
             onNavigateToCart = {
                 selectedProductForDetail = null
                 selectedStoreForProfile = null
-                showCart = true
+                showCartScreen = true
             },
             modifier = modifier
         )
@@ -518,369 +598,368 @@ fun BuyerHomeScreen(
             .filter { store -> selectedStoreId == null || store.sellerId == selectedStoreId }
             .flatMap { store -> store.products.map { prod -> Pair(prod, store) } }
     }
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
-            modifier = modifier,
+            modifier = Modifier.fillMaxSize(),
             topBar = {
-                Surface(
-                    color = Color.White,
-                    shadowElevation = 3.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
+                if (currentTab == BuyerBottomNavTab.INICIO) {
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .shadow(
+                                elevation = 6.dp,
+                                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                                spotColor = Color(0x1F16324F),
+                                ambientColor = Color(0x2816324F),
+                                clip = false
+                            ),
+                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        shadowElevation = 0.dp
                     ) {
-                        // Fila 1: Perfil del Comprador (Foto e Información como UN SOLO BOTÓN a la izquierda) y botones de acción a la derecha
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Avatar e Información del comprador unificados en un solo botón que abre su perfil completo
+                            // Fila 1: Perfil del Comprador (Foto e Información) y botones de acción a la derecha (solo Chat y Notificaciones)
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .weight(1f, fill = false)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { showProfile = true }
-                                    .padding(vertical = 4.dp, horizontal = 4.dp)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                ValleGoUserAvatar(
-                                    avatarUrl = currentProfile.avatarUrl,
-                                    name = currentProfile.fullName,
-                                    size = 40.dp
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = currentProfile.fullName.ifBlank { "Comprador" },
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = Color(0xFF16324F),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    val buyerSubtitle = if (!currentProfile.studentCode.isNullOrBlank()) {
-                                        "${currentProfile.studentCode} • Campus ${currentProfile.campus}"
-                                    } else {
-                                        "Estudiante • Campus ${currentProfile.campus}"
-                                    }
-                                    Text(
-                                        text = buyerSubtitle,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF64748B),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            // Botones de acción a la derecha (Chats Activos, Mis Pedidos y Carrito)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // 1. Chats Activos de Coordinación
-                                IconButton(
-                                    onClick = { showActiveChatsSheet = true },
-                                    modifier = Modifier.size(38.dp)
+                                // Avatar e Información del comprador unificados en un solo botón que abre su perfil completo
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .weight(1f, fill = false)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { currentTab = BuyerBottomNavTab.PERFIL }
+                                        .padding(vertical = 4.dp, horizontal = 4.dp)
                                 ) {
-                                    BadgedBox(
-                                        badge = {
-                                            if (unreadChatCount > 0) {
-                                                Badge(
-                                                    containerColor = Color(0xFFEF4444), // Rojo para indicar mensajes pendientes no leídos
-                                                    contentColor = Color.White
+                                    ValleGoUserAvatar(
+                                        avatarUrl = currentProfile.avatarUrl,
+                                        name = currentProfile.fullName,
+                                        size = 40.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = currentProfile.fullName.ifBlank { "Comprador" },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFF16324F),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        val buyerSubtitle = if (!currentProfile.studentCode.isNullOrBlank()) {
+                                            "${currentProfile.studentCode} • Campus ${currentProfile.campus}"
+                                        } else {
+                                            "Estudiante • Campus ${currentProfile.campus}"
+                                        }
+                                        Text(
+                                            text = buyerSubtitle,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF64748B),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                // Botones de acción a la derecha (Notificaciones a la izquierda, Carrito a la derecha)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    // 1. Notificaciones (Lado Izquierdo) con punto rojo perfectamente posicionado
+                                    // hasPendingNotifications derivado arriba de forma reactiva con IDs leídos
+                                    Box(
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Surface(
+                                            onClick = {
+                                                readNotificationIds = readNotificationIds + currentNotificationIds
+                                                showNotificationsDialog = true
+                                            },
+                                            shape = CircleShape,
+                                            color = if (hasPendingNotifications) Color(0xFFE8F7F2) else Color.White,
+                                            border = BorderStroke(1.dp, if (hasPendingNotifications) Color(0xFFCCFBF1) else Color(0xFFE2E8F0)),
+                                            shadowElevation = 1.dp,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Notifications,
+                                                    contentDescription = "Notificaciones",
+                                                    tint = if (hasPendingNotifications) Color(0xFF00A884) else Color(0xFF16324F),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // Punto rojo indicador en la esquina superior derecha con borde blanco de corte
+                                        if (hasPendingNotifications) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .align(Alignment.TopEnd)
+                                                    .offset(x = (-2).dp, y = 2.dp)
+                                                    .background(Color(0xFFEF4444), CircleShape)
+                                                    .border(1.5.dp, Color.White, CircleShape)
+                                            )
+                                        }
+                                    }
+
+                                    // 2. Carrito de Compras (Lado Derecho) con animación que se pone verde y más grande
+                                    AnimatedContent(
+                                        targetState = cartCalculation.totalItemCount > 0,
+                                        transitionSpec = {
+                                            (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.88f))
+                                                .togetherWith(fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.88f))
+                                        },
+                                        label = "cart_button_animation"
+                                    ) { hasItems ->
+                                        if (hasItems) {
+                                            // Carrito con productos: se pone verde institucional y más grande con el resumen
+                                            Surface(
+                                                onClick = { showCartScreen = true },
+                                                shape = RoundedCornerShape(20.dp),
+                                                color = Color(0xFF00A884),
+                                                shadowElevation = 2.5.dp,
+                                                modifier = Modifier
+                                                    .height(38.dp)
+                                                    .scale(cartScale.value)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 11.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_cart_custom),
+                                                        contentDescription = "Mi Carrito",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(17.dp)
+                                                    )
                                                     Text(
-                                                        text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold
+                                                        text = "${cartCalculation.totalItemCount} • S/ %.2f".format(cartCalculation.grandTotal),
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            // Carrito vacío: botón circular blanco minimalista
+                                            Surface(
+                                                onClick = { showCartScreen = true },
+                                                shape = CircleShape,
+                                                color = Color.White,
+                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                shadowElevation = 1.dp,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .scale(cartScale.value)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_cart_custom),
+                                                        contentDescription = "Mi Carrito",
+                                                        tint = Color(0xFF16324F),
+                                                        modifier = Modifier.size(20.dp)
                                                     )
                                                 }
                                             }
                                         }
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_chat_custom),
-                                            contentDescription = "Chats Activos",
-                                            tint = if (unreadChatCount > 0) Color(0xFFEF4444) else Color(0xFF16324F),
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-
-                                // 2. Mis Pedidos (Tracking)
-                                IconButton(
-                                    onClick = { showTracking = true },
-                                    modifier = Modifier.size(38.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_orders_bag),
-                                        contentDescription = "Mis Pedidos",
-                                        tint = Color(0xFF16324F),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-
-                                // 3. Carrito Destacado
-                                if (cartCalculation.totalItemCount > 0) {
-                                    Surface(
-                                        onClick = { showCart = true },
-                                        shape = RoundedCornerShape(20.dp),
-                                        color = Color(0xFF00A884),
-                                        shadowElevation = 2.dp,
-                                        modifier = Modifier.height(36.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_cart_custom),
-                                                contentDescription = "Carrito",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(17.dp)
-                                            )
-                                            Text(
-                                                text = "${cartCalculation.totalItemCount} • S/ %.2f".format(cartCalculation.grandTotal),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    IconButton(
-                                        onClick = { showCart = true },
-                                        modifier = Modifier.size(38.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_cart_custom),
-                                            contentDescription = "Carrito",
-                                            tint = Color(0xFF16324F),
-                                            modifier = Modifier.size(22.dp)
-                                        )
                                     }
                                 }
                             }
-                        }
 
-                        // Fila 2: Barra de búsqueda estilo Rappi
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = {
-                                Text(
-                                    text = "¿Qué buscas hoy? (ej. café, postre)",
-                                    fontSize = 13.sp,
-                                    color = Color(0xFF94A3B8)
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Buscar",
-                                    tint = Color(0xFF00A884),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotBlank()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Clear,
-                                            contentDescription = "Borrar búsqueda",
-                                            tint = Color(0xFF64748B),
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                            // Fila 2: Barra de búsqueda estilo Rappi
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = {
+                                    Text(
+                                        text = "¿Qué buscas hoy? (ej. café, postre)",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Buscar",
+                                        tint = Color(0xFF00A884),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotBlank()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Borrar búsqueda",
+                                                tint = Color(0xFF64748B),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(25.dp),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF1F5F9),
-                                unfocusedContainerColor = Color(0xFFF8FAFC),
-                                focusedBorderColor = Color(0xFF00A884),
-                                unfocusedBorderColor = Color(0xFFE2E8F0),
-                                focusedTextColor = Color(0xFF16324F),
-                                unfocusedTextColor = Color(0xFF16324F)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(25.dp),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color(0xFFF1F5F9),
+                                    unfocusedContainerColor = Color(0xFFF8FAFC),
+                                    focusedBorderColor = Color(0xFF00A884),
+                                    unfocusedBorderColor = Color(0xFFE2E8F0),
+                                    focusedTextColor = Color(0xFF16324F),
+                                    unfocusedTextColor = Color(0xFF16324F)
+                                )
                             )
-                        )
+                        }
                     }
                 }
             },
             containerColor = Color(0xFFF8FAFC)
         ) { innerPadding ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                modifier = Modifier.fillMaxSize()
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .padding(bottom = if (cartCalculation.totalItemCount > 0) 100.dp else 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+                when (currentTab) {
+                    BuyerBottomNavTab.INICIO -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(top = innerPadding.calculateTopPadding() + 4.dp)
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                                    .padding(bottom = 96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
                     // Advertencias formales emitidas por el Administrador
                     OfficialWarningBanner(
                         warnings = buyerWarnings,
                         isSeller = false
                     )
 
-                    // 0. Banner de aviso en tiempo real de pedidos listos para recoger
-                    val visibleReadyOrders = remember(readyOrdersInfo, dismissedReadyAlerts) {
-                        readyOrdersInfo.filter { it.third !in dismissedReadyAlerts }
-                    }
-                    visibleReadyOrders.forEach { (order, subOrder, alertKey) ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp)),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-                            border = BorderStroke(1.5.dp, Color(0xFF00A884)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-                        ) {
-                            Column(
+                    // 0. Aviso de notificación dinámica con alarma en movimiento, temporizador de 5 segundos y texto según estado
+                    AnimatedVisibility(
+                        visible = isNotificationVisible && currentNotificationData != null,
+                        enter = fadeIn(tween(250)) + slideInVertically(initialOffsetY = { -it / 2 }),
+                        exit = fadeOut(tween(250)) + slideOutVertically(targetOffsetY = { -it / 2 })
+                    ) {
+                        if (currentNotificationData != null) {
+                            val (sig, text, isReady) = currentNotificationData
+                            Card(
+                                onClick = {
+                                    readNotificationIds = readNotificationIds + currentNotificationIds
+                                    isNotificationVisible = false
+                                    showNotificationsDialog = true
+                                },
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isReady) Color(0xFFF0FDF4) else Color(0xFFF0F9FF)
+                                ),
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isReady) Color(0xFF86EFAC) else Color(0xFFBAE6FD)
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    .padding(vertical = 2.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = Color(0xFF00A884),
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = Icons.Default.NotificationsActive,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                        Column {
-                                            Text(
-                                                text = "¡Tu pedido está listo!",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = Color(0xFF004D40)
-                                            )
-                                            Text(
-                                                text = "Puesto: ${subOrder.sellerName}",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF00796B)
-                                            )
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = { dismissedReadyAlerts = dismissedReadyAlerts + alertKey },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Clear,
-                                            contentDescription = "Ocultar aviso",
-                                            tint = Color(0xFF64748B),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = "Tu pedido de \"${subOrder.sellerName}\" está listo. Acércate al punto de encuentro \"${order.meetingPointName}\"${if (order.scheduledTime.isNotBlank()) " (Horario: ${order.scheduledTime})" else ""}.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF16324F),
-                                    fontWeight = FontWeight.Medium
-                                )
-
-                                Surface(
-                                    color = Color(0xFFE0F2F1),
-                                    shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.dp, Color(0xFF80CBC4)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            modifier = Modifier.weight(1f)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.VerifiedUser,
-                                                contentDescription = null,
-                                                tint = Color(0xFF00796B),
-                                                modifier = Modifier.size(16.dp)
-                                            )
+                                            // Icono animado de notificación como alarma que se mueve
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = if (isReady) Color(0xFF00A884) else Color(0xFF0284C7),
+                                                modifier = Modifier
+                                                    .size(38.dp)
+                                                    .graphicsLayer {
+                                                        rotationZ = bellRotation
+                                                        scaleX = bellScale
+                                                        scaleY = bellScale
+                                                    }
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.NotificationsActive,
+                                                        contentDescription = "Ver detalles",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            // Texto de notificación según lo solicitado
                                             Text(
-                                                text = "Código de Entrega:",
-                                                style = MaterialTheme.typography.bodySmall,
+                                                text = text,
+                                                fontSize = 14.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF004D40)
+                                                color = if (isReady) Color(0xFF14532D) else Color(0xFF0C4A6E)
                                             )
                                         }
-                                        Text(
-                                            text = "#${subOrder.verificationCode}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = 2.sp,
-                                            color = Color(0xFF004D40)
+
+                                        IconButton(
+                                            onClick = {
+                                                isNotificationVisible = false
+                                                dismissedAlertSignatures = dismissedAlertSignatures + sig
+                                            },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Cerrar",
+                                                tint = Color(0xFF64748B),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Línea de temporización de 5 segundos con bordes redondeados y margen estético que no corta las esquinas de la tarjeta
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp)
+                                            .padding(bottom = 10.dp)
+                                            .height(3.5.dp)
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(Color(0xFFE2E8F0))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(fraction = timerProgress.value)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(2.dp))
+                                                .background(if (isReady) Color(0xFF00A884) else Color(0xFF0284C7))
                                         )
                                     }
-                                }
-
-                                Button(
-                                    onClick = { showTracking = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(42.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_location_custom),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Ver punto de encuentro y seguimiento",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = Color.White
-                                    )
                                 }
                             }
                         }
@@ -1333,6 +1412,15 @@ fun BuyerHomeScreen(
                                         cartRepository.setStoreName(store1.sellerId, store1.sellerName)
                                         cartRepository.addToCart(prod1, 1)
                                     },
+                                    isFavorite = favoriteProductIds.contains(prod1.id),
+                                    onToggleFavorite = {
+                                        favoriteProductIds = if (favoriteProductIds.contains(prod1.id)) {
+                                            favoriteProductIds - prod1.id
+                                        } else {
+                                            favoriteProductIds + prod1.id
+                                        }
+                                    },
+                                    showStoreTag = (selectedStoreId == null),
                                     modifier = Modifier.weight(1f)
                                 )
 
@@ -1349,6 +1437,15 @@ fun BuyerHomeScreen(
                                             cartRepository.setStoreName(store2.sellerId, store2.sellerName)
                                             cartRepository.addToCart(prod2, 1)
                                         },
+                                        isFavorite = favoriteProductIds.contains(prod2.id),
+                                        onToggleFavorite = {
+                                            favoriteProductIds = if (favoriteProductIds.contains(prod2.id)) {
+                                                favoriteProductIds - prod2.id
+                                            } else {
+                                                favoriteProductIds + prod2.id
+                                            }
+                                        },
+                                        showStoreTag = (selectedStoreId == null),
                                         modifier = Modifier.weight(1f)
                                     )
                                 } else {
@@ -1358,77 +1455,113 @@ fun BuyerHomeScreen(
                         }
                     }
                 }
-
-                // 5. Barra Flotante de Carrito Adhesiva Inferior (Rappi Sticky Cart Bar)
-            AnimatedVisibility(
-                visible = cartCalculation.totalItemCount > 0,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Surface(
-                    onClick = { showCart = true },
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color(0xFF00A884),
-                    shadowElevation = 8.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.25f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${cartCalculation.totalItemCount}",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 13.sp,
-                                    color = Color.White
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Ver Carrito",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color.White
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "S/ %.2f".format(cartCalculation.grandTotal),
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp,
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
             }
         }
+        BuyerBottomNavTab.FAVORITOS -> {
+            BuyerFavoritesView(
+                favoriteProductIds = favoriteProductIds,
+                onToggleFavorite = { prodId ->
+                    favoriteProductIds = if (favoriteProductIds.contains(prodId)) {
+                        favoriteProductIds - prodId
+                    } else {
+                        favoriteProductIds + prodId
+                    }
+                },
+                allProducts = allMatchingProducts,
+                categoriesList = categoriesList,
+                onProductClick = { prod, store ->
+                    selectedProductForDetail = Pair(prod, store)
+                },
+                onAddToCart = { prod, store ->
+                    cartRepository.setStoreName(store.sellerId, store.sellerName)
+                    cartRepository.addToCart(prod, 1)
+                },
+                onExploreCatalog = {
+                    currentTab = BuyerBottomNavTab.INICIO
+                }
+            )
+        }
+        BuyerBottomNavTab.PEDIDOS -> {
+            OrderTrackingScreen(
+                buyerProfile = currentProfile,
+                onNavigateBack = null,
+                onNavigateToCart = {
+                    showCartScreen = true
+                }
+            )
+        }
+        BuyerBottomNavTab.CHATS -> {
+            ActiveChatsSheet(
+                chats = activeBuyerChats,
+                onSelectChat = { selectedChat ->
+                    activeChatSummary = selectedChat
+                    chatViewModel.initChat(
+                        subOrderId = selectedChat.subOrderId,
+                        currentUserId = currentProfile.id,
+                        otherUserId = selectedChat.otherUserId,
+                        otherUserName = selectedChat.otherUserName,
+                        meetingPoint = selectedChat.meetingPoint,
+                        subOrderStatus = selectedChat.status,
+                        otherUserAvatarUrl = selectedChat.otherUserAvatarUrl,
+                        deliveryCode = selectedChat.deliveryCode
+                    )
+                },
+                onClose = null,
+                userAvatarUrl = currentProfile.avatarUrl
+            )
+        }
+        BuyerBottomNavTab.PERFIL -> {
+            BuyerProfileScreen(
+                profile = currentProfile,
+                warnings = buyerWarnings,
+                onNavigateBack = null,
+                onSaveProfile = { updated ->
+                    coroutineScope.launch {
+                        val res = productRepository.updateUserProfile(updated)
+                        if (res.isSuccess) {
+                            currentProfile = res.getOrNull() ?: updated
+                        }
+                    }
+                },
+                onUploadAvatar = { bytes, onUploaded ->
+                    coroutineScope.launch {
+                        val path = "avatars/${currentProfile.id}_${System.currentTimeMillis()}.jpg"
+                        val res = productRepository.uploadImage("business-assets", path, bytes)
+                        res.onSuccess { url ->
+                            onUploaded(url)
+                            val updated = currentProfile.copy(avatarUrl = url)
+                            productRepository.updateUserProfile(updated)
+                            currentProfile = updated
+                        }
+                    }
+                },
+                onSignOut = onSignOut
+            )
+        }
     }
+}
+}
 
-    }
+        // Barra de navegación inferior flotante - Único contorno redondeado visible con fondo exterior transparente
+        CampusGoBottomNavBar(
+            selectedTab = currentTab,
+            onTabSelected = { currentTab = it },
+            unreadChatCount = unreadChatCount,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+
+        if (showNotificationsDialog) {
+            BuyerNotificationsDialog(
+                readyOrders = readyOrdersInfo,
+                preparingOrders = preparingOrdersInfo,
+                warnings = buyerWarnings,
+                onDismiss = { showNotificationsDialog = false },
+                onNavigateToOrders = {
+                    showNotificationsDialog = false
+                    currentTab = BuyerBottomNavTab.PEDIDOS
+                }
+            )
+        }
+
+}
 }

@@ -1,23 +1,28 @@
 package com.example.vallego.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vallego.R
 
 enum class IncidentContextType {
     SELLER,
@@ -31,6 +36,7 @@ data class IncidentReasonOption(
     val description: String? = null
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportIncidentDialog(
     title: String,
@@ -40,6 +46,7 @@ fun ReportIncidentDialog(
     onDismiss: () -> Unit,
     onSubmit: (reasonKey: String, reasonLabel: String, details: String) -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val options = remember(contextType) {
         when (contextType) {
             IncidentContextType.SELLER -> listOf(
@@ -139,161 +146,233 @@ fun ReportIncidentDialog(
     var selectedKey by remember { mutableStateOf(options.first().key) }
     var detailsText by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
+    val configuration = LocalConfiguration.current
+    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
-        shape = ValleGoDialogShape,
-        containerColor = ValleGoDialogContainerColor,
-        tonalElevation = ValleGoDialogTonalElevation,
-        modifier = Modifier.valleGoDialogStyle(),
-        title = {
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = Color(0xFFF8FAFC),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(44.dp)
+                        .height(4.5.dp)
+                        .background(Color(0xFFCBD5E1), CircleShape)
+                )
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = sheetMaxHeight)
+                .navigationBarsPadding()
+        ) {
+            // Cabecera estilo Rappi / iOS
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ReportProblem,
-                        contentDescription = null,
-                        tint = Color(0xFFC8102E),
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFEE2E2),
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                contentDescription = null,
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                     Column {
                         Text(
                             text = title,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366),
-                            style = MaterialTheme.typography.titleMedium
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            color = Color(0xFF0F172A)
                         )
                         if (!subtitle.isNullOrBlank()) {
                             Text(
                                 text = subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF64748B)
                             )
                         }
                     }
                 }
+
                 IconButton(
-                    onClick = onDismiss,
-                    enabled = !isSubmitting,
-                    modifier = Modifier.size(32.dp)
+                    onClick = { if (!isSubmitting) onDismiss() },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color(0xFFF1F5F9), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Cerrar",
-                        tint = Color(0xFF64748B)
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
-        },
-        text = {
+
+            HorizontalDivider(
+                color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 10.dp)
+            )
+
+            // Contenido desplazable con amplio espacio
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Mensaje informativo institucional
+                // Banner de seguridad institucional
                 Surface(
-                    color = Color(0xFFFFF3E0),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFFFCC80)),
+                    color = Color(0xFFFFFBEB),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFDE68A)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(10.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
-                            tint = Color(0xFFE65100),
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Este reporte llegará directamente al Panel del Administrador para su investigación, llamada de atención o sanción.",
+                            text = "Este reporte llegará directamente al Panel del Administrador del Campus para su investigación y sanción si corresponde.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFB7410E),
-                            fontSize = 12.sp
+                            color = Color(0xFF92400E),
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
                         )
                     }
                 }
 
+                // Título de la sección de motivos
                 Text(
-                    text = "Selecciona el motivo principal:",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003366)
+                    text = "SELECCIONA EL MOTIVO PRINCIPAL",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF64748B),
+                    letterSpacing = 0.5.sp
                 )
 
-                // Lista de motivos seleccionables
-                options.forEach { option ->
-                    val isSelected = selectedKey == option.key
-                    Surface(
-                        color = if (isSelected) Color(0xFFEFF6FF) else Color(0xFFF8FAFC),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) Color(0xFF003366) else Color(0xFFE2E8F0)
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isSubmitting) {
-                                selectedKey = option.key
-                                validationError = null
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = {
+                // Tarjetas seleccionables de motivos (estilo Rappi / iOS)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { option ->
+                        val isSelected = selectedKey == option.key
+                        Surface(
+                            color = if (isSelected) Color(0xFFEFF6FF) else Color.White,
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(
+                                width = if (isSelected) 1.8.dp else 1.dp,
+                                color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+                            ),
+                            shadowElevation = if (isSelected) 1.5.dp else 0.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isSubmitting) {
                                     selectedKey = option.key
                                     validationError = null
-                                },
-                                enabled = !isSubmitting,
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = Color(0xFF003366),
-                                    unselectedColor = Color(0xFF94A3B8)
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = option.label,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isSelected) Color(0xFF003366) else Color(0xFF334155)
-                                )
-                                option.description?.let { desc ->
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Indicador circular tipo check/radio iOS
+                                Box(
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .background(
+                                            color = if (isSelected) Color(0xFF2563EB) else Color.Transparent,
+                                            shape = CircleShape
+                                        )
+                                        .let {
+                                            if (!isSelected) it.background(Color(0xFFF1F5F9), CircleShape)
+                                            else it
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .background(Color(0xFFCBD5E1), CircleShape)
+                                        )
+                                    }
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = desc,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF64748B),
-                                        fontSize = 11.sp
+                                        text = option.label,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        fontSize = 13.5.sp,
+                                        color = if (isSelected) Color(0xFF1E3A8A) else Color(0xFF1E293B)
                                     )
+                                    option.description?.let { desc ->
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = desc,
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF64748B),
+                                            lineHeight = 15.sp
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                // Campo de texto para detalles
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Campo de texto de detalles adicionales
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "Detalles adicionales de lo ocurrido:",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF003366)
+                        text = "DETALLES DE LO OCURRIDO",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.5.sp
                     )
                     OutlinedTextField(
                         value = detailsText,
@@ -312,12 +391,14 @@ fun ReportIncidentDialog(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(110.dp),
-                        shape = RoundedCornerShape(10.dp),
+                            .height(115.dp),
+                        shape = RoundedCornerShape(14.dp),
                         enabled = !isSubmitting,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF003366),
-                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF2563EB),
+                            unfocusedBorderColor = Color(0xFFE2E8F0)
                         )
                     )
                     Row(
@@ -327,7 +408,8 @@ fun ReportIncidentDialog(
                         if (validationError != null) {
                             Text(
                                 text = validationError ?: "",
-                                color = Color(0xFFC8102E),
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         } else {
@@ -341,53 +423,79 @@ fun ReportIncidentDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val trimmed = detailsText.trim()
-                    if (selectedKey == "OTHER" && trimmed.length < 5) {
-                        validationError = "Por favor detalla el motivo del reporte."
-                        return@Button
-                    }
-                    val selectedOption = options.firstOrNull { it.key == selectedKey } ?: options.first()
-                    onSubmit(selectedOption.key, selectedOption.label, trimmed)
-                },
-                enabled = !isSubmitting,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFC8102E),
-                    disabledContainerColor = Color(0xFFE2E8F0)
-                ),
-                shape = RoundedCornerShape(8.dp)
+
+            // Barra inferior fija con botones de acción estilo Rappi
+            Surface(
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Enviando...")
-                } else {
-                    Text(
-                        text = "Enviar Reporte",
-                        fontWeight = FontWeight.Bold
-                    )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val trimmed = detailsText.trim()
+                            if (selectedKey == "OTHER" && trimmed.length < 5) {
+                                validationError = "Por favor detalla el motivo del reporte."
+                                return@Button
+                            }
+                            val selectedOption = options.firstOrNull { it.key == selectedKey } ?: options.first()
+                            onSubmit(selectedOption.key, selectedOption.label, trimmed)
+                        },
+                        enabled = !isSubmitting,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFDC2626),
+                            disabledContainerColor = Color(0xFFE2E8F0)
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Enviando reporte...", fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Enviar Reporte al Campus",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+                    }
+
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !isSubmitting,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                    ) {
+                        Text(
+                            text = "Cancelar",
+                            color = Color(0xFF64748B),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
-        },
-        dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                enabled = !isSubmitting,
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFCBD5E1))
-            ) {
-                Text(
-                    text = "Cancelar",
-                    color = Color(0xFF64748B)
-                )
-            }
         }
-    )
+    }
 }

@@ -1,88 +1,60 @@
 package com.example.vallego.features.buyer
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.ReportProblem
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import com.example.vallego.domain.repository.AuthRepository
-import com.example.vallego.domain.repository.OrderRepository
-import com.example.vallego.ui.components.IncidentContextType
-import com.example.vallego.ui.components.ReportIncidentDialog
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.blur
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import com.example.vallego.R
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vallego.ui.components.PaymentMethodLogoByName
+import com.example.vallego.R
 import com.example.vallego.domain.model.CampusMeetingPoint
 import com.example.vallego.domain.model.CartCalculationResult
 import com.example.vallego.domain.model.Product
+import com.example.vallego.domain.repository.AuthRepository
+import com.example.vallego.domain.repository.OrderRepository
 import com.example.vallego.ui.components.EnlargedPhotoViewerDialog
+import com.example.vallego.ui.components.IncidentContextType
+import com.example.vallego.ui.components.PaymentMethodLogoByName
+import com.example.vallego.ui.components.ReportIncidentDialog
 import com.example.vallego.ui.components.StoreStatusBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import com.example.vallego.ui.components.ValleGoBusinessBanner
 import com.example.vallego.ui.components.ValleGoProductImage
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +75,7 @@ fun BuyerSellerProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showReportDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
+    var isMeetingPointsExpanded by remember { mutableStateOf(false) }
 
     val sellerSupportedPoints = remember(store.supportedMeetingPoints, meetingPoints) {
         val supportedSet = store.supportedMeetingPoints.filter { it.isNotBlank() }.toSet()
@@ -130,40 +103,6 @@ fun BuyerSellerProfileScreen(
             .fillMaxSize()
             .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = store.sellerName,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = Color(0xFF003366)
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showReportDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.ReportProblem,
-                            contentDescription = "Reportar Puesto",
-                            tint = Color(0xFFC8102E)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
-            )
-        },
         bottomBar = {
             if (cartCalculation.totalItemCount > 0) {
                 Surface(
@@ -211,248 +150,557 @@ fun BuyerSellerProfileScreen(
         },
         containerColor = Color(0xFFF8FAFC)
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Cabecera Hero: Portada y Logotipo superpuesto
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+            // Contenido desplazable estilo Rappi
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                // 1. Portada Hero Superior a Pantalla Completa (Full Width)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                ) {
+                    ValleGoBusinessBanner(
+                        bannerUrl = store.bannerUrl,
+                        storeName = store.sellerName,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable {
+                                enlargedPhotoUrl = store.bannerUrl
+                                enlargedPhotoTitle = store.sellerName
+                                enlargedPhotoRole = "Banner del Puesto"
+                                isEnlargedBanner = true
+                                showEnlargedPhoto = true
+                            },
+                        shape = RoundedCornerShape(0.dp)
+                    )
+
+                    // Gradiente sutil superior e inferior para legibilidad perfecta
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp)
-                    ) {
-                        ValleGoBusinessBanner(
-                            bannerUrl = store.bannerUrl,
-                            storeName = store.sellerName,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable {
-                                    enlargedPhotoUrl = store.bannerUrl
-                                    enlargedPhotoTitle = store.sellerName
-                                    enlargedPhotoRole = "Banner del Puesto"
-                                    isEnlargedBanner = true
-                                    showEnlargedPhoto = true
-                                },
-                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                        )
-
-                        // Avatar superpuesto estilo Facebook
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 16.dp)
-                                .offset(y = 38.dp)
-                                .clip(CircleShape)
-                                .clickable {
-                                    enlargedPhotoUrl = store.avatarUrl
-                                    enlargedPhotoTitle = store.sellerName
-                                    enlargedPhotoRole = "Puesto • " + (store.businessCategory ?: "Campus")
-                                    isEnlargedBanner = false
-                                    showEnlargedPhoto = true
-                                }
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                border = BorderStroke(3.5.dp, Color.White),
-                                shadowElevation = 5.dp
-                            ) {
-                                ValleGoBusinessAvatar(
-                                    avatarUrl = store.avatarUrl,
-                                    storeName = store.sellerName,
-                                    size = 76.dp
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0x55000000),
+                                        Color.Transparent,
+                                        Color(0x33000000)
+                                    )
                                 )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Datos del Puesto
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = store.sellerName,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF003366),
-                                modifier = Modifier.weight(1f, fill = false)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            StoreStatusBadge(status = store.businessStatus, acceptingOrders = store.acceptingOrders)
-                        }
+                    )
+                }
 
-                        // Reputación, Categoría y Emprendedor Autorizado
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Surface(
-                                color = Color(0xFFFEF3C7),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD97706),
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Text(
-                                        text = "%.1f".format(store.ratingAverage),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF92400E)
-                                    )
-                                }
-                            }
-
-                            val category = store.businessCategory?.takeIf { it.isNotBlank() } ?: "Emprendimiento UCV"
-                            Surface(
-                                color = Color(0xFFF1F5F9),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = category,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF475569),
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-
-                            Surface(
-                                color = Color(0xFFE6F6F3),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
-                                        contentDescription = null,
-                                        tint = Color(0xFF0D5C4C),
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Text(
-                                        text = "Emprendedor Autorizado",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF0D5C4C),
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        // Ubicación y Horario en bloque claro y estructurado
+                // 2. Tarjeta Principal de Información del Puesto (Superpuesta sobre el banner estilo Rappi)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = (-24).dp)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(22.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                .padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            // Fila de Avatar + Estado del Puesto
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "UBICACIÓN",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF94A3B8)
-                                )
-                                Text(
-                                    text = store.location ?: "Campus Universitario",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF1E293B),
-                                    fontWeight = FontWeight.SemiBold
+                                Surface(
+                                    shape = CircleShape,
+                                    border = BorderStroke(3.5.dp, Color.White),
+                                    shadowElevation = 5.dp,
+                                    modifier = Modifier
+                                        .size(76.dp)
+                                        .clickable {
+                                            enlargedPhotoUrl = store.avatarUrl
+                                            enlargedPhotoTitle = store.sellerName
+                                            enlargedPhotoRole = "Puesto • " + (store.businessCategory ?: "Campus")
+                                            isEnlargedBanner = false
+                                            showEnlargedPhoto = true
+                                        }
+                                ) {
+                                    ValleGoBusinessAvatar(
+                                        avatarUrl = store.avatarUrl,
+                                        storeName = store.sellerName,
+                                        size = 76.dp
+                                    )
+                                }
+
+                                StoreStatusBadge(
+                                    status = store.businessStatus,
+                                    acceptingOrders = store.acceptingOrders
                                 )
                             }
-                            if (!store.openTime.isNullOrBlank() && !store.closeTime.isNullOrBlank()) {
-                                HorizontalDivider(color = Color(0xFFE2E8F0).copy(alpha = 0.6f))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+
+                            // Nombre del Puesto
+                            Text(
+                                text = store.sellerName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF16324F)
+                            )
+
+                            // Badges: Estrellas / Calificación, Categoría y Emprendedor Autorizado
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    color = Color(0xFFFEF3C7),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = null,
+                                            tint = Color(0xFFD97706),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = "%.1f".format(store.ratingAverage),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF92400E)
+                                        )
+                                    }
+                                }
+
+                                val category = store.businessCategory?.takeIf { it.isNotBlank() } ?: "Campus UCV"
+                                Surface(
+                                    color = Color(0xFFF1F5F9),
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
-                                        text = "ATENCIÓN",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF94A3B8)
+                                        text = category,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color(0xFF475569),
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                     )
-                                    Text(
-                                        text = "${store.openTime} - ${store.closeTime}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF1E293B),
-                                        fontWeight = FontWeight.Medium
+                                }
+
+                                Surface(
+                                    color = Color(0xFFE6F6F3),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
+                                            contentDescription = null,
+                                            tint = Color(0xFF0D5C4C),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = "Autorizado UCV",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFF0D5C4C),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Bloque informativo moderno horizontal: Ubicación, Horario y Medios de Pago
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFF8FAFC),
+                                border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 6.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // 1. Ubicación
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_location_custom),
+                                                contentDescription = null,
+                                                tint = Color(0xFF00A884),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = "UBICACIÓN",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF94A3B8),
+                                                letterSpacing = 0.4.sp
+                                            )
+                                        }
+                                        Text(
+                                            text = store.location?.takeIf { it.isNotBlank() } ?: "Campus UCV",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E293B),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+
+                                    // Divisor vertical sutil
+                                    Box(
+                                        modifier = Modifier
+                                            .width(1.dp)
+                                            .height(28.dp)
+                                            .background(Color(0xFFE2E8F0))
+                                    )
+
+                                    // 2. Horario
+                                    val hasSchedule = !store.openTime.isNullOrBlank() && !store.closeTime.isNullOrBlank()
+                                    val scheduleText = if (hasSchedule) "${store.openTime} - ${store.closeTime}" else "Flexible"
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_clock_modern),
+                                                contentDescription = null,
+                                                tint = Color(0xFF2563EB),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = "HORARIO",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF94A3B8),
+                                                letterSpacing = 0.4.sp
+                                            )
+                                        }
+                                        Text(
+                                            text = scheduleText,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E293B),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+
+                                    // Divisor vertical sutil
+                                    Box(
+                                        modifier = Modifier
+                                            .width(1.dp)
+                                            .height(28.dp)
+                                            .background(Color(0xFFE2E8F0))
+                                    )
+
+                                    // 3. Medios de Pago
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Payments,
+                                                contentDescription = null,
+                                                tint = Color(0xFF7C3AED),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = "PAGOS",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF94A3B8),
+                                                letterSpacing = 0.4.sp
+                                            )
+                                        }
+
+                                        if (store.supportedPaymentMethods.isNotEmpty()) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                store.supportedPaymentMethods.take(3).forEachIndexed { index, method ->
+                                                    if (index > 0) Spacer(modifier = Modifier.width(4.dp))
+                                                    PaymentMethodLogoByName(name = method, size = 16.dp)
+                                                }
+                                            }
+                                        } else {
+                                            Text(
+                                                text = "Efectivo",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF1E293B),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Descripción breve
+                            if (!store.description.isNullOrBlank()) {
+                                Text(
+                                    text = store.description,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF475569),
+                                    lineHeight = 20.sp
+                                )
+                            }
+
+                            // Alerta si el puesto está Saturado, Pausado o Cerrado
+                            if (isSaturated) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_info_custom),
+                                            contentDescription = null,
+                                            tint = Color(0xFFD97706),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Alta afluencia de pedidos. Tu pedido podría tardar unos minutos adicionales en ser preparado.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF92400E)
+                                        )
+                                    }
+                                }
+                            } else if (!isOpen || isPaused) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_info_custom),
+                                            contentDescription = null,
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = if (isPaused) "Este puesto está pausado temporalmente. Podrás explorar sus productos pero no realizar pedidos por ahora."
+                                            else "Este puesto se encuentra cerrado en este momento. Revisa sus horarios habituales.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF334155)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Sección: Puntos de Entrega en Campus (Desplegable / Accordion)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSize()
+                        ) {
+                            // Cabecera clickeable del desplegable
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { isMeetingPointsExpanded = !isMeetingPointsExpanded }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color(0xFFFEE2E2), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null,
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = "Puntos de Entrega",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFF16324F)
+                                        )
+                                        Text(
+                                            text = if (sellerSupportedPoints.isNotEmpty())
+                                                "${sellerSupportedPoints.size} puntos autorizados en campus"
+                                            else
+                                                "Entregas en accesos del campus",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Surface(
+                                        color = Color(0xFFF1F5F9),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isMeetingPointsExpanded) "Ocultar" else "Ver puntos",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF003366),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = if (isMeetingPointsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isMeetingPointsExpanded) "Colapsar" else "Expandir",
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             }
-                            if (store.supportedPaymentMethods.isNotEmpty()) {
-                                HorizontalDivider(color = Color(0xFFE2E8F0).copy(alpha = 0.6f))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+
+                            // Lista expandible de puntos de encuentro
+                            AnimatedVisibility(visible = isMeetingPointsExpanded) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        text = "MEDIOS DE PAGO",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF94A3B8)
-                                    )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        store.supportedPaymentMethods.forEach { method ->
-                                            val (pillBg, pillTint, pillText) = when (method) {
-                                                "YAPE" -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                                                "PLIN" -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                                                "EFECTIVO" -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                                                else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), method)
-                                            }
+                                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    if (sellerSupportedPoints.isEmpty()) {
+                                        Surface(
+                                            color = Color(0xFFFFFBEB),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "El vendedor coordina la entrega en los accesos principales del campus.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color(0xFFB45309),
+                                                modifier = Modifier.padding(12.dp)
+                                            )
+                                        }
+                                    } else {
+                                        sellerSupportedPoints.forEach { point ->
                                             Surface(
-                                                color = pillBg,
-                                                shape = RoundedCornerShape(4.dp)
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = Color(0xFFF8FAFC),
+                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                modifier = Modifier.fillMaxWidth()
                                             ) {
                                                 Row(
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                                     verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                                    horizontalArrangement = Arrangement.SpaceBetween
                                                 ) {
-                                                    PaymentMethodLogoByName(name = method, size = 11.dp)
-                                                    Text(
-                                                        text = pillText,
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = pillTint
-                                                    )
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = point.name,
+                                                            fontWeight = FontWeight.Bold,
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            color = Color(0xFF1E293B)
+                                                        )
+                                                        val details = listOfNotNull(point.pavilion, point.description)
+                                                            .filter { it.isNotBlank() }
+                                                            .joinToString(" • ")
+                                                        if (details.isNotBlank()) {
+                                                            Text(
+                                                                text = details,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = Color(0xFF64748B)
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    val isExterior = point.zoneType.equals("EXTERIOR", ignoreCase = true)
+                                                    Surface(
+                                                        color = if (isExterior) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                        shape = RoundedCornerShape(6.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = if (isExterior) "Exterior" else "Interior",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isExterior) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -460,276 +708,123 @@ fun BuyerSellerProfileScreen(
                                 }
                             }
                         }
-
-                        // Alerta si el puesto está Saturado o Cerrado
-                        if (isSaturated) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                 Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_info_custom),
-                                        contentDescription = null,
-                                        tint = Color(0xFFD97706),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Alta afluencia de pedidos. Tu pedido podría tardar unos minutos adicionales en ser preparado.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF92400E)
-                                    )
-                                }
-                            }
-                        } else if (!isOpen || isPaused) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_info_custom),
-                                        contentDescription = null,
-                                        tint = Color(0xFF64748B),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (isPaused) "Este puesto está pausado temporalmente. Podrás explorar sus productos pero no realizar pedidos por ahora."
-                                        else "Este puesto se encuentra cerrado en este momento. Revisa sus horarios habituales.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF334155)
-                                    )
-                                }
-                            }
-                        }
                     }
-                }
-            }
 
-            // 2. Sección: Acerca del Puesto (Descripción)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    // 4. Sección: Catálogo de Productos
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_store_custom),
-                            contentDescription = null,
-                            tint = Color(0xFF003366),
-                            modifier = Modifier.size(18.dp)
-                        )
                         Text(
-                            text = "Acerca del Puesto",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF003366)
+                            text = "PRODUCTOS DEL PUESTO (${store.products.size})",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.8.sp
                         )
-                    }
-                    Text(
-                        text = store.description?.takeIf { it.isNotBlank() }
-                            ?: "Emprendimiento estudiantil de CampusGO. Ofrece productos preparados y seleccionados especialmente para los estudiantes y docentes del campus universitario.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF334155),
-                        lineHeight = 20.sp
-                    )
-                }
-            }
 
-            // 3. Sección: Puntos de Encuentro Autorizados por este Vendedor
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_location_custom),
-                            contentDescription = null,
-                            tint = Color(0xFFC8102E),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Puntos de Entrega en Campus",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF003366)
-                        )
-                    }
-
-                    Text(
-                        text = "Lugares autorizados donde este vendedor realiza entregas dentro o en los accesos del campus:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    if (sellerSupportedPoints.isEmpty()) {
-                        Surface(
-                            color = Color(0xFFFFFBEB),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "El vendedor coordina la entrega en los accesos principales del campus.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFB45309),
-                                modifier = Modifier.padding(10.dp)
-                            )
-                        }
-                    } else {
-                        sellerSupportedPoints.forEach { point ->
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFF8FAFC),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                modifier = Modifier.fillMaxWidth()
+                        if (store.products.isEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                             ) {
-                                Row(
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = point.name,
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = Color(0xFF1E293B)
+                                    Text(
+                                        text = "Este puesto no tiene productos disponibles en este momento.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            val productPairs = store.products.chunked(2)
+                            productPairs.forEach { pair ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    val prod1 = pair[0]
+                                    SellerProductItemCard(
+                                        product = prod1,
+                                        isStoreAvailable = isOpen,
+                                        onClick = { onProductClick(prod1) },
+                                        onAddToCart = { onAddToCart(prod1) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (pair.size > 1) {
+                                        val prod2 = pair[1]
+                                        SellerProductItemCard(
+                                            product = prod2,
+                                            isStoreAvailable = isOpen,
+                                            onClick = { onProductClick(prod2) },
+                                            onAddToCart = { onAddToCart(prod2) },
+                                            modifier = Modifier.weight(1f)
                                         )
-                                        val details = listOfNotNull(point.pavilion, point.description).filter { it.isNotBlank() }.joinToString(" • ")
-                                        if (details.isNotBlank()) {
-                                            Text(
-                                                text = details,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = Color(0xFF64748B)
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    val isExterior = point.zoneType.equals("EXTERIOR", ignoreCase = true)
-                                    Surface(
-                                        color = if (isExterior) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isExterior) "Exterior" else "Interior",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isExterior) Color(0xFF16A085) else Color(0xFF1D4ED8),
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
             }
 
-            // 4. Sección: Catálogo de Productos del Puesto
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // 5. Controles Flotantes Superiores estilo Rappi (Botón Volver y Botón Reportar con fondo circular blanco)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Flecha de volver con círculo blanco detrás
+                Surface(
+                    onClick = onNavigateBack,
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.96f),
+                    shadowElevation = 5.dp,
+                    modifier = Modifier.size(42.dp)
                 ) {
-                    Text(
-                        text = "PRODUCTOS DEL PUESTO (${store.products.size})",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF64748B),
-                        letterSpacing = 0.8.sp
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color(0xFF16324F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
-                if (store.products.isEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Este puesto no tiene productos disponibles en este momento.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    val productPairs = store.products.chunked(2)
-                    productPairs.forEach { pair ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            val prod1 = pair[0]
-                            SellerProductItemCard(
-                                product = prod1,
-                                isStoreAvailable = isOpen,
-                                onClick = { onProductClick(prod1) },
-                                onAddToCart = { onAddToCart(prod1) },
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            if (pair.size > 1) {
-                                val prod2 = pair[1]
-                                SellerProductItemCard(
-                                    product = prod2,
-                                    isStoreAvailable = isOpen,
-                                    onClick = { onProductClick(prod2) },
-                                    onAddToCart = { onAddToCart(prod2) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
+                // Botón de reportar con círculo blanco detrás
+                Surface(
+                    onClick = { showReportDialog = true },
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.96f),
+                    shadowElevation = 5.dp,
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                            contentDescription = "Reportar Puesto",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -785,18 +880,25 @@ private fun SellerProductItemCard(
     val isAvailable = isStoreAvailable && product.stock > 0
 
     Surface(
-        onClick = onClick,
+        onClick = {
+            if (isAvailable) {
+                onClick()
+            }
+        },
+        enabled = isAvailable,
         shape = RoundedCornerShape(16.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
-        shadowElevation = 1.5.dp,
-        modifier = modifier.fillMaxWidth()
+        border = BorderStroke(1.dp, if (isAvailable) Color(0xFFEEF2F6) else Color(0xFFE2E8F0)),
+        shadowElevation = if (isAvailable) 1.5.dp else 0.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (isAvailable) 1f else 0.55f)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(125.dp)
+                    .height(130.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             ) {
                 ValleGoProductImage(
@@ -807,24 +909,37 @@ private fun SellerProductItemCard(
                     modifier = Modifier.fillMaxSize()
                 )
 
+                // Si no hay stock o la tienda no está disponible, difuminar con capa y tarjetita 'No disponible'
                 if (!isAvailable) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0x88000000)),
+                            .background(Color(0x990F172A)),
                         contentAlignment = Alignment.Center
                     ) {
                         Surface(
-                            color = Color(0xDD000000),
-                            shape = RoundedCornerShape(8.dp)
+                            color = Color(0xEEBE123C), // Rojo oscuro elegante
+                            shape = RoundedCornerShape(8.dp),
+                            shadowElevation = 3.dp
                         ) {
-                            Text(
-                                text = if (product.stock <= 0) "Agotado" else "No disponible",
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = if (product.stock <= 0) "No disponible" else "No disponible",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -839,8 +954,8 @@ private fun SellerProductItemCard(
                 Text(
                     text = product.name,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = Color(0xFF1E293B),
+                    fontSize = 13.5.sp,
+                    color = if (isAvailable) Color(0xFF1E293B) else Color(0xFF64748B),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -849,7 +964,7 @@ private fun SellerProductItemCard(
                     Text(
                         text = product.description,
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B),
+                        color = Color(0xFF94A3B8),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -865,19 +980,19 @@ private fun SellerProductItemCard(
                     Text(
                         text = "S/ %.2f".format(product.price),
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 14.sp,
-                        color = Color(0xFF003366)
+                        fontSize = 14.5.sp,
+                        color = if (isAvailable) Color(0xFF003366) else Color(0xFF94A3B8)
                     )
 
                     FilledTonalButton(
-                        onClick = onAddToCart,
+                        onClick = { if (isAvailable) onAddToCart() },
                         enabled = isAvailable,
                         shape = CircleShape,
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = Color(0xFFE6F7F3),
                             contentColor = Color(0xFF00A884),
                             disabledContainerColor = Color(0xFFF1F5F9),
-                            disabledContentColor = Color(0xFF94A3B8)
+                            disabledContentColor = Color(0xFFCBD5E1)
                         ),
                         contentPadding = PaddingValues(0.dp),
                         modifier = Modifier.size(32.dp)

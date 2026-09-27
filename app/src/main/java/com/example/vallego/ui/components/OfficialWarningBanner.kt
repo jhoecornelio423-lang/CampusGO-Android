@@ -27,7 +27,9 @@ import com.example.vallego.domain.model.ProfileWarning
 fun OfficialWarningBanner(
     warnings: List<ProfileWarning>,
     modifier: Modifier = Modifier,
-    isSeller: Boolean = false
+    isSeller: Boolean = false,
+    onBannerClick: (() -> Unit)? = null,
+    timerProgress: Float? = null
 ) {
     if (warnings.isEmpty()) return
 
@@ -40,12 +42,19 @@ fun OfficialWarningBanner(
         border = BorderStroke(1.5.dp, Color(0xFFFFB300)),
         modifier = modifier
             .fillMaxWidth()
-            .clickable { showDetailsDialog = true }
+            .clickable {
+                if (onBannerClick != null) {
+                    onBannerClick()
+                } else {
+                    showDetailsDialog = true
+                }
+            }
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -96,7 +105,7 @@ fun OfficialWarningBanner(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Toca para ver el historial y regularizar tu estado →",
+                    text = if (isSeller) "Toca para ver • O consúltalo siempre en 🔔 arriba" else "Toca para ver el historial y regularizar tu estado →",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFE65100),
@@ -104,7 +113,24 @@ fun OfficialWarningBanner(
                 )
             }
         }
+        if (timerProgress != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.5.dp)
+                    .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                    .background(Color(0xFFFFE082))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction = timerProgress.coerceIn(0f, 1f))
+                        .fillMaxHeight()
+                        .background(Color(0xFFE65100))
+                )
+            }
+        }
     }
+}
 
     if (showDetailsDialog) {
         OfficialWarningDetailDialog(

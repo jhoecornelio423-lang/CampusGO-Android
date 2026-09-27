@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.res.painterResource
@@ -46,9 +47,11 @@ import com.example.vallego.ui.components.IncidentContextType
 import com.example.vallego.ui.components.ReportIncidentDialog
 import com.example.vallego.features.chat.OrderChatBottomSheet
 import com.example.vallego.features.chat.OrderChatViewModel
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,10 +66,12 @@ import com.example.vallego.domain.model.PaymentMethod
 import com.example.vallego.domain.model.SubOrder
 import com.example.vallego.domain.model.SubOrderStatus
 import com.example.vallego.domain.model.UserProfile
+import com.example.vallego.domain.model.orderCodeDisplay
 import com.example.vallego.domain.model.verificationCode
 import com.example.vallego.domain.repository.AuthRepository
 import com.example.vallego.ui.components.PaymentMethodLogo
 import com.example.vallego.ui.components.PeekRating
+import com.example.vallego.ui.components.RateExperienceBottomSheet
 import com.example.vallego.ui.components.SubOrderCountdownTimerBadge
 import com.example.vallego.ui.components.ValleGoBusinessAvatar
 import com.example.vallego.ui.components.ValleGoDialogContainerColor
@@ -81,7 +86,7 @@ import org.koin.compose.koinInject
 @Composable
 fun OrderTrackingScreen(
     buyerProfile: UserProfile,
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToCart: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: OrderTrackingViewModel = koinViewModel(),
@@ -94,6 +99,26 @@ fun OrderTrackingScreen(
     var isChatPickerOpen by remember { mutableStateOf(false) }
     var subOrderToReport by remember { mutableStateOf<SubOrder?>(null) }
     var isSubmittingReport by remember { mutableStateOf(false) }
+
+    // Auto prompt de calificación inDrive al completarse la compra
+    var promptedSubOrderIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    LaunchedEffect(uiState.orders, uiState.reviewedOrders) {
+        if (uiState.subOrderToRate == null && !uiState.isLoading) {
+            val unratedCompletedSub = uiState.orders
+                .flatMap { it.subOrders }
+                .firstOrNull { sub ->
+                    (sub.status == SubOrderStatus.COMPLETADO || sub.status == SubOrderStatus.PAGO_CONFIRMADO) &&
+                    !promptedSubOrderIds.contains(sub.id) &&
+                    !uiState.reviewedOrders.containsKey("${sub.orderId}-${sub.sellerId}") &&
+                    !uiState.reviewedOrders.containsKey(sub.id) &&
+                    !uiState.reviewedOrders.containsKey(sub.orderId)
+                }
+            if (unratedCompletedSub != null) {
+                promptedSubOrderIds = promptedSubOrderIds + unratedCompletedSub.id
+                viewModel.openRateDialog(unratedCompletedSub)
+            }
+        }
+    }
 
     val isAnyModalOpen = uiState.orderToCancel != null ||
             uiState.subOrderToRate != null ||
@@ -206,12 +231,30 @@ fun OrderTrackingScreen(
         )
     }
 
-    // Modal de Calificación al Vendedor
+    // Modal de Calificación al Vendedor (Estilo inDrive / Rappi Bottom Sheet)
     if (uiState.subOrderToRate != null) {
         val subOrder = uiState.subOrderToRate!!
-        RateSellerDialog(
-            sellerName = subOrder.sellerName,
-            sellerId = subOrder.sellerId,
+        val authRepo: AuthRepository = koinInject()
+        var sellerAvatarUrl by remember(subOrder.sellerId) { mutableStateOf<String?>(null) }
+        LaunchedEffect(subOrder.sellerId) {
+            if (subOrder.sellerId.isNotBlank()) {
+                val res = authRepo.getUserProfile(subOrder.sellerId)
+                if (res.isSuccess) {
+                    sellerAvatarUrl = res.getOrNull()?.avatarUrl
+                }
+            }
+        }
+
+        RateExperienceBottomSheet(
+            title = "¡Pedido Entregado! 🎉",
+            subtitle = "Cierra tu pedido calificando la atención del puesto",
+            targetName = subOrder.sellerName.ifBlank { "Puesto de Campus" },
+            targetAvatarUrl = sellerAvatarUrl,
+            targetRoleLabel = "Puesto Universitario",
+            isStore = true,
+            promptText = "¿Cómo estuvo tu experiencia y la entrega del pedido?",
+            commentPlaceholder = "¿Qué tal estuvo la atención y la comida? (Opcional)",
+            submitButtonText = "Cerrar Pedido y Calificar ⭐",
             isSubmitting = uiState.isSubmittingReview,
             onDismiss = { viewModel.dismissRateDialog() },
             onSubmit = { rating, comment ->
@@ -271,7 +314,7 @@ fun OrderTrackingScreen(
         val subOrder = subOrderToReport!!
         ReportIncidentDialog(
             title = "Reportar Puesto Comercial",
-            subtitle = "Puesto: ${subOrder.sellerName.ifBlank { "Vendedor" }} • Subpedido #${subOrder.id.take(8)}",
+            subtitle = "Puesto: ${subOrder.sellerName.ifBlank { "Vendedor" }} • Pedido ${subOrder.orderCodeDisplay}",
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { subOrderToReport = null },
@@ -302,29 +345,47 @@ fun OrderTrackingScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                Column {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = "Mis Pedidos CampusGO",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF003366)
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onNavigateBack) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Volver"
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                            spotColor = Color(0x1F16324F),
+                            ambientColor = Color(0x2816324F),
+                            clip = false
+                        ),
+                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 0.dp
+                ) {
+                    Column {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = "Mis Pedidos Campus Go",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF003366)
                                 )
-                            }
-                        }
-                    )
-                    PrimaryTabRow(
-                        selectedTabIndex = if (uiState.selectedTab == TrackingTab.EN_CURSO) 0 else 1,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = Color(0xFF003366)
-                    ) {
+                            },
+                            navigationIcon = {
+                                if (onNavigateBack != null) {
+                                    IconButton(onClick = onNavigateBack) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Volver"
+                                        )
+                                    }
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                        )
+                        PrimaryTabRow(
+                            selectedTabIndex = if (uiState.selectedTab == TrackingTab.EN_CURSO) 0 else 1,
+                            containerColor = Color.Transparent,
+                            contentColor = Color(0xFF003366)
+                        ) {
                         Tab(
                             selected = uiState.selectedTab == TrackingTab.EN_CURSO,
                             onClick = { viewModel.setSelectedTab(TrackingTab.EN_CURSO) },
@@ -347,7 +408,8 @@ fun OrderTrackingScreen(
                         )
                     }
                 }
-            },
+            }
+        },
             modifier = if (backgroundBlurRadius > 0.dp) Modifier.fillMaxSize().blur(backgroundBlurRadius) else Modifier.fillMaxSize()
         ) { innerPadding ->
             Box(
@@ -371,7 +433,8 @@ fun OrderTrackingScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(32.dp),
+                                .padding(32.dp)
+                                .padding(bottom = 60.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -415,10 +478,13 @@ fun OrderTrackingScreen(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .navigationBarsPadding(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 16.dp,
+                                bottom = 96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                            ),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(currentOrders, key = { it.id }) { order ->
@@ -511,7 +577,7 @@ fun BuyerOrderCard(
             ) {
                 Column {
                     Text(
-                        text = if (order.status == OrderStatus.COMPLETADA) "Pedido Entregado" else "Pedido #${order.id.takeLast(6).uppercase()}",
+                        text = if (order.status == OrderStatus.COMPLETADA) "Pedido Entregado" else "Pedido ${order.orderCodeDisplay}",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -893,7 +959,7 @@ fun SubOrderTrackingItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = subOrder.sellerName.ifEmpty { "Emprendimiento CampusGO" },
+                    text = subOrder.sellerName.ifEmpty { "Emprendimiento Campus Go" },
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1202,6 +1268,7 @@ fun OrderStatusBadge(status: OrderStatus) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuyerOrderDetailDialog(
     order: Order,
@@ -1212,168 +1279,331 @@ fun BuyerOrderDetailDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    AlertDialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val configuration = LocalConfiguration.current
+    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        shape = ValleGoDialogShape,
-        containerColor = ValleGoDialogContainerColor,
-        tonalElevation = ValleGoDialogTonalElevation,
-        modifier = Modifier.valleGoDialogStyle(),
-        title = {
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = Color(0xFFF8FAFC),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(4.5.dp)
+                        .background(Color(0xFFCBD5E1), CircleShape)
+                )
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = sheetMaxHeight)
+                .navigationBarsPadding()
+        ) {
+            // Cabecera superior moderna tipo Rappi / iOS
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Detalle del Pedido",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003366),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                OrderStatusBadge(status = order.status)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFE6F7F3),
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                                contentDescription = null,
+                                tint = Color(0xFF00A884),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = "Detalle del Pedido",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 19.sp,
+                            color = Color(0xFF16324F)
+                        )
+                        Text(
+                            text = "Pedido ${order.orderCodeDisplay}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OrderStatusBadge(status = order.status)
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color(0xFF475569),
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
             }
-        },
-        text = {
+
+            HorizontalDivider(
+                color = Color(0xFFE2E8F0),
+                thickness = 1.dp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            // Contenido con scroll
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Tarjeta Destacada de Punto de Entrega (Campus-Go)
+                // 1. Tarjeta: Punto de Entrega Acordado
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
-                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_location_custom),
-                                contentDescription = null,
-                                tint = Color(0xFFC8102E),
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFE6F7F3),
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_location_custom),
+                                        contentDescription = null,
+                                        tint = Color(0xFF00A884),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                             Text(
-                                text = "Punto de Entrega Acordado",
+                                text = "PUNTO DE ENTREGA ACORDADO",
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = Color(0xFF003366)
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.5.sp
                             )
                         }
+
                         Text(
                             text = order.meetingPointName.ifBlank { "Campus Universitario" },
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16324F),
+                            modifier = Modifier.padding(start = 4.dp)
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.padding(top = 2.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_alarm_custom),
-                                contentDescription = null,
-                                tint = Color(0xFF003366),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "Hora acordada: ${order.scheduledTime.ifBlank { "Lo antes posible" }}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_alarm_custom),
+                                    contentDescription = null,
+                                    tint = Color(0xFF00A884),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "Hora acordada: ${order.scheduledTime.ifBlank { "Lo antes posible" }}",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF334155)
+                                )
+                            }
                         }
                     }
                 }
 
-                // Desglose de Puestos y Productos
-                Text(
-                    text = "Puestos participantes (${order.subOrders.size}):",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFF003366)
-                )
+                // 2. Sección: Puestos participantes
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "PUESTOS PARTICIPANTES",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "${order.subOrders.size} puesto${if (order.subOrders.size > 1) "s" else ""}",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
 
                 order.subOrders.forEach { subOrder ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = subOrder.sellerName.ifBlank { "Puesto Comercial" },
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color(0xFF003366)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFFF1F5F9),
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Store,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00A884),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = subOrder.sellerName.ifBlank { "Puesto Comercial" },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFF16324F),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        val subMeetingPoint = subOrder.meetingPointName ?: order.meetingPointName
+                                        if (!subMeetingPoint.isNullOrBlank()) {
+                                            Text(
+                                                text = "📍 $subMeetingPoint",
+                                                fontSize = 11.5.sp,
+                                                color = Color(0xFF64748B),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+
                                 SubOrderStatusBadge(status = subOrder.status)
                             }
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
 
+                            // Lista de productos de este puesto
                             subOrder.items.forEach { item ->
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "${item.quantity}x ${item.productName}",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFFF1F5F9),
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = "${item.quantity}x",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF16324F)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = item.productName,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF334155)
+                                        )
+                                    }
                                     Text(
                                         text = "S/ %.2f".format(item.subtotal),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF16324F)
                                     )
                                 }
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Text(
-                                    text = "Subtotal: S/ %.2f".format(subOrder.subtotalAmount),
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF003366)
-                                )
-                            }
 
-                            val subMeetingPoint = subOrder.meetingPointName ?: order.meetingPointName
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (!subMeetingPoint.isNullOrBlank()) {
-                                    Text(
-                                        text = "📍 $subMeetingPoint",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF64748B),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                }
                                 subOrder.paymentMethod?.let { spm ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        PaymentMethodLogo(method = spm, size = 12.dp)
+                                        PaymentMethodLogo(method = spm, size = 13.dp)
                                         Text(
                                             text = when (spm) {
                                                 PaymentMethod.YAPE -> "YAPE"
@@ -1381,29 +1611,36 @@ fun BuyerOrderDetailDialog(
                                                 PaymentMethod.EFECTIVO -> "EFECTIVO"
                                                 else -> spm.name
                                             },
-                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF475569)
                                         )
                                     }
                                 }
+                                Text(
+                                    text = "Subtotal: S/ %.2f".format(subOrder.subtotalAmount),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Color(0xFF00A884)
+                                )
                             }
 
+                            // PIN de verificación
                             if (subOrder.status == SubOrderStatus.ACEPTADO ||
                                 subOrder.status == SubOrderStatus.EN_PREPARACION ||
                                 subOrder.status == SubOrderStatus.LISTO ||
                                 subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA) {
                                 val isReady = subOrder.status == SubOrderStatus.LISTO || subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA
                                 Surface(
-                                    color = if (isReady) Color(0xFFE0F2F1) else Color(0xFFF1F5F9),
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, if (isReady) Color(0xFF80CBC4) else Color(0xFFCBD5E1)),
+                                    color = if (isReady) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, if (isReady) Color(0xFF86EFAC) else Color(0xFFCBD5E1)),
                                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -1414,27 +1651,35 @@ fun BuyerOrderDetailDialog(
                                             Icon(
                                                 imageVector = Icons.Default.VerifiedUser,
                                                 contentDescription = null,
-                                                tint = if (isReady) Color(0xFF00796B) else Color(0xFF003366),
-                                                modifier = Modifier.size(16.dp)
+                                                tint = if (isReady) Color(0xFF16A34A) else Color(0xFF0284C7),
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                            Text(
-                                                text = "Código PIN de Entrega:",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
-                                            )
+                                            Column {
+                                                Text(
+                                                    text = "CÓDIGO PIN DE ENTREGA",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isReady) Color(0xFF166534) else Color(0xFF0369A1)
+                                                )
+                                                Text(
+                                                    text = "Muestra al vendedor",
+                                                    fontSize = 10.5.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
                                         }
                                         Text(
                                             text = "#${subOrder.verificationCode}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = 2.sp,
-                                            color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.5.sp,
+                                            color = if (isReady) Color(0xFF15803D) else Color(0xFF0284C7)
                                         )
                                     }
                                 }
                             }
 
+                            // Calificación
                             val canRateSub = subOrder.status == SubOrderStatus.COMPLETADO ||
                                               subOrder.status == SubOrderStatus.PAGO_CONFIRMADO ||
                                               order.status == OrderStatus.COMPLETADA
@@ -1452,7 +1697,7 @@ fun BuyerOrderDetailDialog(
                                     ) {
                                         Text(
                                             text = "Tu calificación:",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF92400E)
                                         )
@@ -1472,10 +1717,11 @@ fun BuyerOrderDetailDialog(
                                         onClick = { onRateSeller(subOrder) },
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
                                         border = BorderStroke(1.dp, Color(0xFFF59E0B)),
-                                        shape = RoundedCornerShape(8.dp),
+                                        shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(top = 4.dp)
+                                            .height(38.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Star,
@@ -1485,44 +1731,45 @@ fun BuyerOrderDetailDialog(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Agregar Calificación",
+                                            text = "Calificar Puesto",
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
+                                            fontSize = 12.5.sp,
                                             color = Color(0xFFD97706)
                                         )
                                     }
                                 }
                             }
 
+                            // Botón de Chat
                             if (onOpenChat != null) {
                                 val isFinalSub = subOrder.status.isFinal || order.status == OrderStatus.COMPLETADA
-                                OutlinedButton(
+                                Button(
                                     onClick = { onOpenChat(subOrder) },
-                                    colors = ButtonDefaults.outlinedButtonColors(
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isFinalSub) Color(0xFFF1F5F9) else Color(0xFFE6F7F3),
                                         contentColor = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884)
                                     ),
-                                    border = BorderStroke(1.dp, if (isFinalSub) Color(0xFFCBD5E1) else Color(0xFF00A884)),
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(top = 4.dp)
+                                        .padding(top = 2.dp)
+                                        .height(38.dp)
                                 ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_chat_custom),
                                         contentDescription = null,
-                                        tint = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884),
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isFinalSub) "Chat con vendedor (Cerrado)" else "Chat con vendedor",
+                                        text = if (isFinalSub) "Chat con Puesto (Cerrado)" else "Chat con Vendedor",
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        color = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884)
+                                        fontSize = 12.5.sp
                                     )
                                 }
                             }
 
+                            // Botón Reportar
                             if (onReportSubOrder != null) {
                                 TextButton(
                                     onClick = { onReportSubOrder(subOrder) },
@@ -1530,17 +1777,17 @@ fun BuyerOrderDetailDialog(
                                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Flag,
+                                        painter = painterResource(id = R.drawable.ic_report_triangle_custom),
                                         contentDescription = "Reportar",
-                                        tint = Color(0xFFC8102E),
+                                        tint = Color(0xFFDC2626),
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Reportar problema con este puesto",
-                                        fontSize = 11.sp,
+                                        text = "Reportar problema",
+                                        fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFFC8102E)
+                                        color = Color(0xFFDC2626)
                                     )
                                 }
                             }
@@ -1548,66 +1795,91 @@ fun BuyerOrderDetailDialog(
                     }
                 }
 
-                HorizontalDivider()
-
-                // Resumen de Pago
-                val uniquePaymentMethods = order.subOrders.mapNotNull { it.paymentMethod }.distinct()
-                val isSplitPayment = uniquePaymentMethods.size > 1
-                val pm = order.paymentMethod ?: order.subOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO
-                val (pmBg, pmColor, pmName) = if (isSplitPayment) {
-                    Triple(Color(0xFFE0E7FF), Color(0xFF3730A3), "Pagos por puesto (${uniquePaymentMethods.size})")
-                } else {
-                    when (pm) {
-                        PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                        PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                        PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                        else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), pm.name)
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // 3. Tarjeta: Total y Resumen de Pago
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Surface(
-                        color = pmBg,
-                        shape = RoundedCornerShape(4.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val uniquePaymentMethods = order.subOrders.mapNotNull { it.paymentMethod }.distinct()
+                        val isSplitPayment = uniquePaymentMethods.size > 1
+                        val pm = order.paymentMethod ?: order.subOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO
+                        val (pmBg, pmColor, pmName) = if (isSplitPayment) {
+                            Triple(Color(0xFFE0E7FF), Color(0xFF3730A3), "Pagos por puesto (${uniquePaymentMethods.size})")
+                        } else {
+                            when (pm) {
+                                PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
+                                PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
+                                PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF16324F), "Efectivo")
+                                else -> Triple(Color(0xFFF1F5F9), Color(0xFF16324F), pm.name)
+                            }
+                        }
+
+                        Surface(
+                            color = pmBg,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                if (!isSplitPayment) {
+                                    PaymentMethodLogo(method = pm, size = 14.dp)
+                                }
+                                Text(
+                                    text = if (isSplitPayment) pmName else "Pago: $pmName",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = pmColor
+                                )
+                            }
+                        }
+
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = Alignment.Bottom,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            if (!isSplitPayment) {
-                                PaymentMethodLogo(method = pm, size = 14.dp)
-                            }
                             Text(
-                                text = if (isSplitPayment) pmName else "Pago: $pmName",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = pmColor
+                                text = "Total:",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "S/ %.2f".format(order.totalAmount),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 20.sp,
+                                color = Color(0xFF00A884)
                             )
                         }
                     }
-                    Text(
-                        text = "Total: S/ %.2f".format(order.totalAmount),
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
-                        color = Color(0xFF003366)
-                    )
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
-            ) {
-                Text("Cerrar")
+
+                // Botón Cerrar inferior
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16324F)),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                ) {
+                    Text("Cerrar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -1636,163 +1908,4 @@ fun SubOrderStatusBadge(status: SubOrderStatus) {
             color = textColor
         )
     }
-}
-
-@Composable
-fun RateSellerDialog(
-    sellerName: String,
-    sellerId: String = "",
-    isSubmitting: Boolean,
-    onDismiss: () -> Unit,
-    onSubmit: (rating: Int, comment: String?) -> Unit
-) {
-    val authRepository: AuthRepository = koinInject()
-    var sellerAvatarUrl by remember(sellerId) { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(sellerId) {
-        if (sellerId.isNotBlank()) {
-            val result = authRepository.getUserProfile(sellerId)
-            if (result.isSuccess) {
-                sellerAvatarUrl = result.getOrNull()?.avatarUrl
-            }
-        }
-    }
-
-    var selectedStars by remember { mutableIntStateOf(5) }
-    var comment by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = { if (!isSubmitting) onDismiss() },
-        shape = ValleGoDialogShape,
-        containerColor = ValleGoDialogContainerColor,
-        tonalElevation = ValleGoDialogTonalElevation,
-        modifier = Modifier.valleGoDialogStyle(),
-        icon = {
-            ValleGoBusinessAvatar(
-                avatarUrl = sellerAvatarUrl,
-                storeName = sellerName,
-                size = 64.dp,
-                shape = CircleShape
-            )
-        },
-        title = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "Calificar Vendedor",
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color(0xFF003366)
-                )
-                if (sellerName.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = sellerName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF64748B),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Desliza o toca para calificar tu experiencia:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B),
-                    textAlign = TextAlign.Center
-                )
-
-                // Fila interactiva PeekRating con animación lift, magnify, popScale y tooltip
-                PeekRating(
-                    value = selectedStars,
-                    onChange = { selectedStars = it },
-                    size = 38.dp,
-                    lift = 8.dp,
-                    magnify = 1.22f,
-                    popScale = 1.35f,
-                    activeColor = Color(0xFFF59E0B),
-                    idleColor = Color(0xFFCBD5E1),
-                    tipColor = Color(0xFF1E293B),
-                    tipTextColor = Color.White,
-                    enabled = !isSubmitting
-                )
-
-                // Campo opcional de reseña
-                OutlinedTextField(
-                    value = comment,
-                    onValueChange = { comment = it },
-                    label = { Text("Comentario (opcional)") },
-                    placeholder = { Text("¿Qué tal estuvo la atención y la entrega?") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    maxLines = 4,
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        },
-        confirmButton = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    enabled = !isSubmitting,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF64748B)
-                    ),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
-                ) {
-                    Text(
-                        text = "Cancelar",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                }
-
-                Button(
-                    onClick = { onSubmit(selectedStars, comment.takeIf { it.isNotBlank() }) },
-                    enabled = selectedStars in 1..5 && !isSubmitting,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF003366),
-                        disabledContainerColor = Color(0xFF94A3B8)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = "Enviar",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            }
-        },
-        dismissButton = null
-    )
-}
+}

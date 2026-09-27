@@ -123,4 +123,8 @@ dependencies {
   // Koin Dependency Injection
   implementation(libs.koin.android)
   implementation(libs.koin.androidx.compose)
+
+  // Media3 ExoPlayer
+  implementation(libs.androidx.media3.exoplayer)
+  implementation(libs.androidx.media3.ui)
 }

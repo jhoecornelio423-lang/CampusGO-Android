@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
@@ -93,6 +95,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -330,25 +333,48 @@ fun AuthScreen(
                     },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.campus_logo),
-                        contentDescription = "Logo CampusGO",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.height(58.dp)
-                    )
-                    Image(
-                        painter = painterResource(id = R.drawable.letras_logo_white),
-                        contentDescription = "CampusGO",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.height(24.dp)
-                    )
-                }
+                if (!uiState.isLoginMode) {
+                    // MODO REGISTRO: Logo y letras de Campus Go alineados horizontalmente en tamaño más grande
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.campus_logo),
+                            contentDescription = "Logo Campus Go",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(76.dp)
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.letras_logo_white),
+                            contentDescription = "Campus Go",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.height(38.dp)
+                        )
+                    }
+                } else {
+                    // MODO LOGIN: Logo y letras apilados verticalmente con títulos oficiales
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.campus_logo),
+                            contentDescription = "Logo Campus Go",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.height(58.dp)
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.letras_logo_white),
+                            contentDescription = "Campus Go",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.height(24.dp)
+                        )
+                    }
 
-                if (uiState.isLoginMode) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "TU CAMPUS, EN MOVIMIENTO",
@@ -386,10 +412,9 @@ fun AuthScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = cardMinHeight)
                         .navigationBarsPadding()
                         .padding(horizontal = 24.dp)
-                        .padding(top = 28.dp, bottom = 40.dp),
+                        .padding(top = 28.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Encabezado según el Modo
@@ -404,7 +429,7 @@ fun AuthScreen(
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Ingresa con tu cuenta CampusGO",
+                                text = "Ingresa con tu cuenta Campus Go",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 14.sp
                                 ),
@@ -530,7 +555,7 @@ fun AuthScreen(
                     if (!uiState.isLoginMode) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "¿Cómo usarás CampusGO?",
+                                text = "¿Cómo usarás Campus Go?",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF16324F)
@@ -1212,28 +1237,54 @@ fun AuthScreen(
                             }
                         }
 
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Centro de ayuda y reportes con alineación profesional y badge táctil
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp)
                         ) {
                             Text(
-                                text = "¿Necesitas ayuda o reportar un problema? ",
+                                text = "¿Necesitas ayuda o reportar un problema?",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center
                             )
-                            Text(
-                                text = "Centro de ayuda y reportes",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF00A884),
-                                modifier = Modifier.clickable { showSupportDialog = true }
-                            )
+
+                            Surface(
+                                onClick = { showSupportDialog = true },
+                                shape = RoundedCornerShape(100.dp),
+                                color = Color(0xFFF0FDF9),
+                                border = BorderStroke(1.dp, Color(0xFFCCFBF1)),
+                                shadowElevation = 0.dp
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.HeadsetMic,
+                                        contentDescription = null,
+                                        tint = Color(0xFF00A884),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Centro de ayuda y reportes",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF00A884)
+                                    )
+                                }
+                            }
                         }
 
                         HorizontalDivider(
                             color = Color(0xFFF1F5F9),
                             thickness = 1.dp,
-                            modifier = Modifier.padding(vertical = 2.dp)
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
 
                         Row(
@@ -1266,8 +1317,8 @@ fun AuthScreen(
                             )
                         }
 
-                        // Espacio generoso para que el teclado no obstruya el botón ni los campos
-                        Spacer(modifier = Modifier.height(180.dp))
+                        // Espacio final sutil y limpio después de Powered by KODEX
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -1283,7 +1334,7 @@ fun AuthScreen(
             modifier = Modifier.valleGoDialogStyle(),
             title = {
                 Text(
-                    text = "Centro de Soporte y Reportes CampusGO",
+                    text = "Centro de Soporte y Reportes Campus Go",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF16324F)
                 )
@@ -1291,7 +1342,7 @@ fun AuthScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "¿Tienes inconvenientes con tu cuenta, verificación, reportes o solicitud de vendedor? Comunícate con nuestro canal oficial de CampusGO:",
+                        text = "¿Tienes inconvenientes con tu cuenta, verificación, reportes o solicitud de vendedor? Comunícate con nuestro canal oficial de Campus Go:",
                         fontSize = 13.5.sp,
                         color = Color(0xFF475569)
                     )
@@ -1307,7 +1358,7 @@ fun AuthScreen(
                 TextButton(
                     onClick = {
                         try {
-                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20CampusGO")
+                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20Campus%20Go")
                         } catch (_: Exception) {}
                     }
                 ) {

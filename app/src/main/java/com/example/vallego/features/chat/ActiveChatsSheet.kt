@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.example.vallego.core.notification.ValleGoNotificationHelper
@@ -57,10 +58,13 @@ data class ActiveChatSummary(
 fun ActiveChatsSheet(
     chats: List<ActiveChatSummary>,
     onSelectChat: (ActiveChatSummary) -> Unit,
-    onClose: () -> Unit,
-    userAvatarUrl: String? = null
+    onClose: (() -> Unit)? = null,
+    userAvatarUrl: String? = null,
+    showHeader: Boolean = true
 ) {
-    BackHandler(onBack = onClose)
+    if (onClose != null) {
+        BackHandler(onBack = onClose)
+    }
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
@@ -74,15 +78,25 @@ fun ActiveChatsSheet(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .then(if (showHeader) Modifier.statusBarsPadding() else Modifier)
         ) {
             // Header superior
-            Surface(
-                color = Color.White,
-                shadowElevation = 2.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            if (showHeader) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                            spotColor = Color(0x1F16324F),
+                            ambientColor = Color(0x2816324F),
+                            clip = false
+                        ),
+                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 0.dp
+                ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -92,14 +106,18 @@ fun ActiveChatsSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onClose) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Regresar",
-                                tint = Color(0xFF1E293B)
-                            )
+                        if (onClose != null) {
+                            IconButton(onClick = onClose) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Regresar",
+                                    tint = Color(0xFF1E293B)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                        } else {
+                            Spacer(modifier = Modifier.width(16.dp))
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Chats de Pedidos Activos",
                             fontWeight = FontWeight.Bold,
@@ -133,13 +151,15 @@ fun ActiveChatsSheet(
                     }
                 }
             }
+            }
 
             if (chats.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(32.dp),
+                        .padding(32.dp)
+                        .padding(bottom = if (onClose == null) (70.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else 0.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -178,8 +198,13 @@ fun ActiveChatsSheet(
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = if (onClose == null) (96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else 24.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(chats, key = { it.subOrderId }) { chat ->

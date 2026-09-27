@@ -56,6 +56,13 @@ import com.example.vallego.features.seller.SellerDashboardScreen
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.example.vallego.ui.components.VideoSplashScreen
+
 @Composable
 fun MainNavigation(
     authRepository: AuthRepository = koinInject(),
@@ -66,81 +73,94 @@ fun MainNavigation(
     val currentProfile by authRepository.currentProfile.collectAsState()
     val isSessionChecking by authRepository.isSessionChecking.collectAsState()
     val scope = rememberCoroutineScope()
+    var isSplashActive by rememberSaveable { mutableStateOf(true) }
 
-    if (isSessionChecking) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+    Crossfade(
+        targetState = isSplashActive,
+        animationSpec = tween(durationMillis = 400),
+        label = "SplashTransition"
+    ) { splashActive ->
+        if (splashActive) {
+            VideoSplashScreen(
+                onFinished = {
+                    isSplashActive = false
+                }
+            )
+        } else if (isSessionChecking) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.campus_logo_full),
-                    contentDescription = "Logo CampusGO",
-                    modifier = Modifier.size(170.dp),
-                    contentScale = ContentScale.Fit
-                )
-                CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    color = Color(0xFF16A085),
-                    strokeWidth = 3.dp
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.campus_logo_full),
+                        contentDescription = "Logo CampusGO",
+                        modifier = Modifier.size(170.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = Color(0xFF16A085),
+                        strokeWidth = 3.dp
+                    )
+                }
             }
-        }
-    } else if (!isAuthenticated || currentProfile == null) {
-        AuthRoute(
-            onAuthSuccess = { /* State triggers automatic recomposition */ },
-            modifier = Modifier.fillMaxSize()
-        )
-    } else {
-        val profile = currentProfile!!
-        val onSignOut: () -> Unit = {
-            scope.launch {
-                cartRepository.clearCart()
-                orderRepository.clearCache()
-                authRepository.signOut()
-            }
-        }
-
-        if (profile.isSellerPendingApproval) {
-            com.example.vallego.features.auth.SellerPendingApprovalFullScreen(
-                profile = profile,
-                onSignOut = onSignOut,
-                modifier = Modifier.safeDrawingPadding()
+        } else if (!isAuthenticated || currentProfile == null) {
+            AuthRoute(
+                onAuthSuccess = { /* State triggers automatic recomposition */ },
+                modifier = Modifier.fillMaxSize()
             )
         } else {
-            when (profile.role) {
-                UserRole.COMPRADOR -> {
-                    BuyerHomeScreen(
-                        profile = profile,
-                        onSignOut = onSignOut,
-                        modifier = Modifier.safeDrawingPadding()
-                    )
+            val profile = currentProfile!!
+            val onSignOut: () -> Unit = {
+                scope.launch {
+                    cartRepository.clearCart()
+                    orderRepository.clearCache()
+                    authRepository.signOut()
                 }
-                UserRole.EMPRENDEDOR -> {
-                    SellerDashboardScreen(
-                        profile = profile,
-                        onSignOut = onSignOut,
-                        modifier = Modifier.safeDrawingPadding()
-                    )
-                }
-                UserRole.ADMIN -> {
-                    AdminHomeScreen(
-                        profile = profile,
-                        onSignOut = onSignOut,
-                        modifier = Modifier.safeDrawingPadding()
-                    )
-                }
-                UserRole.SUSPENDED, UserRole.SUSPENDED_BUYER -> {
-                    SuspendedAccountScreen(
-                        profile = profile,
-                        onSignOut = onSignOut,
-                        modifier = Modifier.safeDrawingPadding()
-                    )
+            }
+
+            if (profile.isSellerPendingApproval) {
+                com.example.vallego.features.auth.SellerPendingApprovalFullScreen(
+                    profile = profile,
+                    onSignOut = onSignOut,
+                    modifier = Modifier.safeDrawingPadding()
+                )
+            } else {
+                when (profile.role) {
+                    UserRole.COMPRADOR -> {
+                        BuyerHomeScreen(
+                            profile = profile,
+                            onSignOut = onSignOut,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    UserRole.EMPRENDEDOR -> {
+                        SellerDashboardScreen(
+                            profile = profile,
+                            onSignOut = onSignOut,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    UserRole.ADMIN -> {
+                        AdminHomeScreen(
+                            profile = profile,
+                            onSignOut = onSignOut,
+                            modifier = Modifier.safeDrawingPadding()
+                        )
+                    }
+                    UserRole.SUSPENDED, UserRole.SUSPENDED_BUYER -> {
+                        SuspendedAccountScreen(
+                            profile = profile,
+                            onSignOut = onSignOut,
+                            modifier = Modifier.safeDrawingPadding()
+                        )
+                    }
                 }
             }
         }

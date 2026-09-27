@@ -144,6 +144,9 @@ class SellerDashboardViewModel(
                     }
                 }
             }
+            orderRepository.getBuyerReviews(currentSellerId).onSuccess { revs ->
+                _uiState.update { it.copy(sellerReviewedOrders = revs) }
+            }
         }
     }
 
@@ -165,9 +168,10 @@ class SellerDashboardViewModel(
         _uiState.update { it.copy(selectedTab = tab) }
         when (tab) {
             SellerTab.PRODUCTOS -> loadProducts()
-            SellerTab.MI_PUESTO -> loadSellerProfile()
+            SellerTab.PERFIL, SellerTab.MI_PUESTO -> loadSellerProfile()
             SellerTab.PEDIDOS -> {}
             SellerTab.ESTADISTICAS -> loadStatistics()
+            SellerTab.CHATS -> {}
         }
     }
 
@@ -397,12 +401,61 @@ class SellerDashboardViewModel(
 
     fun confirmDeliveryAndPayment(subOrderId: String) {
         viewModelScope.launch {
+            val targetSub = _uiState.value.subOrders.find { it.id == subOrderId }
+                ?: _uiState.value.todayOrders.find { it.id == subOrderId }
+                ?: _uiState.value.selectedSubOrderForDelivery
             val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.COMPLETADO)
             if (result.isFailure) {
                 _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al confirmar entrega y pago.") }
             } else {
                 dismissDeliveryDialog()
-                _uiState.update { it.copy(successMessage = "¡Venta y entrega registrada correctamente!") }
+                // Al estilo inDrive: abrir inmediatamente la calificación para cerrar la venta
+                _uiState.update {
+                    it.copy(
+                        subOrderToRate = targetSub,
+                        successMessage = "¡Venta y entrega registrada! Califica al cliente para cerrar la venta."
+                    )
+                }
+            }
+        }
+    }
+
+    fun openRateBuyerDialog(subOrder: SubOrder) {
+        _uiState.update { it.copy(subOrderToRate = subOrder) }
+    }
+
+    fun dismissRateBuyerDialog() {
+        _uiState.update { it.copy(subOrderToRate = null) }
+    }
+
+    fun submitBuyerReview(
+        sellerId: String,
+        orderId: String,
+        buyerId: String,
+        subOrderId: String,
+        rating: Int,
+        comment: String? = null
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmittingReview = true) }
+            val result = orderRepository.submitSellerReview(
+                orderId = orderId,
+                buyerId = sellerId,
+                sellerId = buyerId,
+                rating = rating,
+                comment = comment
+            )
+            _uiState.update { current ->
+                val updated = current.sellerReviewedOrders.toMutableMap()
+                updated[subOrderId] = rating
+                updated["$orderId-$buyerId"] = rating
+                updated[orderId] = rating
+                current.copy(
+                    isSubmittingReview = false,
+                    subOrderToRate = null,
+                    sellerReviewedOrders = updated,
+                    successMessage = "¡Venta cerrada y calificada con éxito!"
+                )
             }
         }
     }
@@ -608,33 +661,15 @@ class SellerDashboardViewModel(
         }
     }
 
-    private val limaZone: ZoneId = ZoneId.of("America/Lima")
-
-    private fun parseOrderLocalDate(createdAtIso: String?): LocalDate {
-        if (createdAtIso.isNullOrBlank()) return LocalDate.now(limaZone)
-        val formats = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-            "yyyy-MM-dd'T'HH:mm:ssXXX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss"
-        )
-        for (pattern in formats) {
-            try {
-                val sdf = SimpleDateFormat(pattern, Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                val date = sdf.parse(createdAtIso)
-                if (date != null) {
-                    return Instant.ofEpochMilli(date.time).atZone(limaZone).toLocalDate()
-                }
-            } catch (_: Exception) {
-                // try next
-            }
-        }
-        return LocalDate.now(limaZone)
+    fun setSelectedDate(date: LocalDate) {
+        _uiState.update { it.copy(selectedDate = date) }
     }
+
+    fun resetToToday() {
+        _uiState.update { it.copy(selectedDate = LocalDate.now(limaZone)) }
+    }
+
+    private val limaZone: ZoneId = ZoneId.of("America/Lima")
 
     private fun formatDayTitle(date: LocalDate, today: LocalDate): String {
         return when (date) {

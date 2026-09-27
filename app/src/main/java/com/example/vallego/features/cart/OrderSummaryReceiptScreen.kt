@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import com.example.vallego.domain.model.Order
 import com.example.vallego.domain.model.SubOrder
+import com.example.vallego.domain.model.orderCodeDisplay
 import com.example.vallego.domain.repository.OrderRepository
 import com.example.vallego.ui.components.IncidentContextType
 import com.example.vallego.ui.components.ReportIncidentDialog
@@ -171,7 +172,7 @@ fun OrderSummaryReceiptScreen(
                             .height(44.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ReportProblem,
+                            painter = painterResource(id = R.drawable.ic_report_triangle_custom),
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -240,7 +241,7 @@ fun OrderSummaryReceiptScreen(
                         color = Color(0xFF1E293B)
                     )
                     Text(
-                        text = "Código: #${order.id.takeLast(6).uppercase()}",
+                        text = "Código: ${order.orderCodeDisplay}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.5.sp,
                         color = Color(0xFF003366),
@@ -475,7 +476,7 @@ fun OrderSummaryReceiptScreen(
         val targetSeller = order.subOrders.firstOrNull()
         ReportIncidentDialog(
             title = "Reportar Problema con el Pedido",
-            subtitle = "Orden #${order.id.take(8)} • ${targetSeller?.sellerName ?: "Campus"}",
+            subtitle = "Orden ${order.orderCodeDisplay} • ${targetSeller?.sellerName ?: "Campus"}",
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },

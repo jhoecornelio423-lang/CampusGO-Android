@@ -113,7 +113,7 @@ fun WelcomeScreen(
                         horizontalAlignment = Alignment.Start
                     ) {
                         Text(
-                            text = "¿Listo para empezar?",
+                            text = "¿Listo para comenzar?",
                             fontSize = 25.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF102A43)

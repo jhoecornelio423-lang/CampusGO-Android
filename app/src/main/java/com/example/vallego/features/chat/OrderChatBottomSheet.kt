@@ -457,7 +457,7 @@ private fun CampusGoTopBar(
 
                 IconButton(onClick = onOpenReport) {
                     Icon(
-                        imageVector = Icons.Default.ReportProblem,
+                        painter = painterResource(id = R.drawable.ic_report_triangle_custom),
                         contentDescription = "Reportar",
                         tint = Color.White.copy(alpha = 0.9f),
                         modifier = Modifier.size(20.dp)

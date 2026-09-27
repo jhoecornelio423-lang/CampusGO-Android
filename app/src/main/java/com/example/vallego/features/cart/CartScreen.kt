@@ -1,14 +1,21 @@
 package com.example.vallego.features.cart
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,6 +37,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
@@ -37,14 +45,17 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -75,8 +86,9 @@ enum class CartCheckoutStep {
 @Composable
 fun CartScreen(
     buyerProfile: UserProfile,
-    onNavigateBack: () -> Unit,
-    onNavigateToTracking: () -> Unit = onNavigateBack,
+    onNavigateBack: (() -> Unit)? = null,
+    onNavigateToTracking: () -> Unit = { onNavigateBack?.invoke() },
+    onExploreStalls: (() -> Unit)? = null,
     onOpenChatForOrder: ((Order, SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: CartViewModel = koinViewModel()
@@ -90,6 +102,7 @@ fun CartScreen(
     }
 
     var currentStep by remember { mutableStateOf(CartCheckoutStep.PRODUCTS) }
+    var isDeliveryExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Si el carrito queda vacío, volver automáticamente al paso 1
     LaunchedEffect(uiState.isEmpty) {
@@ -142,7 +155,7 @@ fun CartScreen(
                 Text(
                     text = "¿Vaciar el carrito?",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003366),
+                    color = Color(0xFF16324F),
                     textAlign = TextAlign.Center
                 )
             },
@@ -213,7 +226,7 @@ fun CartScreen(
             },
             onNavigateBack = {
                 viewModel.clearPlacedOrder()
-                onNavigateBack()
+                onNavigateBack?.invoke() ?: onNavigateToTracking()
             }
         )
         return
@@ -221,8 +234,15 @@ fun CartScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
+            containerColor = Color.White,
             topBar = {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White,
+                        scrolledContainerColor = Color.White,
+                        titleContentColor = Color(0xFF16324F),
+                        navigationIconContentColor = Color(0xFF16324F)
+                    ),
                     title = {
                         Text(
                             text = when (currentStep) {
@@ -231,23 +251,25 @@ fun CartScreen(
                                 CartCheckoutStep.PAYMENT -> "Método de Pago"
                             },
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366)
+                            color = Color(0xFF16324F)
                         )
                     },
                     navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                when (currentStep) {
-                                    CartCheckoutStep.PAYMENT -> currentStep = CartCheckoutStep.DELIVERY
-                                    CartCheckoutStep.DELIVERY -> currentStep = CartCheckoutStep.PRODUCTS
-                                    CartCheckoutStep.PRODUCTS -> onNavigateBack()
+                        if (currentStep != CartCheckoutStep.PRODUCTS || onNavigateBack != null) {
+                            IconButton(
+                                onClick = {
+                                    when (currentStep) {
+                                        CartCheckoutStep.PAYMENT -> currentStep = CartCheckoutStep.DELIVERY
+                                        CartCheckoutStep.DELIVERY -> currentStep = CartCheckoutStep.PRODUCTS
+                                        CartCheckoutStep.PRODUCTS -> onNavigateBack?.invoke()
+                                    }
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Volver"
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Volver"
-                            )
                         }
                     }
                 )
@@ -259,7 +281,8 @@ fun CartScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .padding(24.dp),
+                        .padding(24.dp)
+                        .padding(bottom = if (onNavigateBack == null) (80.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else 0.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -283,8 +306,10 @@ fun CartScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Button(
-                            onClick = onNavigateBack,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                            onClick = {
+                                onExploreStalls?.invoke() ?: onNavigateBack?.invoke() ?: onNavigateToTracking()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884))
                         ) {
                             Text("Explorar Puestos")
                         }
@@ -294,6 +319,7 @@ fun CartScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(Color.White)
                         .padding(innerPadding)
                 ) {
                     val canProceedToPayment = uiState.canProceedToPayment
@@ -315,9 +341,35 @@ fun CartScreen(
                         }
                     )
 
-                    Crossfade(
+                    AnimatedContent(
                         targetState = currentStep,
-                        label = "cart_step_crossfade",
+                        transitionSpec = {
+                            val isForward = targetState.ordinal > initialState.ordinal
+                            if (isForward) {
+                                (slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(durationMillis = 350, easing = CubicBezierEasing(0.25f, 1f, 0.5f, 1f))
+                                ) + fadeIn(animationSpec = tween(durationMillis = 350)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                                            animationSpec = tween(durationMillis = 350, easing = CubicBezierEasing(0.25f, 1f, 0.5f, 1f))
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    )
+                            } else {
+                                (slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                                    animationSpec = tween(durationMillis = 350, easing = CubicBezierEasing(0.25f, 1f, 0.5f, 1f))
+                                ) + fadeIn(animationSpec = tween(durationMillis = 350)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            targetOffsetX = { fullWidth -> fullWidth },
+                                            animationSpec = tween(durationMillis = 350, easing = CubicBezierEasing(0.25f, 1f, 0.5f, 1f))
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    )
+                            }
+                        },
+                        label = "cart_step_transition",
                         modifier = Modifier.weight(1f)
                     ) { step ->
                         when (step) {
@@ -344,7 +396,7 @@ fun CartScreen(
                                                 text = "Productos seleccionados (${uiState.calculation.totalItemCount})",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF003366)
+                                                color = Color(0xFF16324F)
                                             )
                                             TextButton(
                                                 onClick = { showClearCartDialog = true },
@@ -391,7 +443,7 @@ fun CartScreen(
                                                             Icon(
                                                                 painter = painterResource(id = R.drawable.ic_store_custom),
                                                                 contentDescription = null,
-                                                                tint = Color(0xFF003366),
+                                                                tint = Color(0xFF00A884),
                                                                 modifier = Modifier.size(18.dp)
                                                             )
                                                             Spacer(modifier = Modifier.width(6.dp))
@@ -399,7 +451,7 @@ fun CartScreen(
                                                                 text = group.sellerName,
                                                                 style = MaterialTheme.typography.titleMedium,
                                                                 fontWeight = FontWeight.Bold,
-                                                                color = Color(0xFF003366)
+                                                                color = Color(0xFF16324F)
                                                             )
                                                         }
                                                         Text(
@@ -487,19 +539,26 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Barra inferior FIJA en la parte de abajo con el Subtotal, Precio y Botón Continuar
+                                    // Barra inferior flotante con el Subtotal, Precio y Botón Continuar
                                     Surface(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = 16.dp,
+                                                end = 16.dp,
+                                                top = 6.dp,
+                                                bottom = if (onNavigateBack == null) (82.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else (12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                                            ),
                                         color = MaterialTheme.colorScheme.surface,
                                         tonalElevation = 6.dp,
-                                        shadowElevation = 10.dp,
-                                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                                        shadowElevation = 8.dp,
+                                        shape = RoundedCornerShape(20.dp),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                     ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
                                             verticalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
                                             Row(
@@ -523,14 +582,14 @@ fun CartScreen(
                                                     text = "S/ %.2f".format(uiState.calculation.grandTotal),
                                                     style = MaterialTheme.typography.headlineSmall,
                                                     fontWeight = FontWeight.ExtraBold,
-                                                    color = Color(0xFF003366)
+                                                    color = Color(0xFF00A884)
                                                 )
                                             }
 
                                             Button(
                                                 onClick = { currentStep = CartCheckoutStep.DELIVERY },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                                                shape = RoundedCornerShape(14.dp),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(52.dp)
@@ -570,8 +629,8 @@ fun CartScreen(
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
-                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
-                                            border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F7F2)),
+                                            border = BorderStroke(1.dp, Color(0xFFCCFBF1))
                                         ) {
                                             Row(
                                                 modifier = Modifier
@@ -587,7 +646,7 @@ fun CartScreen(
                                                     Icon(
                                                         painter = painterResource(id = R.drawable.ic_cart_custom),
                                                         contentDescription = null,
-                                                        tint = Color(0xFF1D4ED8),
+                                                        tint = Color(0xFF00A884),
                                                         modifier = Modifier.size(18.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
@@ -596,18 +655,18 @@ fun CartScreen(
                                                             text = "${uiState.calculation.totalItemCount} producto(s) • Total: S/ %.2f".format(uiState.calculation.grandTotal),
                                                             style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFF1E3A8A)
+                                                            color = Color(0xFF16324F)
                                                         )
                                                         Text(
                                                             text = "${uiState.calculation.storeGroups.size} puesto(s) seleccionado(s)",
                                                             style = MaterialTheme.typography.labelSmall,
-                                                            color = Color(0xFF3B82F6)
+                                                            color = Color(0xFF00A884)
                                                         )
                                                     }
                                                 }
                                                 TextButton(
                                                     onClick = { currentStep = CartCheckoutStep.PRODUCTS },
-                                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1D4ED8))
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF00A884))
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.Edit,
@@ -654,25 +713,25 @@ fun CartScreen(
                                                             modifier = Modifier.fillMaxWidth(),
                                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
-                                                            FilterChip(
+                                                            CartModeToggleButton(
                                                                 selected = !uiState.isSplitDeliveryMode,
                                                                 onClick = { viewModel.setSplitDeliveryMode(false) },
-                                                                label = { Text("Mismo punto (${uiState.meetingPoints.size})", style = MaterialTheme.typography.labelMedium) },
+                                                                label = "Mismo punto (${uiState.meetingPoints.size})",
                                                                 modifier = Modifier.weight(1f)
                                                             )
-                                                            FilterChip(
+                                                            CartModeToggleButton(
                                                                 selected = uiState.isSplitDeliveryMode,
                                                                 onClick = { viewModel.setSplitDeliveryMode(true) },
-                                                                label = { Text("Por cada puesto", style = MaterialTheme.typography.labelMedium) },
+                                                                label = "Por cada puesto",
                                                                 modifier = Modifier.weight(1f)
                                                             )
                                                         }
                                                     } else {
                                                         // Mensaje informativo amigable: puntos independientes
                                                         Surface(
-                                                            color = Color(0xFFEFF6FF),
+                                                            color = Color(0xFFF0FDF4),
                                                             shape = RoundedCornerShape(8.dp),
-                                                            border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                                                            border = BorderStroke(1.dp, Color(0xFFDCFCE7)),
                                                             modifier = Modifier.fillMaxWidth()
                                                         ) {
                                                             Row(
@@ -682,14 +741,14 @@ fun CartScreen(
                                                                 Icon(
                                                                     painter = painterResource(id = R.drawable.ic_info_custom),
                                                                     contentDescription = null,
-                                                                    tint = Color(0xFF1D4ED8),
+                                                                    tint = Color(0xFF00A884),
                                                                     modifier = Modifier.size(18.dp)
                                                                 )
                                                                 Spacer(modifier = Modifier.width(8.dp))
                                                                 Text(
                                                                     text = "Los puestos seleccionados atienden en diferentes zonas del campus. Selecciona el punto de entrega de cada puesto a continuación:",
                                                                     style = MaterialTheme.typography.bodySmall,
-                                                                    color = Color(0xFF1E40AF)
+                                                                    color = Color(0xFF166534)
                                                                 )
                                                             }
                                                         }
@@ -726,7 +785,7 @@ fun CartScreen(
                                                                             Icon(
                                                                                 painter = painterResource(id = R.drawable.ic_store_custom),
                                                                                 contentDescription = null,
-                                                                                tint = Color(0xFF003366),
+                                                                                tint = Color(0xFF00A884),
                                                                                 modifier = Modifier.size(16.dp)
                                                                             )
                                                                             Spacer(modifier = Modifier.width(6.dp))
@@ -902,7 +961,7 @@ fun CartScreen(
                                                     Icon(
                                                         painter = painterResource(id = R.drawable.ic_alarm_custom),
                                                         contentDescription = null,
-                                                        tint = Color(0xFF003366)
+                                                        tint = Color(0xFF00A884)
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
@@ -945,11 +1004,39 @@ fun CartScreen(
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
                                                     uiState.availableTimeSlots.forEach { slot ->
-                                                        FilterChip(
-                                                            selected = uiState.selectedTimeSlot == slot,
+                                                        val isSelected = uiState.selectedTimeSlot == slot
+                                                        Surface(
                                                             onClick = { viewModel.selectTimeSlot(slot) },
-                                                            label = { Text(slot) }
-                                                        )
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            color = if (isSelected) Color(0xFF00A884) else Color.White,
+                                                            border = BorderStroke(
+                                                                width = if (isSelected) 1.5.dp else 1.dp,
+                                                                color = if (isSelected) Color(0xFF00A884) else Color(0xFFCBD5E1)
+                                                            ),
+                                                            shadowElevation = if (isSelected) 2.dp else 0.5.dp,
+                                                            modifier = Modifier.height(36.dp)
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                if (isSelected) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Check,
+                                                                        contentDescription = null,
+                                                                        tint = Color.White,
+                                                                        modifier = Modifier.size(13.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                                }
+                                                                Text(
+                                                                    text = slot,
+                                                                    style = MaterialTheme.typography.labelMedium,
+                                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                                    color = if (isSelected) Color.White else Color(0xFF334155)
+                                                                )
+                                                            }
+                                                        }
                                                     }
                                                 }
 
@@ -965,19 +1052,26 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Barra inferior FIJA en la parte de abajo con el Subtotal, Precio y Botón Continuar (igual que en Producto)
+                                    // Barra inferior flotante con el Subtotal, Precio y Botón Continuar
                                     Surface(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = 16.dp,
+                                                end = 16.dp,
+                                                top = 6.dp,
+                                                bottom = if (onNavigateBack == null) (82.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else (12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                                            ),
                                         color = MaterialTheme.colorScheme.surface,
                                         tonalElevation = 6.dp,
-                                        shadowElevation = 10.dp,
-                                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                                        shadowElevation = 8.dp,
+                                        shape = RoundedCornerShape(20.dp),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                     ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
                                             verticalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
                                             Row(
@@ -1004,7 +1098,7 @@ fun CartScreen(
                                                     text = "S/ %.2f".format(uiState.calculation.grandTotal),
                                                     style = MaterialTheme.typography.headlineSmall,
                                                     fontWeight = FontWeight.ExtraBold,
-                                                    color = Color(0xFF003366)
+                                                    color = Color(0xFF00A884)
                                                 )
                                             }
 
@@ -1012,10 +1106,10 @@ fun CartScreen(
                                                 onClick = { currentStep = CartCheckoutStep.PAYMENT },
                                                 enabled = canProceedToPayment,
                                                 colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color(0xFF003366),
-                                                    disabledContainerColor = Color(0xFF64748B).copy(alpha = 0.4f)
+                                                    containerColor = Color(0xFF00A884),
+                                                    disabledContainerColor = Color(0xFFCBD5E1)
                                                 ),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = RoundedCornerShape(14.dp),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(52.dp)
@@ -1051,133 +1145,194 @@ fun CartScreen(
                                             .padding(16.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        // Resumen de la Entrega seleccionada
+                                        // Resumen de la Entrega seleccionada (Desplegable iOS / Rappi)
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(16.dp),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                                         ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
-                                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                                            ) {
+                                            Column(modifier = Modifier.fillMaxWidth()) {
+                                                val chevronRotation by animateFloatAsState(
+                                                    targetValue = if (isDeliveryExpanded) 180f else 0f,
+                                                    animationSpec = tween(durationMillis = 250),
+                                                    label = "chevron_delivery_rot"
+                                                )
+                                                val deliveryPointSummary = if (uiState.isSplitDeliveryEffective) {
+                                                    "${uiState.calculation.storeGroups.size} puntos seleccionados"
+                                                } else {
+                                                    uiState.selectedMeetingPoint?.name ?: "Punto no seleccionado"
+                                                }
+
+                                                // Encabezado interactivo para colapsar/expandir
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { isDeliveryExpanded = !isDeliveryExpanded }
+                                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Row(
                                                         verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.weight(1f, fill = false)
+                                                        modifier = Modifier.weight(1f)
                                                     ) {
-                                                        Icon(
-                                                            painter = painterResource(id = R.drawable.ic_location_custom),
-                                                            contentDescription = null,
-                                                            tint = Color(0xFFC8102E),
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Text(
-                                                            text = "Datos de Entrega",
-                                                            style = MaterialTheme.typography.titleMedium,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFF003366)
-                                                        )
-                                                    }
-                                                    TextButton(
-                                                        onClick = { currentStep = CartCheckoutStep.DELIVERY },
-                                                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1D4ED8))
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Edit,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(15.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text("Cambiar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                                    }
-                                                }
-
-                                                HorizontalDivider()
-
-                                                // Punto de encuentro
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalAlignment = Alignment.Top
-                                                ) {
-                                                    Text(
-                                                        text = "Punto:",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.width(64.dp)
-                                                    )
-                                                    if (uiState.isSplitDeliveryEffective) {
-                                                        Column(
-                                                            modifier = Modifier.weight(1f),
-                                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                        Surface(
+                                                            shape = CircleShape,
+                                                            color = Color(0xFFFEE2E2),
+                                                            modifier = Modifier.size(36.dp)
                                                         ) {
-                                                            uiState.calculation.storeGroups.forEach { group ->
-                                                                val pt = uiState.selectedMeetingPointsBySeller[group.sellerId]
-                                                                Text(
-                                                                    text = "${group.sellerName}: ${pt?.name ?: "No seleccionado"}",
-                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                    fontWeight = FontWeight.SemiBold
+                                                            Box(contentAlignment = Alignment.Center) {
+                                                                Icon(
+                                                                    painter = painterResource(id = R.drawable.ic_location_custom),
+                                                                    contentDescription = null,
+                                                                    tint = Color(0xFFDC2626),
+                                                                    modifier = Modifier.size(18.dp)
                                                                 )
                                                             }
                                                         }
-                                                    } else {
-                                                        Text(
-                                                            text = uiState.selectedMeetingPoint?.let { pt ->
-                                                                val zone = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " (Exterior)" else " (Interior)"
-                                                                "${pt.name}$zone"
-                                                            } ?: "No seleccionado",
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            fontWeight = FontWeight.SemiBold
-                                                        )
+                                                        Spacer(modifier = Modifier.width(10.dp))
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = "Datos de Entrega",
+                                                                style = MaterialTheme.typography.titleSmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFF16324F)
+                                                            )
+                                                            Text(
+                                                                text = "$deliveryPointSummary • ${uiState.selectedTimeSlot}",
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = Color(0xFF64748B),
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        TextButton(
+                                                            onClick = { currentStep = CartCheckoutStep.DELIVERY },
+                                                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF00A884)),
+                                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Edit,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(14.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(3.dp))
+                                                            Text("Cambiar", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                        }
+                                                        IconButton(
+                                                            onClick = { isDeliveryExpanded = !isDeliveryExpanded },
+                                                            modifier = Modifier.size(32.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.KeyboardArrowDown,
+                                                                contentDescription = if (isDeliveryExpanded) "Colapsar datos de entrega" else "Expandir datos de entrega",
+                                                                tint = Color(0xFF64748B),
+                                                                modifier = Modifier
+                                                                    .size(20.dp)
+                                                                    .rotate(chevronRotation)
+                                                            )
+                                                        }
                                                     }
                                                 }
 
-                                                // Horario
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalAlignment = Alignment.CenterVertically
+                                                // Contenido detallado desplegable
+                                                AnimatedVisibility(
+                                                    visible = isDeliveryExpanded,
+                                                    enter = expandVertically(animationSpec = tween(250)) + fadeIn(animationSpec = tween(200)),
+                                                    exit = shrinkVertically(animationSpec = tween(200)) + fadeOut(animationSpec = tween(150))
                                                 ) {
-                                                    Text(
-                                                        text = "Horario:",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.width(64.dp)
-                                                    )
-                                                    Text(
-                                                        text = uiState.selectedTimeSlot,
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = Color(0xFF003366)
-                                                    )
-                                                }
-
-                                                // Notas si existen
-                                                if (uiState.orderNotes.isNotBlank()) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.Top
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                                     ) {
-                                                        Text(
-                                                            text = "Notas:",
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            modifier = Modifier.width(64.dp)
-                                                        )
-                                                        Text(
-                                                            text = uiState.orderNotes,
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurface
-                                                        )
+                                                        HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+
+                                                        // Punto de encuentro
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            verticalAlignment = Alignment.Top
+                                                        ) {
+                                                            Text(
+                                                                text = "Punto:",
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFF64748B),
+                                                                modifier = Modifier.width(64.dp)
+                                                            )
+                                                            if (uiState.isSplitDeliveryEffective) {
+                                                                Column(
+                                                                    modifier = Modifier.weight(1f),
+                                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                                ) {
+                                                                    uiState.calculation.storeGroups.forEach { group ->
+                                                                        val pt = uiState.selectedMeetingPointsBySeller[group.sellerId]
+                                                                        Text(
+                                                                            text = "${group.sellerName}: ${pt?.name ?: "No seleccionado"}",
+                                                                            style = MaterialTheme.typography.bodySmall,
+                                                                            fontWeight = FontWeight.SemiBold,
+                                                                            color = Color(0xFF1E293B)
+                                                                        )
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                Text(
+                                                                    text = uiState.selectedMeetingPoint?.let { pt ->
+                                                                        val zone = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " (Exterior)" else " (Interior)"
+                                                                        "${pt.name}$zone"
+                                                                    } ?: "No seleccionado",
+                                                                    style = MaterialTheme.typography.bodyMedium,
+                                                                    fontWeight = FontWeight.SemiBold,
+                                                                    color = Color(0xFF1E293B)
+                                                                )
+                                                            }
+                                                        }
+
+                                                        // Horario
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = "Horario:",
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFF64748B),
+                                                                modifier = Modifier.width(64.dp)
+                                                            )
+                                                            Text(
+                                                                text = uiState.selectedTimeSlot,
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = Color(0xFF00A884)
+                                                            )
+                                                        }
+
+                                                        // Notas si existen
+                                                        if (uiState.orderNotes.isNotBlank()) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                verticalAlignment = Alignment.Top
+                                                            ) {
+                                                                Text(
+                                                                    text = "Notas:",
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    color = Color(0xFF64748B),
+                                                                    modifier = Modifier.width(64.dp)
+                                                                )
+                                                                Text(
+                                                                    text = uiState.orderNotes,
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    color = Color(0xFF334155)
+                                                                )
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1187,8 +1342,8 @@ fun CartScreen(
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
-                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
-                                            border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F7F2)),
+                                            border = BorderStroke(1.dp, Color(0xFFCCFBF1))
                                         ) {
                                             Row(
                                                 modifier = Modifier
@@ -1204,7 +1359,7 @@ fun CartScreen(
                                                     Icon(
                                                         painter = painterResource(id = R.drawable.ic_cart_custom),
                                                         contentDescription = null,
-                                                        tint = Color(0xFF1D4ED8),
+                                                        tint = Color(0xFF00A884),
                                                         modifier = Modifier.size(18.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
@@ -1213,18 +1368,18 @@ fun CartScreen(
                                                             text = "${uiState.calculation.totalItemCount} producto(s) • Total: S/ %.2f".format(uiState.calculation.grandTotal),
                                                             style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFF1E3A8A)
+                                                            color = Color(0xFF16324F)
                                                         )
                                                         Text(
                                                             text = "${uiState.calculation.storeGroups.size} puesto(s) seleccionado(s)",
                                                             style = MaterialTheme.typography.labelSmall,
-                                                            color = Color(0xFF3B82F6)
+                                                            color = Color(0xFF00A884)
                                                         )
                                                     }
                                                 }
                                                 TextButton(
                                                     onClick = { currentStep = CartCheckoutStep.PRODUCTS },
-                                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1D4ED8))
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF00A884))
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.Edit,
@@ -1253,7 +1408,7 @@ fun CartScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.CheckCircle,
                                                         contentDescription = null,
-                                                        tint = Color(0xFF003366),
+                                                        tint = Color(0xFF00A884),
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
@@ -1261,7 +1416,7 @@ fun CartScreen(
                                                         text = "Método de Pago (Contra entrega)",
                                                         style = MaterialTheme.typography.titleMedium,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFF003366)
+                                                        color = Color(0xFF16324F)
                                                     )
                                                 }
 
@@ -1272,16 +1427,16 @@ fun CartScreen(
                                                             modifier = Modifier.fillMaxWidth(),
                                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
-                                                            FilterChip(
+                                                            CartModeToggleButton(
                                                                 selected = !uiState.isSplitPaymentMode,
                                                                 onClick = { viewModel.setSplitPaymentMode(false) },
-                                                                label = { Text("Mismo método para todos", style = MaterialTheme.typography.labelMedium) },
+                                                                label = "Mismo método para todos",
                                                                 modifier = Modifier.weight(1f)
                                                             )
-                                                            FilterChip(
+                                                            CartModeToggleButton(
                                                                 selected = uiState.isSplitPaymentMode,
                                                                 onClick = { viewModel.setSplitPaymentMode(true) },
-                                                                label = { Text("Por cada puesto", style = MaterialTheme.typography.labelMedium) },
+                                                                label = "Por cada puesto",
                                                                 modifier = Modifier.weight(1f)
                                                             )
                                                         }
@@ -1316,7 +1471,7 @@ fun CartScreen(
                                                 val standardPaymentMethods = listOf(
                                                     PaymentMethod.YAPE to ("Yape" to Color(0xFF6A1B9A)),
                                                     PaymentMethod.PLIN to ("Plin" to Color(0xFF00796B)),
-                                                    PaymentMethod.EFECTIVO to ("Efectivo" to Color(0xFF003366))
+                                                    PaymentMethod.EFECTIVO to ("Efectivo" to Color(0xFF00A884))
                                                 )
 
                                                 if (uiState.isSplitPaymentEffective) {
@@ -1348,7 +1503,7 @@ fun CartScreen(
                                                                             Icon(
                                                                                 painter = painterResource(id = R.drawable.ic_store_custom),
                                                                                 contentDescription = null,
-                                                                                tint = Color(0xFF003366),
+                                                                                tint = Color(0xFF00A884),
                                                                                 modifier = Modifier.size(16.dp)
                                                                             )
                                                                             Spacer(modifier = Modifier.width(6.dp))
@@ -1363,7 +1518,7 @@ fun CartScreen(
                                                                             text = "S/ %.2f".format(group.subtotal),
                                                                             style = MaterialTheme.typography.titleSmall,
                                                                             fontWeight = FontWeight.ExtraBold,
-                                                                            color = Color(0xFF003366)
+                                                                            color = Color(0xFF00A884)
                                                                         )
                                                                     }
 
@@ -1618,19 +1773,26 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Barra inferior FIJA en la parte de abajo con el Total y Botón Confirmar (igual que en Producto)
+                                    // Barra inferior flotante con el Total y Botón Deslizable Confirmar
                                     Surface(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = 16.dp,
+                                                end = 16.dp,
+                                                top = 6.dp,
+                                                bottom = if (onNavigateBack == null) (82.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else (12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                                            ),
                                         color = MaterialTheme.colorScheme.surface,
                                         tonalElevation = 6.dp,
-                                        shadowElevation = 10.dp,
-                                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                                        shadowElevation = 8.dp,
+                                        shape = RoundedCornerShape(20.dp),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                     ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
                                             verticalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
                                             Row(
@@ -1658,7 +1820,7 @@ fun CartScreen(
                                                                 text = "Por cada puesto (${uiState.calculation.storeGroups.size})",
                                                                 style = MaterialTheme.typography.labelSmall,
                                                                 fontWeight = FontWeight.SemiBold,
-                                                                color = Color(0xFF003366)
+                                                                color = Color(0xFF00A884)
                                                             )
                                                         } else {
                                                             PaymentMethodLogo(method = uiState.selectedPaymentMethod, size = 13.dp)
@@ -1676,7 +1838,7 @@ fun CartScreen(
                                                     text = "S/ %.2f".format(uiState.calculation.grandTotal),
                                                     style = MaterialTheme.typography.headlineSmall,
                                                     fontWeight = FontWeight.ExtraBold,
-                                                    color = Color(0xFF003366)
+                                                    color = Color(0xFF00A884)
                                                 )
                                             }
 
@@ -1689,7 +1851,7 @@ fun CartScreen(
                                                 label = "Desliza para confirmar pedido",
                                                 doneLabel = "¡Pedido confirmado!",
                                                 errorLabel = "Error al procesar pedido",
-                                                trackColor = Color(0xFF003366),
+                                                trackColor = Color(0xFF00A884),
                                                 handleColor = Color(0xFFF8FAFC),
                                                 successColor = Color(0xFF16A085),
                                                 dangerColor = Color(0xFFDC2626),
@@ -1730,78 +1892,88 @@ private fun CartStepIndicator(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
+        color = Color.White,
+        tonalElevation = 0.dp,
         modifier = modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            // Paso 1: Producto
-            val isStep1Active = currentStep == CartCheckoutStep.PRODUCTS
-            val isStep1Done = currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT
-
-            CartStepChip(
-                stepNumber = 1,
-                label = "Producto",
-                isActive = isStep1Active,
-                isDone = isStep1Done,
-                onClick = { onStepClick(CartCheckoutStep.PRODUCTS) }
-            )
-
-            // Conector 1 -> 2
-            Box(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
                 modifier = Modifier
-                    .width(18.dp)
-                    .height(2.dp)
-                    .padding(horizontal = 2.dp)
-                    .background(
-                        if (currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT) Color(0xFF16A085)
-                        else Color(0xFFCBD5E1)
-                    )
-            )
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // Paso 1: Producto
+                val isStep1Active = currentStep == CartCheckoutStep.PRODUCTS
+                val isStep1Done = currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT
 
-            // Paso 2: Entrega
-            val isStep2Active = currentStep == CartCheckoutStep.DELIVERY
-            val isStep2Done = currentStep == CartCheckoutStep.PAYMENT
+                CartStepChip(
+                    stepNumber = 1,
+                    label = "Producto",
+                    isActive = isStep1Active,
+                    isDone = isStep1Done,
+                    onClick = { onStepClick(CartCheckoutStep.PRODUCTS) }
+                )
 
-            CartStepChip(
-                stepNumber = 2,
-                label = "Entrega",
-                isActive = isStep2Active,
-                isDone = isStep2Done,
-                onClick = { onStepClick(CartCheckoutStep.DELIVERY) }
-            )
+                // Conector 1 -> 2
+                Box(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(min = 14.dp, max = 28.dp)
+                        .height(2.5.dp)
+                        .padding(horizontal = 2.dp)
+                        .background(
+                            if (currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT) Color(0xFF00A884)
+                            else Color(0xFFE2E8F0),
+                            shape = CircleShape
+                        )
+                )
 
-            // Conector 2 -> 3
-            Box(
-                modifier = Modifier
-                    .width(18.dp)
-                    .height(2.dp)
-                    .padding(horizontal = 2.dp)
-                    .background(
-                        if (currentStep == CartCheckoutStep.PAYMENT) Color(0xFF16A085)
-                        else Color(0xFFCBD5E1)
-                    )
-            )
+                // Paso 2: Entrega
+                val isStep2Active = currentStep == CartCheckoutStep.DELIVERY
+                val isStep2Done = currentStep == CartCheckoutStep.PAYMENT
 
-            // Paso 3: Pago
-            val isStep3Active = currentStep == CartCheckoutStep.PAYMENT
+                CartStepChip(
+                    stepNumber = 2,
+                    label = "Entrega",
+                    isActive = isStep2Active,
+                    isDone = isStep2Done,
+                    onClick = { onStepClick(CartCheckoutStep.DELIVERY) }
+                )
 
-            CartStepChip(
-                stepNumber = 3,
-                label = "Pago",
-                isActive = isStep3Active,
-                isDone = false,
-                onClick = {
-                    if (canProceedToPayment) {
-                        onStepClick(CartCheckoutStep.PAYMENT)
+                // Conector 2 -> 3
+                Box(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(min = 14.dp, max = 28.dp)
+                        .height(2.5.dp)
+                        .padding(horizontal = 2.dp)
+                        .background(
+                            if (currentStep == CartCheckoutStep.PAYMENT) Color(0xFF00A884)
+                            else Color(0xFFE2E8F0),
+                            shape = CircleShape
+                        )
+                )
+
+                // Paso 3: Pago
+                val isStep3Active = currentStep == CartCheckoutStep.PAYMENT
+
+                CartStepChip(
+                    stepNumber = 3,
+                    label = "Pago",
+                    isActive = isStep3Active,
+                    isDone = false,
+                    onClick = {
+                        if (canProceedToPayment) {
+                            onStepClick(CartCheckoutStep.PAYMENT)
+                        }
                     }
-                }
+                )
+            }
+            HorizontalDivider(
+                color = Color(0xFFF1F5F9),
+                thickness = 1.dp
             )
         }
     }
@@ -1819,10 +1991,18 @@ private fun CartStepChip(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = when {
-            isActive -> Color(0xFF003366)
-            isDone -> Color(0xFFE2E8F0)
-            else -> Color(0xFFF1F5F9)
+            isActive -> Color(0xFF00A884)
+            isDone -> Color(0xFFE8F7F2)
+            else -> Color(0xFFF8FAFC)
         },
+        border = BorderStroke(
+            width = 1.dp,
+            color = when {
+                isActive -> Color(0xFF00A884)
+                isDone -> Color(0xFFB2DFDB)
+                else -> Color(0xFFE2E8F0)
+            }
+        ),
         onClick = onClick,
         modifier = modifier
     ) {
@@ -1838,8 +2018,8 @@ private fun CartStepChip(
                     .background(
                         when {
                             isActive -> Color.White
-                            isDone -> Color(0xFF16A085)
-                            else -> Color(0xFF94A3B8)
+                            isDone -> Color(0xFF00A884)
+                            else -> Color(0xFFCBD5E1)
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -1854,7 +2034,7 @@ private fun CartStepChip(
                 } else {
                     Text(
                         text = "$stepNumber",
-                        color = if (isActive) Color(0xFF003366) else Color.White,
+                        color = if (isActive) Color(0xFF00A884) else Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
@@ -1869,13 +2049,59 @@ private fun CartStepChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                 color = when {
                     isActive -> Color.White
-                    isDone -> Color(0xFF16A085)
+                    isDone -> Color(0xFF00A884)
                     else -> Color(0xFF64748B)
                 },
                 fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun CartModeToggleButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) Color(0xFF00A884) else Color.White,
+        border = BorderStroke(
+            width = if (selected) 1.5.dp else 1.dp,
+            color = if (selected) Color(0xFF00A884) else Color(0xFFCBD5E1)
+        ),
+        shadowElevation = if (selected) 2.5.dp else 0.5.dp,
+        modifier = modifier.height(42.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                color = if (selected) Color.White else Color(0xFF334155),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

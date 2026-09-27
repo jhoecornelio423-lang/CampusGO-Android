@@ -19,3 +19,9 @@ data class Order(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
+
+/**
+ * Código canónico de la orden visible para Comprador y Vendedor (ej: "#A1B2C3").
+ */
+val Order.orderCodeDisplay: String
+    get() = "#${id.takeLast(6).uppercase()}"

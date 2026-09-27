@@ -66,6 +66,7 @@ fun SellerStoreProfileScreen(
         supportedPaymentMethods: List<String>
     ) -> Unit,
     onSignOut: () -> Unit = {},
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -84,7 +85,7 @@ fun SellerStoreProfileScreen(
     BackHandler(enabled = !showEnlargedPhoto && isEditMode) {
         isEditMode = false
     }
-    BackHandler(enabled = !showEnlargedPhoto && !isEditMode) {
+    BackHandler(enabled = !showEnlargedPhoto && !isEditMode && showHeader) {
         onNavigateBack()
     }
 
@@ -180,128 +181,132 @@ fun SellerStoreProfileScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (isEditMode) "Editar Mi Puesto" else "Mi Puesto Comercial",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (isEditMode) {
-                            resetFields()
-                        } else {
-                            onNavigateBack()
-                        }
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Atrás",
-                            tint = Color(0xFF003366)
+            if (showHeader) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = if (isEditMode) "Editar Mi Puesto" else "Mi Puesto Comercial",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF003366)
                         )
-                    }
-                },
-                actions = {
-                    if (!isEditMode) {
-                        FilledTonalButton(
-                            onClick = { isEditMode = true },
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color(0xFFE3F2FD),
-                                contentColor = Color(0xFF0284C7)
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                        ) {
-                            Icon(painter = painterResource(id = R.drawable.ic_edit_store_custom), contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Editar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
-            )
-        },
-        bottomBar = {
-            Surface(
-                color = Color.White,
-                shadowElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (isEditMode) {
-                        Button(
-                            onClick = {
-                                onSave(
-                                    businessName,
-                                    businessStatus,
-                                    description,
-                                    category,
-                                    location,
-                                    openTime,
-                                    closeTime,
-                                    bannerUrl,
-                                    avatarUrl,
-                                    acceptingOrders,
-                                    selectedMeetingPoints.toList(),
-                                    selectedPaymentMethods.toList()
-                                )
-                                isEditMode = false
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                            shape = RoundedCornerShape(14.dp),
-                            enabled = !isSaving && !isUploadingBanner && !isUploadingAvatar,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                        ) {
-                            if (isSaving) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Guardando...")
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (isEditMode) {
+                                resetFields()
                             } else {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Guardar Cambios", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                onNavigateBack()
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Atrás",
+                                tint = Color(0xFF003366)
+                            )
+                        }
+                    },
+                    actions = {
+                        if (!isEditMode) {
+                            FilledTonalButton(
+                                onClick = { isEditMode = true },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = Color(0xFFE3F2FD),
+                                    contentColor = Color(0xFF0284C7)
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Icon(painter = painterResource(id = R.drawable.ic_edit_store_custom), contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Editar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White
+                    )
+                )
+            }
+        },
+        bottomBar = {
+            if (isEditMode || showHeader) {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (isEditMode) {
+                            Button(
+                                onClick = {
+                                    onSave(
+                                        businessName,
+                                        businessStatus,
+                                        description,
+                                        category,
+                                        location,
+                                        openTime,
+                                        closeTime,
+                                        bannerUrl,
+                                        avatarUrl,
+                                        acceptingOrders,
+                                        selectedMeetingPoints.toList(),
+                                        selectedPaymentMethods.toList()
+                                    )
+                                    isEditMode = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                                shape = RoundedCornerShape(14.dp),
+                                enabled = !isSaving && !isUploadingBanner && !isUploadingAvatar,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                            ) {
+                                if (isSaving) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Guardando...")
+                                } else {
+                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Guardar Cambios", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                }
+                            }
 
-                        OutlinedButton(
-                            onClick = { resetFields() },
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                        ) {
-                            Text("Cancelar Edición", fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = onSignOut,
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_logout_custom),
-                                contentDescription = null,
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            OutlinedButton(
+                                onClick = { resetFields() },
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                            ) {
+                                Text("Cancelar Edición", fontWeight = FontWeight.SemiBold)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = onSignOut,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                                border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_logout_custom),
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
                         }
                     }
                 }
@@ -317,6 +322,44 @@ fun SellerStoreProfileScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (!showHeader) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEditMode) "Editar Mi Puesto" else "Ajustes de Mi Puesto",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16324F)
+                        )
+                        Text(
+                            text = "Administra la información visible para tus compradores",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                    if (!isEditMode) {
+                        FilledTonalButton(
+                            onClick = { isEditMode = true },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color(0xFFE3F2FD),
+                                contentColor = Color(0xFF0284C7)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(painter = painterResource(id = R.drawable.ic_edit_store_custom), contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Editar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
             // Cabecera: Portada y Avatar
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -507,12 +550,6 @@ fun SellerStoreProfileScreen(
             }
 
             if (!isEditMode) {
-                // Advertencias Oficiales de Moderación
-                OfficialWarningBanner(
-                    warnings = warnings,
-                    isSeller = true
-                )
-
                 // MODO LECTURA
                 if (businessStatus == "SATURADO") {
                     Card(
@@ -1112,6 +1149,29 @@ fun SellerStoreProfileScreen(
                         }
                     }
                 }
+            }
+
+            if (!showHeader && !isEditMode) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onSignOut,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_logout_custom),
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

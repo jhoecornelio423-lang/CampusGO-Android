@@ -48,3 +48,10 @@ data class SubOrder(
 val SubOrder.verificationCode: String
     get() = deliveryCode?.takeIf { it.isNotBlank() }
         ?: (kotlin.math.abs(id.hashCode()) % 9000 + 1000).toString()
+
+/**
+ * Código canónico de la orden visible para Comprador y Vendedor (ej: "#A1B2C3").
+ * Coincide 100% con el código que ve el comprador en su recibo y seguimiento.
+ */
+val SubOrder.orderCodeDisplay: String
+    get() = "#${orderId.takeLast(6).uppercase()}"

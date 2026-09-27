@@ -49,9 +49,6 @@ fun ProductDetailBottomSheet(
     var specialInstructions by remember { mutableStateOf("") }
     val maxStock = remember(product.stock) { maxOf(1, product.stock) }
 
-    val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = modalBottomSheetState,
@@ -62,7 +59,6 @@ fun ProductDetailBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
