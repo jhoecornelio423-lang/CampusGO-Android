@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller
+package com.example.campusgo.features.seller
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -2634,7 +2634,7 @@ fun SellerPastDayCard(
                             onOpenDetail = { onOpenDetail(subOrder) },
                             ratingGiven = sellerRating,
                             onRateBuyer = if (onRateBuyer != null) { { onRateBuyer(subOrder) } } else null,
-                            onOpenChat = if (onOpenChat != null) { { onOpenChat(subOrder) } } else null
+                            onOpenChat = if (onOpenChat != null && !subOrder.status.isFinal) { { onOpenChat(subOrder) } } else null
                         )
                     }
                 }
@@ -3129,23 +3129,6 @@ fun SellerSubOrderCard(
                                         Text("Calificar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-
-                                if (onOpenChat != null) {
-                                    FilledTonalIconButton(
-                                        onClick = onOpenChat,
-                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                            containerColor = Color(0xFFF1F5F9),
-                                            contentColor = Color(0xFF64748B)
-                                        ),
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_chat_custom),
-                                            contentDescription = "Ver chat de pedido",
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
@@ -3162,18 +3145,6 @@ fun SellerSubOrderCard(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f, fill = false)
                             )
-                            if (onOpenChat != null) {
-                                FilledTonalIconButton(
-                                    onClick = onOpenChat,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = Color(0xFFF1F5F9),
-                                        contentColor = Color(0xFF64748B)
-                                    ),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
-                                }
-                            }
                         }
                     }
                     SubOrderStatus.NO_ENTREGADO -> {
@@ -3198,18 +3169,6 @@ fun SellerSubOrderCard(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFC8102E)
                                 )
-                            }
-                            if (onOpenChat != null) {
-                                FilledTonalIconButton(
-                                    onClick = onOpenChat,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = Color(0xFFF1F5F9),
-                                        contentColor = Color(0xFF64748B)
-                                    ),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Ver chat de pedido", modifier = Modifier.size(18.dp))
-                                }
                             }
                         }
                     }

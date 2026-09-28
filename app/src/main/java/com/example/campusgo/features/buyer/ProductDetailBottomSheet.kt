@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.buyer
+package com.example.campusgo.features.buyer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -45,9 +45,9 @@ fun ProductDetailBottomSheet(
     onAddToCart: (product: Product, quantity: Int, specialInstructions: String?) -> Unit
 ) {
     val modalBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var quantity by remember { mutableIntStateOf(1) }
+    var quantity by remember { mutableIntStateOf(if (product.stock > 0) 1 else 0) }
     var specialInstructions by remember { mutableStateOf("") }
-    val maxStock = remember(product.stock) { maxOf(1, product.stock) }
+    val maxStock = remember(product.stock) { maxOf(0, product.stock) }
 
     val configuration = LocalConfiguration.current
     val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
@@ -257,7 +257,7 @@ fun ProductDetailBottomSheet(
                         placeholder = { Text("Ej. Sin mayonesa, por favor / Salsa tártara aparte") },
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 2,
-                        enabled = isStoreAvailable
+                        enabled = isStoreAvailable && product.stock > 0
                     )
                 }
 
@@ -281,7 +281,7 @@ fun ProductDetailBottomSheet(
                     ) {
                         FilledTonalIconButton(
                             onClick = { if (quantity > 1) quantity-- },
-                            enabled = isStoreAvailable && quantity > 1,
+                            enabled = isStoreAvailable && product.stock > 0 && quantity > 1,
                             shape = CircleShape
                         ) {
                             Icon(Icons.Default.Remove, contentDescription = "Restar")
@@ -291,12 +291,12 @@ fun ProductDetailBottomSheet(
                             text = "$quantity",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00A884)
+                            color = if (product.stock > 0) Color(0xFF00A884) else Color(0xFF9E9E9E)
                         )
 
                         FilledTonalIconButton(
                             onClick = { if (quantity < maxStock) quantity++ },
-                            enabled = isStoreAvailable && quantity < maxStock,
+                            enabled = isStoreAvailable && product.stock > 0 && quantity < maxStock,
                             shape = CircleShape
                         ) {
                             Icon(Icons.Default.Add, contentDescription = "Sumar")
@@ -309,7 +309,7 @@ fun ProductDetailBottomSheet(
 
             // Botón Sticky de Agregar al Carrito (Deshabilitado si está en Pausa o Cerrado)
             val subtotal = product.price * quantity
-            val canAdd = isStoreAvailable && product.stock > 0
+            val canAdd = isStoreAvailable && product.stock > 0 && quantity > 0
             val buttonLabel = when {
                 !isStoreAvailable && storeStatus.equals("PAUSADO", ignoreCase = true) -> "Puesto en Pausa"
                 !isStoreAvailable -> "Puesto Cerrado"

@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.cart
+package com.example.campusgo.features.cart
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import com.example.campusgo.domain.model.Order
+import com.example.campusgo.domain.model.OrderStatus
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.orderCodeDisplay
 import com.example.campusgo.domain.repository.OrderRepository
@@ -138,9 +139,10 @@ fun OrderSummaryReceiptScreen(
                         )
                     }
 
-                    if (order.subOrders.isNotEmpty() && onOpenChat != null) {
+                    val activeSubOrders = order.subOrders.filter { !it.status.isFinal }
+                    if (activeSubOrders.isNotEmpty() && order.status != OrderStatus.COMPLETADA && order.status != OrderStatus.CANCELADA && onOpenChat != null) {
                         OutlinedButton(
-                            onClick = { onOpenChat(order.subOrders.first()) },
+                            onClick = { onOpenChat(activeSubOrders.first()) },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00A884)),
                             border = BorderStroke(1.dp, Color(0xFF00A884)),
                             shape = RoundedCornerShape(12.dp),

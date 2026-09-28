@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.tracking
+package com.example.campusgo.features.tracking
 
 import android.content.Intent
 import android.net.Uri
@@ -652,6 +652,10 @@ fun BuyerOrderCard(
                 }
             }
 
+            val activeChatSubOrders = remember(order.subOrders) {
+                order.subOrders.filter { !it.status.isFinal }
+            }
+
             // Modal para elegir con qué vendedor chatear si el pedido incluye más de un puesto
             if (showSellerChatPicker) {
                 AlertDialog(
@@ -693,7 +697,7 @@ fun BuyerOrderCard(
                                 color = Color(0xFF64748B),
                                 textAlign = TextAlign.Center
                             )
-                            order.subOrders.forEach { subOrder ->
+                            activeChatSubOrders.forEach { subOrder ->
                                 Surface(
                                     onClick = {
                                         showSellerChatPicker = false
@@ -780,7 +784,7 @@ fun BuyerOrderCard(
             val isOrderPending = order.status == OrderStatus.PENDIENTE
             val canCancel = !isHistoryTab && isOrderPending && !hasRejectedSubOrder
             val canRepeat = order.status == OrderStatus.COMPLETADA && onRepeatOrder != null
-            val canChat = onOpenChat != null && order.subOrders.isNotEmpty()
+            val canChat = onOpenChat != null && !isHistoryTab && order.status != OrderStatus.COMPLETADA && order.status != OrderStatus.CANCELADA && activeChatSubOrders.isNotEmpty()
             val canOpenDetail = onOpenDetail != null
 
             if (canChat || canCancel || canRepeat || canOpenDetail || !isHistoryTab) {
@@ -795,8 +799,8 @@ fun BuyerOrderCard(
                     if (canChat) {
                         OutlinedButton(
                             onClick = {
-                                if (order.subOrders.size == 1) {
-                                    onOpenChat(order.subOrders.first())
+                                if (activeChatSubOrders.size == 1) {
+                                    onOpenChat(activeChatSubOrders.first())
                                 } else {
                                     showSellerChatPicker = true
                                 }
@@ -1740,14 +1744,14 @@ fun BuyerOrderDetailDialog(
                                 }
                             }
 
-                            // Botón de Chat
-                            if (onOpenChat != null) {
-                                val isFinalSub = subOrder.status.isFinal || order.status == OrderStatus.COMPLETADA
+                            // Botón de Chat (Solo visible durante la coordinación activa del pedido)
+                            val canChatSub = onOpenChat != null && !subOrder.status.isFinal && order.status != OrderStatus.COMPLETADA && order.status != OrderStatus.CANCELADA
+                            if (canChatSub) {
                                 Button(
                                     onClick = { onOpenChat(subOrder) },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isFinalSub) Color(0xFFF1F5F9) else Color(0xFFE6F7F3),
-                                        contentColor = if (isFinalSub) Color(0xFF64748B) else Color(0xFF00A884)
+                                        containerColor = Color(0xFFE6F7F3),
+                                        contentColor = Color(0xFF00A884)
                                     ),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier
@@ -1762,7 +1766,7 @@ fun BuyerOrderDetailDialog(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isFinalSub) "Chat con Puesto (Cerrado)" else "Chat con Vendedor",
+                                        text = "Chat con Vendedor",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.5.sp
                                     )

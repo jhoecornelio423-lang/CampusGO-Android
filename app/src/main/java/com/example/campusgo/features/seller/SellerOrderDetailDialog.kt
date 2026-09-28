@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller
+package com.example.campusgo.features.seller
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -384,12 +384,12 @@ fun SellerOrderDetailDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (onOpenChat != null) {
+                            if (onOpenChat != null && !subOrder.status.isFinal) {
                                 Button(
                                     onClick = { onOpenChat(subOrder) },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (subOrder.status.isFinal) Color(0xFFF1F5F9) else Color(0xFFE6F7F3),
-                                        contentColor = if (subOrder.status.isFinal) Color(0xFF64748B) else Color(0xFF00A884)
+                                        containerColor = Color(0xFFE6F7F3),
+                                        contentColor = Color(0xFF00A884)
                                     ),
                                     shape = RoundedCornerShape(10.dp),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
@@ -402,7 +402,7 @@ fun SellerOrderDetailDialog(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (subOrder.status.isFinal) "Chat (Cerrado)" else "Chat con Cliente",
+                                        text = "Chat con Cliente",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp
                                     )
