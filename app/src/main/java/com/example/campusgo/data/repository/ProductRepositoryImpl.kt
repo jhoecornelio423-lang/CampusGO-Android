@@ -146,14 +146,25 @@ class ProductRepositoryImpl(
         }
     }
 
+    private var cachedCategories: List<Category>? = null
+
     override suspend fun getCategories(): Result<List<Category>> = withContext(Dispatchers.IO) {
+        val memory = cachedCategories
+        if (!memory.isNullOrEmpty()) {
+            return@withContext Result.success(memory)
+        }
         try {
             val categories = postgrest.from("categories")
                 .select()
                 .decodeList<Category>()
+            cachedCategories = categories
             Result.success(categories)
         } catch (e: Exception) {
-            Result.failure(e)
+            if (!memory.isNullOrEmpty()) {
+                Result.success(memory)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
