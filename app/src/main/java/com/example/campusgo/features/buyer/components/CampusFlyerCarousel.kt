@@ -33,7 +33,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.campusgo.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Modelo para cada Flyer / Anuncio / Publicidad en el carrusel de inicio.
@@ -99,16 +104,35 @@ fun CampusFlyerCarousel(
 
     val pagerState = rememberPagerState(pageCount = { flyers.size })
 
-    // Auto-avance suave del carrusel cada 5 segundos si el usuario no está arrastrando
-    LaunchedEffect(pagerState.isScrollInProgress) {
-        if (!pagerState.isScrollInProgress && flyers.size > 1) {
-            while (true) {
-                delay(5000L)
+    // Auto-avance continuo del carrusel cada 4 segundos
+    LaunchedEffect(pagerState, flyers.size) {
+        if (flyers.size > 1) {
+            while (isActive) {
+                // Esperar a que no haya ningún desplazamiento activo en progreso
+                snapshotFlow { pagerState.isScrollInProgress }
+                    .filter { !it }
+                    .first()
+
+                // Esperar 4 segundos; si el usuario interactúa, se detecta y se reinicia el intervalo
+                val interrupted = withTimeoutOrNull(4000L) {
+                    snapshotFlow { pagerState.isScrollInProgress }
+                        .filter { it }
+                        .first()
+                } != null
+
+                if (interrupted || pagerState.isScrollInProgress) {
+                    continue
+                }
+
                 val nextPage = (pagerState.currentPage + 1) % flyers.size
-                pagerState.animateScrollToPage(
-                    page = nextPage,
-                    animationSpec = tween(durationMillis = 650)
-                )
+                try {
+                    pagerState.animateScrollToPage(
+                        page = nextPage,
+                        animationSpec = tween(durationMillis = 650)
+                    )
+                } catch (e: CancellationException) {
+                    if (!isActive) throw e
+                }
             }
         }
     }
