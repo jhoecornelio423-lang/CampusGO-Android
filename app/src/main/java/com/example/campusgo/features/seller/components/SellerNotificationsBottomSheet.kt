@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller.components
+package com.example.campusgo.features.seller.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.ProfileWarning
+import com.example.campusgo.ui.components.StrikeMeter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -199,16 +200,17 @@ fun SellerNotificationsBottomSheet(
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "${warnings.size} de 3 Strikes Registrados",
+                                            text = "${warnings.size} de 5 Strikes Registrados",
                                             fontWeight = FontWeight.ExtraBold,
                                             fontSize = 15.sp,
                                             color = Color(0xFF991B1B)
                                         )
                                         Text(
                                             text = when {
-                                                warnings.size >= 3 -> "Cuenta suspendida por acumulación de sanciones."
-                                                warnings.size == 2 -> "Riesgo alto: una infracción más causará la suspensión del puesto."
-                                                else -> "Advertencia formal: por favor corrige las conductas reportadas."
+                                                warnings.size >= 5 -> "Cuenta suspendida automáticamente por acumulación de sanciones."
+                                                warnings.size == 4 -> "Riesgo crítico: 1 infracción más causará la suspensión del puesto."
+                                                warnings.size >= 2 -> "Riesgo moderado (${warnings.size}/5 strikes): evita reincidencias."
+                                                else -> "Advertencia formal (1/5 strikes): por favor corrige las conductas reportadas."
                                             },
                                             fontSize = 12.sp,
                                             color = Color(0xFFB91C1C),
@@ -217,10 +219,12 @@ fun SellerNotificationsBottomSheet(
                                     }
                                 }
 
+                                StrikeMeter(strikes = warnings.size, maxStrikes = 5)
+
                                 HorizontalDivider(color = Color(0xFFFEE2E2))
 
                                 Text(
-                                    text = "El Administrador del Campus emite sanciones cuando se reportan incumplimientos de normas, cancelaciones reiteradas o mala conducta.",
+                                    text = "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial.",
                                     fontSize = 11.5.sp,
                                     color = Color(0xFF7F1D1D),
                                     lineHeight = 16.sp
