@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.campusgo.features.buyer.components.BuyerBottomNavTab
@@ -90,6 +91,7 @@ import com.example.campusgo.features.buyer.components.CampusGoBottomNavBar
 import com.example.campusgo.features.buyer.components.BuyerFavoritesView
 import com.example.campusgo.features.buyer.components.BuyerNotificationsDialog
 import com.example.campusgo.features.buyer.components.CampusFlyerCarousel
+import com.example.campusgo.features.seller.components.SellerNotificationsBottomSheet
 import com.example.campusgo.ui.components.OfficialWarningBanner
 import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.Product
@@ -162,6 +164,7 @@ fun BuyerHomeScreen(
     var currentTab by rememberSaveable { mutableStateOf(BuyerBottomNavTab.INICIO) }
     var favoriteProductIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
+    var showStrikesBottomSheet by remember { mutableStateOf(false) }
     var selectedStoreForProfile by remember { mutableStateOf<StoreCatalogGroup?>(null) }
     val allMeetingPoints by adminRepository.observeMeetingPoints().collectAsState(initial = emptyList())
     val cartCalculation by cartRepository.cartCalculation.collectAsState()
@@ -734,11 +737,59 @@ fun BuyerHomeScreen(
                                     }
                                 }
 
-                                // Botones de acción a la derecha (Notificaciones a la izquierda, Carrito a la derecha)
+                                // Botones de acción a la derecha (Avisos/Strikes, Notificaciones y Carrito)
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
+                                    // 0. Botón de Advertencia / Strikes (igual que en el vendedor)
+                                    Box(
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Surface(
+                                            onClick = {
+                                                showStrikesBottomSheet = true
+                                            },
+                                            shape = CircleShape,
+                                            color = if (buyerWarnings.isNotEmpty()) Color(0xFFFFF7ED) else Color.White,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (buyerWarnings.isNotEmpty()) Color(0xFFFFD8BF) else Color(0xFFE2E8F0)
+                                            ),
+                                            shadowElevation = 1.dp,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.WarningAmber,
+                                                    contentDescription = "Avisos y Moderación",
+                                                    tint = if (buyerWarnings.isNotEmpty()) Color(0xFFEA580C) else Color(0xFF64748B),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // Badge con cantidad de strikes activos
+                                        if (buyerWarnings.isNotEmpty()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .offset(x = 2.dp, y = (-2).dp)
+                                            ) {
+                                                Badge(
+                                                    containerColor = Color(0xFFDC2626),
+                                                    contentColor = Color.White
+                                                ) {
+                                                    Text(
+                                                        text = "${buyerWarnings.size}",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     // 1. Notificaciones (Lado Izquierdo) con punto rojo perfectamente posicionado
                                     // hasPendingNotifications derivado arriba de forma reactiva con IDs leídos
                                     Box(
@@ -916,7 +967,8 @@ fun BuyerHomeScreen(
                     Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                         OfficialWarningBanner(
                             warnings = buyerWarnings,
-                            isSeller = false
+                            isSeller = false,
+                            onBannerClick = { showStrikesBottomSheet = true }
                         )
                     }
 
@@ -1676,6 +1728,14 @@ fun BuyerHomeScreen(
                     showNotificationsDialog = false
                     currentTab = BuyerBottomNavTab.PEDIDOS
                 }
+            )
+        }
+
+        if (showStrikesBottomSheet) {
+            SellerNotificationsBottomSheet(
+                warnings = buyerWarnings,
+                onDismiss = { showStrikesBottomSheet = false },
+                isSeller = false
             )
         }
 
