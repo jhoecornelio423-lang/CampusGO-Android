@@ -1,0 +1,324 @@
+﻿package com.example.campusgo.features.seller.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.campusgo.domain.model.ProfileWarning
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SellerNotificationsBottomSheet(
+    warnings: List<ProfileWarning>,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val configuration = LocalConfiguration.current
+    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFFF8FAFC),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(4.5.dp)
+                        .background(Color(0xFFCBD5E1), CircleShape)
+                )
+            }
+        },
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = sheetMaxHeight)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            // Header del diálogo
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = if (warnings.isNotEmpty()) Color(0xFFFEE2E2) else Color(0xFFE6F7F3),
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (warnings.isNotEmpty()) Icons.Default.WarningAmber else Icons.Outlined.Notifications,
+                                contentDescription = null,
+                                tint = if (warnings.isNotEmpty()) Color(0xFFDC2626) else Color(0xFF00A884),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = "Avisos y Moderación",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = Color(0xFF16324F)
+                        )
+                        Text(
+                            text = if (warnings.isEmpty()) "Todo en orden con tu puesto" else "${warnings.size} aviso${if (warnings.size != 1) "s" else ""} registrado${if (warnings.size != 1) "s" else ""}",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        tint = Color(0xFF64748B)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+            ) {
+                // 1. Tarjeta Resumen de Strikes y Moderación del Administrador
+                item {
+                    if (warnings.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF0FDF4),
+                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFFDCFCE7),
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.VerifiedUser,
+                                            contentDescription = null,
+                                            tint = Color(0xFF16A34A),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "0 Strikes • Historial Limpio",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF14532D)
+                                    )
+                                    Text(
+                                        text = "¡Excelente! Tu puesto no registra advertencias formales ni sanciones del administrador del campus.",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF166534),
+                                        lineHeight = 17.sp
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFFEF2F2),
+                            border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFFFEE2E2),
+                                        modifier = Modifier.size(44.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.WarningAmber,
+                                                contentDescription = null,
+                                                tint = Color(0xFFDC2626),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${warnings.size} de 3 Strikes Registrados",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFF991B1B)
+                                        )
+                                        Text(
+                                            text = when {
+                                                warnings.size >= 3 -> "Cuenta suspendida por acumulación de sanciones."
+                                                warnings.size == 2 -> "Riesgo alto: una infracción más causará la suspensión del puesto."
+                                                else -> "Advertencia formal: por favor corrige las conductas reportadas."
+                                            },
+                                            fontSize = 12.sp,
+                                            color = Color(0xFFB91C1C),
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                }
+
+                                HorizontalDivider(color = Color(0xFFFEE2E2))
+
+                                Text(
+                                    text = "El Administrador del Campus emite sanciones cuando se reportan incumplimientos de normas, cancelaciones reiteradas o mala conducta.",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFF7F1D1D),
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Desglose detallado de cada Strike
+                if (warnings.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "HISTORIAL DE INFRACCIONES",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.8.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    itemsIndexed(warnings) { index, warning ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFFEE2E2),
+                                        modifier = Modifier.padding(bottom = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Strike #${index + 1}",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            color = Color(0xFFDC2626),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+
+                                    Text(
+                                        text = warning.formattedDate,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
+
+                                Text(
+                                    text = warning.reason,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B),
+                                    lineHeight = 18.sp
+                                )
+
+                                if (!warning.ticketId.isNullOrBlank()) {
+                                    Text(
+                                        text = "Ref. Ticket: #${warning.ticketId.take(8)}",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Button(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(top = 8.dp)
+                    ) {
+                        Text(
+                            text = "Entendido",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

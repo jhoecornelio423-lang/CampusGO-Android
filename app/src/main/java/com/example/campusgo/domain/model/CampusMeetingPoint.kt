@@ -1,0 +1,24 @@
+﻿package com.example.campusgo.domain.model
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+@Serializable
+data class CampusMeetingPoint(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("pavilion")
+    val pavilion: String? = null,
+    @SerialName("campus")
+    val campus: String? = "Los Olivos",
+    @SerialName("zone_type")
+    val zoneType: String = "EXTERIOR",
+    @SerialName("is_active")
+    val isActive: Boolean = true,
+    @SerialName("created_at")
+    val createdAt: String? = null
+)

@@ -1,0 +1,33 @@
+﻿package com.example.campusgo.domain.repository
+
+import com.example.campusgo.domain.model.Order
+import com.example.campusgo.domain.model.SubOrder
+import com.example.campusgo.domain.model.SubOrderStatus
+
+import kotlinx.coroutines.flow.Flow
+
+interface OrderRepository {
+    suspend fun placeOrder(order: Order): Result<Order>
+    suspend fun getOrdersForBuyer(buyerId: String): Result<List<Order>>
+    suspend fun getSubOrdersForSeller(sellerId: String): Result<List<SubOrder>>
+    fun observeOrdersForBuyer(buyerId: String): Flow<List<Order>>
+    fun observeSubOrdersForSeller(sellerId: String): Flow<List<SubOrder>>
+    suspend fun updateSubOrderStatus(subOrderId: String, newStatus: SubOrderStatus, rejectionReason: String? = null): Result<SubOrder>
+    suspend fun cancelOrderByBuyer(orderId: String): Result<Unit>
+    suspend fun markBuyerNoShow(subOrderId: String, reason: String? = null): Result<SubOrder>
+    suspend fun expirePendingSuborders(): Result<Int>
+    suspend fun submitSellerReview(orderId: String, buyerId: String, sellerId: String, rating: Int, comment: String? = null): Result<Unit>
+    suspend fun getBuyerReviews(buyerId: String): Result<Map<String, Int>>
+    suspend fun getSellerDashboardStatistics(sellerId: String, range: String): Result<com.example.campusgo.domain.model.SellerDashboardStats>
+    suspend fun reportIncident(
+        subOrderId: String? = null,
+        reporterId: String? = null,
+        reportedUserId: String? = null,
+        incidentType: String,
+        details: String
+    ): Result<Unit>
+    suspend fun getUserWarnings(userId: String): Result<List<com.example.campusgo.domain.model.ProfileWarning>>
+    fun observeUserWarnings(userId: String): Flow<List<com.example.campusgo.domain.model.ProfileWarning>>
+    fun clearCache()
+}
+

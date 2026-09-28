@@ -1,0 +1,66 @@
+﻿package com.example.campusgo.domain.usecase
+
+import com.example.campusgo.domain.model.*
+import java.util.UUID
+
+class CreateOrderWithSubordersUseCase {
+    operator fun invoke(
+        buyerProfile: UserProfile,
+        meetingPoint: CampusMeetingPoint,
+        scheduledTime: String,
+        paymentMethod: PaymentMethod,
+        cartResult: CartCalculationResult,
+        notes: String? = null,
+        meetingPointsBySeller: Map<String, CampusMeetingPoint> = emptyMap(),
+        paymentMethodsBySeller: Map<String, PaymentMethod> = emptyMap()
+    ): Order {
+        val orderId = UUID.randomUUID().toString()
+        val subOrders = cartResult.storeGroups.map { group ->
+            val subOrderId = UUID.randomUUID().toString()
+            val subOrderItems = group.items.map { cartItem ->
+                SubOrderItem(
+                    id = UUID.randomUUID().toString(),
+                    subOrderId = subOrderId,
+                    productId = cartItem.product.id,
+                    productName = cartItem.product.name,
+                    unitPrice = cartItem.product.price,
+                    quantity = cartItem.quantity,
+                    subtotal = cartItem.subtotal
+                )
+            }
+            val sellerPoint = meetingPointsBySeller[group.sellerId] ?: meetingPoint
+            val sellerPm = paymentMethodsBySeller[group.sellerId] ?: paymentMethod
+            SubOrder(
+                id = subOrderId,
+                orderId = orderId,
+                sellerId = group.sellerId,
+                sellerName = group.sellerName,
+                items = subOrderItems,
+                subtotalAmount = group.subtotal,
+                status = SubOrderStatus.PENDIENTE,
+                paymentMethod = sellerPm,
+                meetingPointId = sellerPoint.id,
+                meetingPointName = sellerPoint.name,
+                scheduledTime = scheduledTime,
+                buyerId = buyerProfile.id,
+                buyerName = buyerProfile.fullName,
+                buyerPhone = buyerProfile.phone,
+                notes = notes
+            )
+        }
+        val defaultPoint = meetingPoint
+        return Order(
+            id = orderId,
+            buyerId = buyerProfile.id,
+            buyerName = buyerProfile.fullName,
+            meetingPointId = defaultPoint.id,
+            meetingPointName = defaultPoint.name,
+            scheduledTime = scheduledTime,
+            totalAmount = cartResult.grandTotal,
+            status = OrderStatus.PENDIENTE,
+            subOrders = subOrders,
+            paymentMethod = paymentMethod,
+            notes = notes
+        )
+    }
+}

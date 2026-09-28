@@ -20,11 +20,11 @@ val supabaseKey: String = (localProperties.getProperty("SUPABASE_KEY")
     ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxanVpZnpzb3d3cnJmcHBjenNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NTE3OTMsImV4cCI6MjEwMTQyNzc5M30.GqhJMgsqchqTE6-XG00efPO9GyKA0ov4BFx2zXsbrUQ")
 
 android {
-    namespace = "com.example.vallego"
+    namespace = "com.example.campusgo"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.vallego"
+        applicationId = "com.example.campusgo"
         minSdk = 24
         targetSdk = 36
         versionCode = 7

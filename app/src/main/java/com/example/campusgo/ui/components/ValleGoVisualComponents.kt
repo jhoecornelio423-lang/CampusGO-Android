@@ -1,0 +1,778 @@
+﻿package com.example.campusgo.ui.components
+
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.alpha
+import com.example.campusgo.domain.model.PaymentMethod
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.campusgo.domain.model.SubOrderStatus
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+
+import androidx.compose.ui.res.painterResource
+import com.example.campusgo.R
+
+data class CategoryVisualTheme(
+    val emoji: String = "",
+    val iconResId: Int,
+    val backgroundBrush: Brush,
+    val contentColor: Color
+)
+
+fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = null): CategoryVisualTheme {
+    val text = "${categoryName.orEmpty()} ${productName.orEmpty()}".lowercase()
+    return when {
+        text.contains("hamburguesa") || text.contains("almuerzo") || text.contains("comida") ||
+        text.contains("pollo") || text.contains("chaufa") || text.contains("salchipapa") ||
+        text.contains("arroz") || text.contains("sandwich") || text.contains("menú") || text.contains("menu") -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_cat_food,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFFEDD5), Color(0xFFFED7AA))),
+                contentColor = Color(0xFFC2410C)
+            )
+        }
+        text.contains("postre") || text.contains("dulce") || text.contains("queque") ||
+        text.contains("torta") || text.contains("tarta") || text.contains("alfajor") ||
+        text.contains("brownie") || text.contains("pastel") || text.contains("galleta") ||
+        text.contains("chocolate") || text.contains("crepa") || text.contains("waffle") -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_cat_desserts,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFCE7F3), Color(0xFFFBCFE8))),
+                contentColor = Color(0xFFBE185D)
+            )
+        }
+        text.contains("bebida") || text.contains("jugo") || text.contains("chicha") ||
+        text.contains("café") || text.contains("cafe") || text.contains("gaseosa") ||
+        text.contains("agua") || text.contains("infusión") || text.contains("frappe") ||
+        text.contains("batido") || text.contains("smoothie") -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_cat_drinks,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFE0F2FE), Color(0xFFBAE6FD))),
+                contentColor = Color(0xFF0369A1)
+            )
+        }
+        text.contains("snack") || text.contains("papa") || text.contains("chips") ||
+        text.contains("doritos") || text.contains("piqueo") || text.contains("frutos") ||
+        text.contains("canchita") || text.contains("popcorn") -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_cat_snacks,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFEF3C7), Color(0xFFFDE68A))),
+                contentColor = Color(0xFFB45309)
+            )
+        }
+        text.contains("papel") || text.contains("cuaderno") || text.contains("copia") ||
+        text.contains("util") || text.contains("impresion") || text.contains("libro") -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_cat_stationery,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFEDE9FE), Color(0xFFDDD6FE))),
+                contentColor = Color(0xFF6D28D9)
+            )
+        }
+        else -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_cat_all,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0))),
+                contentColor = Color(0xFF475569)
+            )
+        }
+    }
+}
+
+@Composable
+fun CampusGoProductImage(
+    imageUrl: String?,
+    modifier: Modifier = Modifier,
+    categoryName: String? = null,
+    productName: String? = null,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(12.dp),
+    emojiSize: Int = 26
+) {
+    val theme = remember(categoryName, productName) {
+        resolveCategoryVisualTheme(categoryName, productName)
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(theme.backgroundBrush),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!imageUrl.isNullOrBlank()) {
+            var isError by remember(imageUrl) { mutableStateOf(false) }
+
+            if (!isError) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = productName ?: "Producto",
+                    contentScale = contentScale,
+                    modifier = Modifier.fillMaxSize(),
+                    onError = { isError = true }
+                )
+            } else {
+                Icon(
+                    painter = painterResource(id = theme.iconResId),
+                    contentDescription = productName ?: "Producto",
+                    tint = theme.contentColor,
+                    modifier = Modifier.size((emojiSize * 1.25f).dp)
+                )
+            }
+        } else {
+            Icon(
+                painter = painterResource(id = theme.iconResId),
+                contentDescription = productName ?: "Producto",
+                tint = theme.contentColor,
+                modifier = Modifier.size((emojiSize * 1.25f).dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ValleGoProductImage(
+    imageUrl: String?,
+    modifier: Modifier = Modifier,
+    categoryName: String? = null,
+    productName: String? = null,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(12.dp),
+    emojiSize: Int = 26
+) = CampusGoProductImage(imageUrl, modifier, categoryName, productName, contentScale, shape, emojiSize)
+
+@Composable
+fun CampusGoBusinessBanner(
+    bannerUrl: String?,
+    storeName: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(16.dp)
+) {
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF16324F), // Azul Oscuro Contraste
+                        Color(0xFF16A085), // Verde Turquesa Principal
+                        Color(0xFFF4B942)  // Amarillo Cálido Acento
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!bannerUrl.isNullOrBlank()) {
+            var isError by remember(bannerUrl) { mutableStateOf(false) }
+            if (!isError) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(bannerUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = storeName ?: "Portada del puesto",
+                    contentScale = contentScale,
+                    modifier = Modifier.fillMaxSize(),
+                    onError = { isError = true }
+                )
+            } else {
+                FallbackStoreBannerContent(storeName)
+            }
+        } else {
+            FallbackStoreBannerContent(storeName)
+        }
+    }
+}
+
+@Composable
+fun ValleGoBusinessBanner(
+    bannerUrl: String?,
+    storeName: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(16.dp)
+) = CampusGoBusinessBanner(bannerUrl, storeName, modifier, contentScale, shape)
+
+@Composable
+private fun FallbackStoreBannerContent(storeName: String?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_store_custom),
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.95f),
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = storeName?.trim()?.takeIf { it.isNotBlank() } ?: "Puesto Universitario • CampusGO",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+fun CampusGoBusinessAvatar(
+    avatarUrl: String?,
+    storeName: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    shape: Shape = CircleShape
+) {
+    val initials = remember(storeName) {
+        val trimmed = storeName?.trim().orEmpty()
+        if (trimmed.isNotBlank()) {
+            val parts = trimmed.split(" ").filter { it.isNotBlank() }
+            if (parts.size >= 2) {
+                "${parts[0].first()}${parts[1].first()}".uppercase()
+            } else {
+                trimmed.take(2).uppercase()
+            }
+        } else {
+            "CG"
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF16324F), Color(0xFF16A085))
+                )
+            )
+            .border(1.5.dp, Color.White, shape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!avatarUrl.isNullOrBlank()) {
+            var isError by remember(avatarUrl) { mutableStateOf(false) }
+            if (!isError) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = storeName ?: "Logo del puesto",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onError = { isError = true }
+                )
+            } else {
+                Text(
+                    text = initials,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (size.value * 0.36f).sp
+                )
+            }
+        } else {
+            Text(
+                text = initials,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = (size.value * 0.36f).sp
+            )
+        }
+    }
+}
+
+@Composable
+fun ValleGoBusinessAvatar(
+    avatarUrl: String?,
+    storeName: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    shape: Shape = CircleShape
+) = CampusGoBusinessAvatar(avatarUrl, storeName, modifier, size, shape)
+
+@Composable
+fun CampusGoUserAvatar(
+    avatarUrl: String?,
+    name: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+    shape: Shape = CircleShape
+) {
+    val initials = remember(name) {
+        val trimmed = name?.trim().orEmpty()
+        if (trimmed.isNotBlank()) {
+            val parts = trimmed.split(" ").filter { it.isNotBlank() }
+            if (parts.size >= 2) {
+                "${parts[0].first()}${parts[1].first()}".uppercase()
+            } else {
+                trimmed.take(2).uppercase()
+            }
+        } else {
+            "U"
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF16324F), Color(0xFF16A085))
+                )
+            )
+            .border(1.5.dp, Color.White, shape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!avatarUrl.isNullOrBlank()) {
+            var isError by remember(avatarUrl) { mutableStateOf(false) }
+            if (!isError) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = name ?: "Foto de perfil",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onError = { isError = true }
+                )
+            } else {
+                Text(
+                    text = initials,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (size.value * 0.36f).sp
+                )
+            }
+        } else {
+            Text(
+                text = initials,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = (size.value * 0.36f).sp
+            )
+        }
+    }
+}
+
+@Composable
+fun ValleGoUserAvatar(
+    avatarUrl: String?,
+    name: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+    shape: Shape = CircleShape
+) = CampusGoUserAvatar(avatarUrl, name, modifier, size, shape)
+
+fun isSubOrderExpired(createdAtIso: String?): Boolean {
+    if (createdAtIso.isNullOrBlank()) return false
+    val target = parseIsoEpochMillis(createdAtIso) + (15 * 60 * 1000L)
+    return System.currentTimeMillis() >= target
+}
+
+@Composable
+fun SubOrderCountdownTimerBadge(
+    createdAtIso: String?,
+    status: SubOrderStatus,
+    modifier: Modifier = Modifier,
+    labelPrefix: String = "Tiempo de espera: ",
+    onExpired: (() -> Unit)? = null,
+    onWarning5Min: (() -> Unit)? = null,
+    onWarning10Min: (() -> Unit)? = null
+) {
+    if (status != SubOrderStatus.PENDIENTE) return
+
+    val targetEpochMillis = remember(createdAtIso) {
+        parseIsoEpochMillis(createdAtIso) + (15 * 60 * 1000L)
+    }
+
+    var remainingMillis by remember(targetEpochMillis) {
+        mutableLongStateOf(maxOf(0L, targetEpochMillis - System.currentTimeMillis()))
+    }
+
+    var hasWarned10Min by remember(createdAtIso) { mutableStateOf(false) }
+    var hasWarned5Min by remember(createdAtIso) { mutableStateOf(false) }
+    var hasExpiredReported by remember(createdAtIso) { mutableStateOf(false) }
+
+    LaunchedEffect(targetEpochMillis) {
+        val initialRem = maxOf(0L, targetEpochMillis - System.currentTimeMillis())
+        if (initialRem == 0L && !hasExpiredReported) {
+            hasExpiredReported = true
+            onExpired?.invoke()
+            return@LaunchedEffect
+        }
+
+        while (true) {
+            val now = System.currentTimeMillis()
+            val rem = maxOf(0L, targetEpochMillis - now)
+            remainingMillis = rem
+
+            if (rem <= 10 * 60 * 1000L && rem > 5 * 60 * 1000L && !hasWarned10Min) {
+                hasWarned10Min = true
+                onWarning10Min?.invoke()
+            }
+            if (rem <= 5 * 60 * 1000L && rem > 0L && !hasWarned5Min) {
+                hasWarned5Min = true
+                onWarning5Min?.invoke()
+            }
+            if (rem == 0L) {
+                if (!hasExpiredReported) {
+                    hasExpiredReported = true
+                    onExpired?.invoke()
+                }
+                break
+            }
+            delay(1000)
+        }
+    }
+
+    val totalSeconds = (remainingMillis / 1000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    val formattedTime = "%02d:%02d".format(minutes, seconds)
+
+    val (bgCol, textCol, borderCol) = when {
+        totalSeconds == 0L -> Triple(Color(0xFFFEF2F2), Color(0xFFDC2626), Color(0xFFFECACA))
+        totalSeconds <= 300 -> Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), Color(0xFFFFEDD5))
+        else -> Triple(Color(0xFFEFF6FF), Color(0xFF1D4ED8), Color(0xFFDBEAFE))
+    }
+
+    val alphaAnim by if (totalSeconds in 1..300) {
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        infiniteTransition.animateFloat(
+            initialValue = 1.0f,
+            targetValue = 0.5f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "alpha"
+        )
+    } else {
+        remember { mutableStateOf(1.0f) }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bgCol)
+            .border(1.dp, borderCol, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = if (totalSeconds <= 300) R.drawable.ic_warning_custom else R.drawable.ic_alarm_custom),
+            contentDescription = "Temporizador",
+            tint = textCol.copy(alpha = alphaAnim),
+            modifier = Modifier.size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = if (totalSeconds > 0) "$labelPrefix$formattedTime" else "¡Tiempo agotado!",
+            color = textCol.copy(alpha = alphaAnim),
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+fun StoreStatusBadge(
+    status: String?,
+    acceptingOrders: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val normStatus = (status ?: if (acceptingOrders) "ABIERTO" else "CERRADO").uppercase()
+
+    val (bgCol, textCol, label) = when {
+        !acceptingOrders || normStatus == "CERRADO" ->
+            Triple(Color(0xFFF4F6F8), Color(0xFF64748B), "Cerrado")
+        normStatus == "SATURADO" ->
+            Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "Saturado (Demoras)")
+        normStatus == "PAUSADO" ->
+            Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), "Pausado")
+        else ->
+            Triple(Color(0xFFE6F6F3), Color(0xFF16A085), "Abierto")
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgCol)
+            .padding(horizontal = 7.dp, vertical = 3.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(textCol)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            color = textCol,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+private fun parseIsoEpochMillis(isoString: String?): Long {
+    if (isoString.isNullOrBlank()) return System.currentTimeMillis()
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
+    )
+    for (pattern in formats) {
+        try {
+            val sdf = SimpleDateFormat(pattern, Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            val date = sdf.parse(isoString)
+            if (date != null) return date.time
+        } catch (_: Exception) {
+            // try next
+        }
+    }
+    return System.currentTimeMillis()
+}
+
+fun compressImageUri(
+    context: android.content.Context,
+    uri: android.net.Uri,
+    maxDimension: Int = 1024,
+    quality: Int = 80
+): ByteArray? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+        if (originalBitmap == null) return null
+
+        val width = originalBitmap.width
+        val height = originalBitmap.height
+        val scale = minOf(1f, maxDimension.toFloat() / maxOf(width, height))
+        val scaledBitmap = if (scale < 1f) {
+            android.graphics.Bitmap.createScaledBitmap(
+                originalBitmap,
+                (width * scale).toInt(),
+                (height * scale).toInt(),
+                true
+            )
+        } else {
+            originalBitmap
+        }
+
+        val outputStream = java.io.ByteArrayOutputStream()
+        scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, outputStream)
+        outputStream.toByteArray()
+    } catch (e: Exception) {
+        android.util.Log.e("CampusGoVisual", "Error comprimiendo imagen: ${e.message}", e)
+        null
+    }
+}
+
+/**
+ * Obtiene el ID del recurso drawable para el método de pago correspondiente.
+ */
+fun getPaymentMethodLogoRes(method: PaymentMethod?): Int? = when (method) {
+    PaymentMethod.YAPE -> R.drawable.yape_logo
+    PaymentMethod.PLIN -> R.drawable.plin_logo
+    PaymentMethod.EFECTIVO -> R.drawable.efectivo_logo
+    else -> null
+}
+
+/**
+ * Obtiene el ID del recurso drawable según el nombre o código del método de pago.
+ */
+fun getPaymentMethodLogoResByName(name: String?): Int? = when (name?.uppercase()?.trim()) {
+    "YAPE" -> R.drawable.yape_logo
+    "PLIN" -> R.drawable.plin_logo
+    "EFECTIVO" -> R.drawable.efectivo_logo
+    else -> null
+}
+
+/**
+ * Renderiza el logo oficial del método de pago con tamaño pequeño proporcional al texto.
+ */
+@Composable
+fun PaymentMethodLogo(
+    method: PaymentMethod?,
+    modifier: Modifier = Modifier,
+    size: Dp = 16.dp,
+    enabled: Boolean = true
+) {
+    val resId = getPaymentMethodLogoRes(method)
+    if (resId != null) {
+        Image(
+            painter = painterResource(id = resId),
+            contentDescription = method?.name,
+            modifier = modifier
+                .size(size)
+                .clip(RoundedCornerShape(3.dp))
+                .let { if (!enabled) it.alpha(0.4f) else it },
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Icon(
+            imageVector = Icons.Default.Payments,
+            contentDescription = null,
+            modifier = modifier
+                .size(size)
+                .let { if (!enabled) it.alpha(0.4f) else it }
+        )
+    }
+}
+
+/**
+ * Renderiza el logo oficial del método de pago usando su nombre (String).
+ */
+@Composable
+fun PaymentMethodLogoByName(
+    name: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 16.dp,
+    enabled: Boolean = true
+) {
+    val resId = getPaymentMethodLogoResByName(name)
+    if (resId != null) {
+        Image(
+            painter = painterResource(id = resId),
+            contentDescription = name,
+            modifier = modifier
+                .size(size)
+                .clip(RoundedCornerShape(3.dp))
+                .let { if (!enabled) it.alpha(0.4f) else it },
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Icon(
+            imageVector = Icons.Default.Payments,
+            contentDescription = null,
+            modifier = modifier
+                .size(size)
+                .let { if (!enabled) it.alpha(0.4f) else it }
+        )
+    }
+}
+
+/**
+ * Constantes y estilos profesionales para ventanas emergentes / diálogos en CampusGO.
+ */
+val ValleGoDialogShape = RoundedCornerShape(24.dp)
+val ValleGoDialogContainerColor = Color.White
+val ValleGoDialogTonalElevation = 6.dp
+
+/**
+ * Modificador estándar para ventanas emergentes que aplica recorte suave y borde sutil
+ * otorgando un acabado profesional de tarjeta flotante.
+ */
+fun Modifier.valleGoDialogStyle(
+    shape: Shape = ValleGoDialogShape,
+    borderColor: Color = Color(0xFFE2E8F0)
+): Modifier = this
+    .clip(shape)
+    .border(1.dp, borderColor, shape)
+
+fun formatAccountCreationDate(isoDate: String?): String {
+    if (isoDate.isNullOrBlank()) return "Miembro activo"
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+    for (pattern in patterns) {
+        try {
+            val sdf = SimpleDateFormat(pattern, Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = sdf.parse(isoDate)
+            if (date != null) {
+                val outFormat = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-PE"))
+                return outFormat.format(date)
+            }
+        } catch (_: Exception) {}
+    }
+    return isoDate.take(10)
+}
+
+/**
+ * Permite alternar dinámicamente el color de los iconos de la barra de estado.
+ * En pantallas con fondo oscuro (como WelcomeScreen y AuthScreen), desactiva
+ * isAppearanceLightStatusBars para que la hora, batería y notificaciones sean blancas.
+ * Al salir de la pantalla, restaura automáticamente el estado anterior.
+ */
+@Composable
+fun SetDarkScreenStatusBar(isDark: Boolean = true) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        androidx.compose.runtime.DisposableEffect(isDark) {
+            val activity = view.context as? android.app.Activity
+            val window = activity?.window
+            val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+            val prev = controller?.isAppearanceLightStatusBars ?: true
+            controller?.isAppearanceLightStatusBars = !isDark
+            onDispose {
+                controller?.isAppearanceLightStatusBars = prev
+            }
+        }
+    }
+}

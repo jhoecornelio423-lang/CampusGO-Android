@@ -1,0 +1,36 @@
+﻿package com.example.campusgo.domain.repository
+
+import com.example.campusgo.domain.model.ChatMessage
+import kotlinx.coroutines.flow.Flow
+
+interface ChatRepository {
+    /**
+     * Observa los mensajes en tiempo real asociados a un subpedido específico.
+     */
+    fun observeMessages(subOrderId: String, currentUserId: String): Flow<List<ChatMessage>>
+
+    /**
+     * Envía un nuevo mensaje al destinatario dentro del contexto del subpedido.
+     */
+    suspend fun sendMessage(
+        subOrderId: String,
+        senderId: String,
+        receiverId: String,
+        content: String
+    ): Result<ChatMessage>
+
+    /**
+     * Marca como leídos los mensajes recibidos para el usuario actual.
+     */
+    suspend fun markMessagesAsRead(subOrderId: String, currentUserId: String): Result<Unit>
+
+    /**
+     * Eliminación de respaldo del chat en cliente cuando el subpedido finaliza.
+     */
+    suspend fun deleteMessagesForSubOrder(subOrderId: String): Result<Unit>
+
+    /**
+     * Observa en tiempo real la cantidad de mensajes no leídos para el usuario especificado.
+     */
+    fun observeUnreadCount(userId: String): Flow<Int>
+}
