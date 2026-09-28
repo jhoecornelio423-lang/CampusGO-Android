@@ -232,6 +232,7 @@ fun AuthRoute(
                     onForgotPasswordClick = viewModel::openForgotPassword,
                     onTabSelected = viewModel::setLoginMode,
                     onSubmit = viewModel::submit,
+                    onGoogleSignIn = viewModel::signInWithGoogle,
                     onDismissError = viewModel::clearError,
                     onDismissInfo = viewModel::clearInfoMessage,
                     modifier = modifier
@@ -257,6 +258,7 @@ fun AuthScreen(
     onForgotPasswordClick: () -> Unit,
     onTabSelected: (Boolean) -> Unit,
     onSubmit: () -> Unit,
+    onGoogleSignIn: () -> Unit = {},
     onDismissError: () -> Unit,
     onDismissInfo: () -> Unit,
     modifier: Modifier = Modifier
@@ -306,6 +308,7 @@ fun AuthScreen(
             painter = painterResource(id = R.drawable.fondo_login_register),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter,
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier)
@@ -319,57 +322,26 @@ fun AuthScreen(
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // SECCIÓN SUPERIOR: HEADER CON LOGO OFICIAL
-            Column(
+            // SECCIÓN SUPERIOR: HEADER CON LOGO OFICIAL AGRANDADO Y LIMPIO
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp)
+                    .padding(horizontal = 24.dp, vertical = if (uiState.isLoginMode) 28.dp else 20.dp)
                     .onGloballyPositioned { coordinates ->
                         val hDp = with(density) { coordinates.size.height.toDp() }
                         if (hDp > 0.dp) {
                             headerHeightDp = hDp
                         }
                     },
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentAlignment = Alignment.Center
             ) {
-                if (!uiState.isLoginMode) {
-                    // MODO REGISTRO: Logo oficial CampusGo
-                    Image(
-                        painter = painterResource(id = R.drawable.logo_login),
-                        contentDescription = "Logo CampusGo",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .height(66.dp)
-                            .padding(vertical = 2.dp)
-                    )
-                } else {
-                    // MODO LOGIN: Logo oficial CampusGo en tamaño ideal superior
-                    Image(
-                        painter = painterResource(id = R.drawable.logo_login),
-                        contentDescription = "Logo CampusGo",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.height(74.dp)
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "TU CAMPUS, EN MOVIMIENTO",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6DE2D2),
-                            letterSpacing = 1.4.sp
-                        )
-
-                        Text(
-                            text = "Todo lo que necesitas, en\nun solo lugar.",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
-                            lineHeight = 34.sp
-                        )
-                    }
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.logo_login),
+                    contentDescription = "Logo CampusGo",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.height(if (uiState.isLoginMode) 94.dp else 84.dp)
+                )
             }
 
             // SECCIÓN INFERIOR: TARJETA BLANCA BORDE A BORDE
@@ -394,46 +366,27 @@ fun AuthScreen(
                         .padding(top = 28.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Encabezado según el Modo
-                    if (uiState.isLoginMode) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Bienvenido",
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 30.sp
-                                ),
-                                color = Color(0xFF16324F)
-                            )
-                            Text(
-                                text = "Ingresa con tu cuenta Campus Go",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 14.sp
-                                ),
-                                color = Color(0xFF64748B)
-                            )
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Registro de Vendedor" else "Crea tu cuenta",
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 26.sp
-                                ),
-                                color = Color(0xFF16324F)
-                            )
-                            Text(
-                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR)
-                                    "Registra tu emprendimiento y vende en el campus"
-                                else
-                                    "Únete para comprar fácil y rápido en el campus",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 13.5.sp
-                                ),
-                                color = Color(0xFF64748B)
-                            )
-                        }
+                    // Encabezado según el Modo (directo y sin exceso de texto)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = when {
+                                uiState.isLoginMode -> "Bienvenido"
+                                uiState.selectedRole == UserRole.EMPRENDEDOR -> "Registro de Vendedor"
+                                else -> "Crear Cuenta"
+                            },
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            ),
+                            color = Color(0xFF16324F)
+                        )
+                        Text(
+                            text = if (uiState.isLoginMode) "Inicia sesión para continuar" else "Ingresa tus datos para empezar",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 13.5.sp
+                            ),
+                            color = Color(0xFF64748B)
+                        )
                     }
 
                     // Banner de Información si existe
@@ -560,72 +513,31 @@ fun AuthScreen(
                                 )
                             }
 
-                            // Banner explicativo y visual del rol actualmente activo
-                            Surface(
-                                color = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFFFFFBEB) else Color(0xFFEFF6FF),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFFFDE68A) else Color(0xFFBFDBFE)
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            if (uiState.selectedRole == UserRole.EMPRENDEDOR) {
+                                Surface(
+                                    color = Color(0xFFFFFBEB),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFDE68A)),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(
-                                        imageVector = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Icons.Default.Storefront else Icons.Default.ShoppingBag,
-                                        contentDescription = null,
-                                        tint = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFFD97706) else Color(0xFF2563EB),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = if (uiState.selectedRole == UserRole.EMPRENDEDOR)
-                                            "Modo Vendedor seleccionado: Al verificar tu correo, tu solicitud requerirá aprobación del administrador antes de que puedas acceder."
-                                        else
-                                            "Modo Cliente seleccionado: Podrás navegar y realizar compras en los puestos oficiales del campus en cuanto verifiques tu correo.",
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (uiState.selectedRole == UserRole.EMPRENDEDOR) Color(0xFF92400E) else Color(0xFF1E40AF)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Sede Universitaria de Lanzamiento (Informativo y limpio)
-                        Surface(
-                            color = Color(0xFFF1F5F9),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.School,
-                                    contentDescription = null,
-                                    tint = Color(0xFF00A884),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "Sede de lanzamiento:",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF64748B),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        text = "UCV - Lima Norte (Sede oficial)",
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF16324F),
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Storefront,
+                                            contentDescription = null,
+                                            tint = Color(0xFFD97706),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "La cuenta de vendedor requiere aprobación del administrador",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF92400E)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1063,28 +975,13 @@ fun AuthScreen(
                     if (uiState.isLoginMode) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF00A884))
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Conexión segura",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-
                             Text(
                                 text = "¿Olvidaste tu contraseña?",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF00A884),
                                 modifier = Modifier.clickable { onForgotPasswordClick() }
                             )
@@ -1108,14 +1005,14 @@ fun AuthScreen(
                                 )
                             )
                             Text(
-                                text = "Acepto los términos y la política de privacidad",
-                                fontSize = 12.sp,
+                                text = "Acepto los términos y condiciones",
+                                fontSize = 12.5.sp,
                                 color = Color(0xFF64748B)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // Botón Principal
                     val isButtonEnabled = uiState.canSubmit && (uiState.isLoginMode || termsAccepted)
@@ -1151,7 +1048,7 @@ fun AuthScreen(
                                     text = when {
                                         uiState.isLoginMode -> "Iniciar sesión"
                                         uiState.selectedRole == UserRole.EMPRENDEDOR -> "Solicitar Registro de Vendedor"
-                                        else -> "Crear Cuenta de Cliente"
+                                        else -> "Crear Cuenta"
                                     },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
@@ -1168,134 +1065,147 @@ fun AuthScreen(
                         }
                     }
 
-                    // Links del Pie de Página
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    // Separador "o"
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp)
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (uiState.isLoginMode) {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "¿No tienes una cuenta? ",
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                                Text(
-                                    text = "Regístrate ahora",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF00A884),
-                                    modifier = Modifier.clickable { onTabSelected(false) }
-                                )
-                            }
-                        } else {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "¿Ya tienes una cuenta? ",
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                                Text(
-                                    text = "Inicia sesión",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF00A884),
-                                    modifier = Modifier.clickable { onTabSelected(true) }
-                                )
-                            }
-                        }
-
-                        // Centro de ayuda y reportes con alineación profesional y badge táctil
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "¿Necesitas ayuda o reportar un problema?",
-                                fontSize = 12.sp,
-                                color = Color(0xFF64748B),
-                                textAlign = TextAlign.Center
-                            )
-
-                            Surface(
-                                onClick = { showSupportDialog = true },
-                                shape = RoundedCornerShape(100.dp),
-                                color = Color(0xFFF0FDF9),
-                                border = BorderStroke(1.dp, Color(0xFFCCFBF1)),
-                                shadowElevation = 0.dp
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.HeadsetMic,
-                                        contentDescription = null,
-                                        tint = Color(0xFF00A884),
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Centro de ayuda y reportes",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF00A884)
-                                    )
-                                }
-                            }
-                        }
-
                         HorizontalDivider(
-                            color = Color(0xFFF1F5F9),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFFE2E8F0),
+                            thickness = 1.dp
                         )
+                        Text(
+                            text = "o",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFFE2E8F0),
+                            thickness = 1.dp
+                        )
+                    }
 
+                    // Botón Continuar con Google
+                    Surface(
+                        onClick = {
+                            focusManager.clearFocus()
+                            onGoogleSignIn()
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.2.dp, Color(0xFFE2E8F0)),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                contentDescription = "Google",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Continuar con Google",
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+                    }
+
+                    // Links del Pie de Página ordenados y limpios
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, bottom = 4.dp)
+                    ) {
+                        // Alternar entre Iniciar sesión y Registrarse
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (uiState.isLoginMode) "¿No tienes una cuenta? " else "¿Ya tienes una cuenta? ",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = if (uiState.isLoginMode) "Regístrate aquí" else "Inicia sesión",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00A884),
+                                modifier = Modifier.clickable { onTabSelected(!uiState.isLoginMode) }
+                            )
+                        }
+
+                        // Centro de Ayuda sutil y directo
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showSupportDialog = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.HeadsetMic,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "¿Necesitas ayuda? Centro de soporte",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        // Powered by KODEX sobrio y profesional
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Text(
                                 text = "Powered by",
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF94A3B8),
-                                letterSpacing = 0.5.sp
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF94A3B8)
                             )
-                            Spacer(modifier = Modifier.width(7.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Image(
                                 painter = painterResource(id = R.drawable.kodex_logo),
                                 contentDescription = "Logo Kodex",
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(RoundedCornerShape(5.dp))
+                                    .size(16.dp)
+                                    .clip(RoundedCornerShape(3.dp))
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = "KODEX",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFF102A43),
-                                letterSpacing = 1.2.sp
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.8.sp
                             )
                         }
-
-                        // Espacio final sutil y limpio después de Powered by KODEX
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }

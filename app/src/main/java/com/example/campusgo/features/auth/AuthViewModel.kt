@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.auth
+package com.example.campusgo.features.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -138,6 +138,15 @@ class AuthViewModel(
 
     fun clearInfoMessage() {
         _uiState.update { it.copy(infoMessage = null) }
+    }
+
+    fun signInWithGoogle() {
+        _uiState.update {
+            it.copy(
+                infoMessage = "El inicio de sesión con Google estará disponible próximamente en tu campus.",
+                errorMessage = null
+            )
+        }
     }
 
     fun submit() {
