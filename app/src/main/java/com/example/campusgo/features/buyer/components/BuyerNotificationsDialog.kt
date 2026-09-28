@@ -14,7 +14,6 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Store
-import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,23 +25,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.Order
-import com.example.campusgo.domain.model.ProfileWarning
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.verificationCode
-import com.example.campusgo.ui.components.StrikeMeter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuyerNotificationsDialog(
     readyOrders: List<Triple<Order, SubOrder, String>>,
     preparingOrders: List<Triple<Order, SubOrder, String>> = emptyList(),
-    warnings: List<ProfileWarning>,
     onDismiss: () -> Unit,
     onNavigateToOrders: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val totalCount = readyOrders.size + preparingOrders.size + warnings.size
+    val totalCount = readyOrders.size + preparingOrders.size
     val configuration = LocalConfiguration.current
     val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
 
@@ -268,98 +264,6 @@ fun BuyerNotificationsDialog(
                                     onNavigateToOrders()
                                 }
                             )
-                        }
-                    }
-
-                    // 3. Sección: Avisos y Moderación (Strikes)
-                    if (warnings.isNotEmpty()) {
-                        item(key = "header_warn") {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(Color(0xFFDC2626), CircleShape)
-                                )
-                                Text(
-                                    text = "AVISOS Y MODERACIÓN (${warnings.size})",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFB91C1C),
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                        }
-
-                        item(key = "strike_meter_card") {
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color(0xFFFEF2F2),
-                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = Color(0xFFFEE2E2),
-                                            modifier = Modifier.size(44.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = Icons.Outlined.Warning,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFFDC2626),
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                            }
-                                        }
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "${warnings.size} de 5 Strikes Registrados",
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 15.sp,
-                                                color = Color(0xFF991B1B)
-                                            )
-                                            Text(
-                                                text = when {
-                                                    warnings.size >= 5 -> "Cuenta suspendida automáticamente por acumulación de faltas."
-                                                    warnings.size == 4 -> "Riesgo crítico: 1 infracción más suspenderá tu cuenta para hacer pedidos."
-                                                    warnings.size >= 2 -> "Riesgo moderado (${warnings.size}/5 strikes): evita reincidencias."
-                                                    else -> "Advertencia formal (1/5 strikes): por favor corrige las conductas reportadas."
-                                                },
-                                                fontSize = 12.sp,
-                                                color = Color(0xFFB91C1C),
-                                                lineHeight = 16.sp
-                                            )
-                                        }
-                                    }
-
-                                    StrikeMeter(strikes = warnings.size, maxStrikes = 5)
-
-                                    HorizontalDivider(color = Color(0xFFFEE2E2))
-
-                                    Text(
-                                        text = "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos.",
-                                        fontSize = 11.5.sp,
-                                        color = Color(0xFF7F1D1D),
-                                        lineHeight = 16.sp
-                                    )
-                                }
-                            }
-                        }
-
-                        items(warnings, key = { "warn_${it.id}" }) { warning ->
-                            WarningCard(warning = warning)
                         }
                     }
 
@@ -701,51 +605,6 @@ private fun PreparingOrderCard(
                         modifier = Modifier.size(15.dp)
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun WarningCard(warning: ProfileWarning) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
-        border = BorderStroke(1.dp, Color(0xFFFECACA)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFFFEE2E2),
-                modifier = Modifier.size(36.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFDC2626),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = "Aviso Oficial de Administración",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.5.sp,
-                    color = Color(0xFF991B1B)
-                )
-                Text(
-                    text = warning.reason,
-                    fontSize = 12.sp,
-                    color = Color(0xFF7F1D1D),
-                    lineHeight = 16.sp
-                )
             }
         }
     }

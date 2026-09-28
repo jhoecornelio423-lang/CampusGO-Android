@@ -204,11 +204,10 @@ fun BuyerHomeScreen(
         }
     }
     var readNotificationIds by rememberSaveable { mutableStateOf(setOf<String>()) }
-    val currentNotificationIds = remember(readyOrdersInfo, preparingOrdersInfo, buyerWarnings) {
+    val currentNotificationIds = remember(readyOrdersInfo, preparingOrdersInfo) {
         val ids = mutableListOf<String>()
         readyOrdersInfo.forEach { ids.add("ready_${it.third}") }
         preparingOrdersInfo.forEach { ids.add("prep_${it.third}") }
-        buyerWarnings.forEach { ids.add("warning_${it.id}") }
         ids.toSet()
     }
     val hasPendingNotifications = remember(currentNotificationIds, readNotificationIds) {
@@ -1722,7 +1721,6 @@ fun BuyerHomeScreen(
             BuyerNotificationsDialog(
                 readyOrders = readyOrdersInfo,
                 preparingOrders = preparingOrdersInfo,
-                warnings = buyerWarnings,
                 onDismiss = { showNotificationsDialog = false },
                 onNavigateToOrders = {
                     showNotificationsDialog = false
