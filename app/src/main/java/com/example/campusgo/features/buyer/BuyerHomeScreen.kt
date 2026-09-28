@@ -431,6 +431,25 @@ fun BuyerHomeScreen(
         }
     }
 
+    LaunchedEffect(profile.id) {
+        val favRes = productRepository.getFavoriteProductIds(profile.id)
+        if (favRes.isSuccess) {
+            favoriteProductIds = favRes.getOrDefault(emptySet())
+        }
+    }
+
+    val onToggleFavoriteAction: (String) -> Unit = { prodId ->
+        val wasFav = favoriteProductIds.contains(prodId)
+        favoriteProductIds = if (wasFav) favoriteProductIds - prodId else favoriteProductIds + prodId
+        coroutineScope.launch {
+            if (wasFav) {
+                productRepository.removeFavorite(profile.id, prodId)
+            } else {
+                productRepository.addFavorite(profile.id, prodId)
+            }
+        }
+    }
+
     if (activeChatSummary != null) {
         OrderChatBottomSheet(
             viewModel = chatViewModel,
@@ -1575,13 +1594,7 @@ fun BuyerHomeScreen(
                                         cartRepository.addToCart(prod1, 1)
                                     },
                                     isFavorite = favoriteProductIds.contains(prod1.id),
-                                    onToggleFavorite = {
-                                        favoriteProductIds = if (favoriteProductIds.contains(prod1.id)) {
-                                            favoriteProductIds - prod1.id
-                                        } else {
-                                            favoriteProductIds + prod1.id
-                                        }
-                                    },
+                                    onToggleFavorite = { onToggleFavoriteAction(prod1.id) },
                                     showStoreTag = (selectedStoreId == null),
                                     modifier = Modifier.weight(1f)
                                 )
@@ -1600,13 +1613,7 @@ fun BuyerHomeScreen(
                                             cartRepository.addToCart(prod2, 1)
                                         },
                                         isFavorite = favoriteProductIds.contains(prod2.id),
-                                        onToggleFavorite = {
-                                            favoriteProductIds = if (favoriteProductIds.contains(prod2.id)) {
-                                                favoriteProductIds - prod2.id
-                                            } else {
-                                                favoriteProductIds + prod2.id
-                                            }
-                                        },
+                                        onToggleFavorite = { onToggleFavoriteAction(prod2.id) },
                                         showStoreTag = (selectedStoreId == null),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -1622,13 +1629,7 @@ fun BuyerHomeScreen(
         BuyerBottomNavTab.FAVORITOS -> {
             BuyerFavoritesView(
                 favoriteProductIds = favoriteProductIds,
-                onToggleFavorite = { prodId ->
-                    favoriteProductIds = if (favoriteProductIds.contains(prodId)) {
-                        favoriteProductIds - prodId
-                    } else {
-                        favoriteProductIds + prodId
-                    }
-                },
+                onToggleFavorite = onToggleFavoriteAction,
                 allProducts = allMatchingProducts,
                 categoriesList = categoriesList,
                 storesList = realStoresWithProducts,

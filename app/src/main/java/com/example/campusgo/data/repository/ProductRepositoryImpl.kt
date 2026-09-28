@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.data.repository
+package com.example.campusgo.data.repository
 
 import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.Product
@@ -23,6 +23,19 @@ data class ProductInsertDto(
     @kotlinx.serialization.SerialName("image_url") val imageUrl: String? = null,
     @kotlinx.serialization.SerialName("is_active") val isActive: Boolean = true,
     @kotlinx.serialization.SerialName("pickup_location") val pickupLocation: String = "Campus Los Olivos"
+)
+
+@kotlinx.serialization.Serializable
+data class FavoriteRowDto(
+    @kotlinx.serialization.SerialName("id") val id: String? = null,
+    @kotlinx.serialization.SerialName("user_id") val userId: String,
+    @kotlinx.serialization.SerialName("product_id") val productId: String
+)
+
+@kotlinx.serialization.Serializable
+data class FavoriteInsertDto(
+    @kotlinx.serialization.SerialName("user_id") val userId: String,
+    @kotlinx.serialization.SerialName("product_id") val productId: String
 )
 
 @kotlinx.serialization.Serializable
@@ -452,6 +465,47 @@ class ProductRepositoryImpl(
             Result.success(publicUrl)
         } catch (e: Exception) {
             android.util.Log.e("ProductRepo", "Error al subir imagen a $bucket: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getFavoriteProductIds(userId: String): Result<Set<String>> = withContext(Dispatchers.IO) {
+        try {
+            val list = postgrest.from("favorites").select {
+                filter {
+                    eq("user_id", userId)
+                }
+            }.decodeList<FavoriteRowDto>()
+            Result.success(list.map { it.productId }.toSet())
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepo", "Error al obtener favoritos: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun addFavorite(userId: String, productId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            postgrest.from("favorites").insert(
+                FavoriteInsertDto(userId = userId, productId = productId)
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepo", "Error al agregar favorito: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun removeFavorite(userId: String, productId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            postgrest.from("favorites").delete {
+                filter {
+                    eq("user_id", userId)
+                    eq("product_id", productId)
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepo", "Error al remover favorito: ${e.message}", e)
             Result.failure(e)
         }
     }

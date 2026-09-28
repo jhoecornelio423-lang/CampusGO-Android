@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.buyer.components
+package com.example.campusgo.features.buyer.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -18,6 +18,8 @@ import androidx.compose.material.icons.outlined.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,7 +76,44 @@ fun BuyerFavoritesView(
             .sortedByDescending { it.third }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val handleToggleWithUndo: (String, String) -> Unit = { prodId, prodName ->
+        val wasFav = favoriteProductIds.contains(prodId)
+        onToggleFavorite(prodId)
+        if (wasFav) {
+            coroutineScope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                val result = snackbarHostState.showSnackbar(
+                    message = "\"$prodName\" eliminado de favoritos",
+                    actionLabel = "Deshacer",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onToggleFavorite(prodId)
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = 80.dp)
+            ) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = Color(0xFF1E293B),
+                    contentColor = Color.White,
+                    actionColor = Color(0xFF38BDF8),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
         topBar = {
             Surface(
                 modifier = Modifier
@@ -237,7 +276,7 @@ fun BuyerFavoritesView(
                                     onClick = { onProductClick(prod1, store1) },
                                     onQuickAdd = { onAddToCart(prod1, store1) },
                                     isFavorite = true,
-                                    onToggleFavorite = { onToggleFavorite(prod1.id) },
+                                    onToggleFavorite = { handleToggleWithUndo(prod1.id, prod1.name) },
                                     onStoreClick = { onStoreClick(store1) }
                                 )
                             }
@@ -253,7 +292,7 @@ fun BuyerFavoritesView(
                                         onClick = { onProductClick(prod2, store2) },
                                         onQuickAdd = { onAddToCart(prod2, store2) },
                                         isFavorite = true,
-                                        onToggleFavorite = { onToggleFavorite(prod2.id) },
+                                        onToggleFavorite = { handleToggleWithUndo(prod2.id, prod2.name) },
                                         onStoreClick = { onStoreClick(store2) }
                                     )
                                 }
@@ -525,7 +564,7 @@ fun BuyerFavoritesView(
                                     onClick = { onProductClick(prod1, store1) },
                                     onQuickAdd = { onAddToCart(prod1, store1) },
                                     isFavorite = isFav1,
-                                    onToggleFavorite = { onToggleFavorite(prod1.id) },
+                                    onToggleFavorite = { handleToggleWithUndo(prod1.id, prod1.name) },
                                     onStoreClick = { onStoreClick(store1) },
                                     badgeText = "Pedido ${count1}x"
                                 )
@@ -543,7 +582,7 @@ fun BuyerFavoritesView(
                                         onClick = { onProductClick(prod2, store2) },
                                         onQuickAdd = { onAddToCart(prod2, store2) },
                                         isFavorite = isFav2,
-                                        onToggleFavorite = { onToggleFavorite(prod2.id) },
+                                        onToggleFavorite = { handleToggleWithUndo(prod2.id, prod2.name) },
                                         onStoreClick = { onStoreClick(store2) },
                                         badgeText = "Pedido ${count2}x"
                                     )
