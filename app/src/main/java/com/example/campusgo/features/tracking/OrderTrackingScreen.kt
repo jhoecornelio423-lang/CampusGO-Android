@@ -314,7 +314,7 @@ fun OrderTrackingScreen(
         val subOrder = subOrderToReport!!
         ReportIncidentDialog(
             title = "Reportar Puesto Comercial",
-            subtitle = "Puesto: ${subOrder.sellerName.ifBlank { "Vendedor" }} • Pedido ${subOrder.orderCodeDisplay}",
+            subtitle = "Puesto: ${subOrder.sellerName.ifBlank { "Vendedor" }}",
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { subOrderToReport = null },
@@ -569,7 +569,21 @@ fun BuyerOrderCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Cabecera: ID y Estado General
+            // Cabecera: Título Amigable y Total Coherente
+            val originalSum = if (order.subOrders.isNotEmpty()) order.subOrders.sumOf { it.subtotalAmount } else order.totalAmount
+            val cancelledSum = order.subOrders.filter { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO }.sumOf { it.subtotalAmount }
+            val hasCancelledSubOrders = cancelledSum > 0.0
+            val effectiveToPay = (originalSum - cancelledSum).coerceAtLeast(0.0)
+
+            val orderFriendlyTitle = when (order.status) {
+                OrderStatus.COMPLETADA -> "Pedido Entregado"
+                OrderStatus.CANCELADA -> "Pedido Cancelado"
+                OrderStatus.EN_PROCESO -> "Pedido en Preparación"
+                OrderStatus.PARCIALMENTE_ACEPTADA -> "Pedido en Curso"
+                OrderStatus.PENDIENTE -> "Pedido Solicitado"
+                else -> "Seguimiento de Pedido"
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -577,16 +591,31 @@ fun BuyerOrderCard(
             ) {
                 Column {
                     Text(
-                        text = if (order.status == OrderStatus.COMPLETADA) "Pedido Entregado" else "Pedido ${order.orderCodeDisplay}",
+                        text = orderFriendlyTitle,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Text(
-                        text = "Total: S/ %.2f".format(order.totalAmount),
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF003366),
-                        fontSize = 18.sp
-                    )
+                    if (hasCancelledSubOrders) {
+                        Text(
+                            text = "Total a pagar: S/ %.2f".format(effectiveToPay),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF003366),
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            text = "Total original: S/ %.2f (S/ %.2f cancelado)".format(originalSum, cancelledSum),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFE65100)
+                        )
+                    } else {
+                        Text(
+                            text = "Total: S/ %.2f".format(originalSum),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF003366),
+                            fontSize = 18.sp
+                        )
+                    }
                 }
                 OrderStatusBadge(status = order.status)
             }
@@ -1348,7 +1377,7 @@ fun BuyerOrderDetailDialog(
                             color = Color(0xFF16324F)
                         )
                         Text(
-                            text = "Pedido ${order.orderCodeDisplay}",
+                            text = order.meetingPointName.ifBlank { "Entrega en campus" },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF64748B)
@@ -1849,21 +1878,63 @@ fun BuyerOrderDetailDialog(
                             }
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.Bottom,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "Total:",
-                                fontSize = 13.sp,
-                                color = Color(0xFF64748B)
-                            )
-                            Text(
-                                text = "S/ %.2f".format(order.totalAmount),
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 20.sp,
-                                color = Color(0xFF00A884)
-                            )
+                        val originalSum = if (order.subOrders.isNotEmpty()) order.subOrders.sumOf { it.subtotalAmount } else order.totalAmount
+                        val cancelledSum = order.subOrders.filter { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO }.sumOf { it.subtotalAmount }
+                        val hasCancelledSubOrders = cancelledSum > 0.0
+                        val effectiveToPay = (originalSum - cancelledSum).coerceAtLeast(0.0)
+
+                        if (hasCancelledSubOrders) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "Subtotal original (${order.subOrders.size} puestos): S/ %.2f".format(originalSum),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "Puesto cancelado: -S/ %.2f".format(cancelledSum),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFE65100)
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Total a pagar:",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        text = "S/ %.2f".format(effectiveToPay),
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 20.sp,
+                                        color = Color(0xFF00A884)
+                                    )
+                                }
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Total:",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "S/ %.2f".format(originalSum),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 20.sp,
+                                    color = Color(0xFF00A884)
+                                )
+                            }
                         }
                     }
                 }

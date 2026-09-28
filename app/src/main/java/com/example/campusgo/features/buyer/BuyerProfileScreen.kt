@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.buyer
+package com.example.campusgo.features.buyer
 
 import android.net.Uri
 import android.widget.Toast
@@ -29,14 +29,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Dangerous
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WarningAmber
 import com.example.campusgo.BuildConfig
 import com.example.campusgo.R
 import com.example.campusgo.domain.model.ProfileWarning
 import com.example.campusgo.domain.model.UserProfile
+import com.example.campusgo.features.seller.components.SellerNotificationsBottomSheet
 import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.OfficialWarningBanner
 import com.example.campusgo.ui.components.ProfileInfoBottomSheet
 import com.example.campusgo.ui.components.ProfileInfoType
+import com.example.campusgo.ui.components.StrikeBadge
 import com.example.campusgo.ui.components.ValleGoUserAvatar
 import com.example.campusgo.ui.components.compressImageUri
 import com.example.campusgo.ui.components.formatAccountCreationDate
@@ -54,6 +59,7 @@ fun BuyerProfileScreen(
 ) {
     var isEditMode by remember { mutableStateOf(false) }
     var showEnlargedPhoto by remember { mutableStateOf(false) }
+    var showStrikesSheet by remember { mutableStateOf(false) }
     var fullName by remember(profile) { mutableStateOf(profile.fullName) }
     var phone by remember(profile) { mutableStateOf(profile.phone) }
     var studentCode by remember(profile) { mutableStateOf(profile.studentCode.orEmpty()) }
@@ -169,11 +175,6 @@ fun BuyerProfileScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            OfficialWarningBanner(
-                warnings = warnings,
-                isSeller = false
-            )
-
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color.White,
@@ -440,6 +441,27 @@ fun BuyerProfileScreen(
                                 Toast.makeText(context, "Por el momento no está disponible", Toast.LENGTH_SHORT).show()
                             }
                         )
+
+                        HorizontalDivider(color = Color(0xFFF1F5F9))
+
+                        // 5. Sistema de Strikes / Avisos y Moderación
+                        val strikeCount = warnings.size
+                        val (strikeIconBg, strikeIconTint) = when {
+                            strikeCount >= 5 -> Color(0xFFFEE2E2) to Color(0xFFDC2626)
+                            strikeCount in 1..4 -> Color(0xFFFFF3E0) to Color(0xFFE65100)
+                            else -> Color(0xFFE6F7F3) to Color(0xFF00A884)
+                        }
+                        ProfileInfoNavigationRow(
+                            icon = if (strikeCount >= 5) Icons.Default.Dangerous else if (strikeCount in 1..4) Icons.Default.WarningAmber else Icons.Default.Shield,
+                            iconTint = strikeIconTint,
+                            iconBg = strikeIconBg,
+                            title = "Avisos y Moderación (Strikes)",
+                            subtitle = if (strikeCount == 0) "0 strikes • Sin infracciones registradas" else "$strikeCount aviso${if (strikeCount != 1) "s" else ""} activo${if (strikeCount != 1) "s" else ""} del campus",
+                            trailing = {
+                                StrikeBadge(strikes = strikeCount)
+                            },
+                            onClick = { showStrikesSheet = true }
+                        )
                     }
                 }
             }
@@ -551,15 +573,25 @@ fun BuyerProfileScreen(
             onDismiss = { selectedInfoType = ProfileInfoType.NONE }
         )
     }
+
+    if (showStrikesSheet) {
+        SellerNotificationsBottomSheet(
+            warnings = warnings,
+            isSeller = false,
+            onDismiss = { showStrikesSheet = false }
+        )
+    }
 }
 
 @Composable
 private fun ProfileInfoNavigationRow(
-    iconPainter: androidx.compose.ui.graphics.painter.Painter,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     iconTint: Color,
     iconBg: Color,
     title: String,
     subtitle: String,
+    trailing: @Composable (() -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -577,12 +609,21 @@ private fun ProfileInfoNavigationRow(
             modifier = Modifier.size(38.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painter = iconPainter,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else if (iconPainter != null) {
+                    Icon(
+                        painter = iconPainter,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -598,6 +639,10 @@ private fun ProfileInfoNavigationRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = Color(0xFF64748B)
             )
+        }
+        if (trailing != null) {
+            trailing()
+            Spacer(modifier = Modifier.width(6.dp))
         }
         Icon(
             imageVector = Icons.Default.ChevronRight,

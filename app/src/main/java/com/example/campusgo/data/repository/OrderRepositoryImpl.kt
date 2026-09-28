@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.data.repository
+package com.example.campusgo.data.repository
 
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.OrderStatus
@@ -541,6 +541,13 @@ class OrderRepositoryImpl(
                             val computedOrderStatus = when {
                                 domainSubOrders.isEmpty() -> mapRemoteStatusToOrderStatus(ro.status)
                                 domainSubOrders.all { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO } -> OrderStatus.CANCELADA
+                                domainSubOrders.all { it.status.isFinal || it.status == SubOrderStatus.PAGO_CONFIRMADO } -> {
+                                    if (domainSubOrders.any { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }) {
+                                        OrderStatus.COMPLETADA
+                                    } else {
+                                        OrderStatus.CANCELADA
+                                    }
+                                }
                                 domainSubOrders.all { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO } -> OrderStatus.COMPLETADA
                                 domainSubOrders.any { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO } &&
                                 domainSubOrders.any { it.status == SubOrderStatus.ACEPTADO || it.status == SubOrderStatus.EN_PREPARACION || it.status == SubOrderStatus.LISTO || it.status == SubOrderStatus.COMPLETADO } -> OrderStatus.PARCIALMENTE_ACEPTADA

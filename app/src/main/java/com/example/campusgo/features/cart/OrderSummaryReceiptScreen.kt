@@ -243,11 +243,10 @@ fun OrderSummaryReceiptScreen(
                         color = Color(0xFF1E293B)
                     )
                     Text(
-                        text = "Código: ${order.orderCodeDisplay}",
+                        text = "Entrega en: ${order.meetingPointName.ifBlank { "Campus Universitario" }}",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.5.sp,
-                        color = Color(0xFF003366),
-                        fontFamily = FontFamily.Monospace
+                        fontSize = 14.sp,
+                        color = Color(0xFF003366)
                     )
                     Text(
                         text = "Los emprendedores fueron notificados y prepararán tu pedido para la hora indicada.",
@@ -478,7 +477,7 @@ fun OrderSummaryReceiptScreen(
         val targetSeller = order.subOrders.firstOrNull()
         ReportIncidentDialog(
             title = "Reportar Problema con el Pedido",
-            subtitle = "Orden ${order.orderCodeDisplay} • ${targetSeller?.sellerName ?: "Campus"}",
+            subtitle = "Puesto: ${targetSeller?.sellerName ?: "Campus"}",
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.example.campusgo.R
 import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.CartCalculationResult
+import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.domain.repository.AuthRepository
 import com.example.campusgo.domain.repository.OrderRepository
@@ -62,6 +63,7 @@ fun BuyerSellerProfileScreen(
     store: StoreCatalogGroup,
     meetingPoints: List<CampusMeetingPoint> = emptyList(),
     cartCalculation: CartCalculationResult,
+    categoriesList: List<Category> = emptyList(),
     onNavigateBack: () -> Unit,
     onProductClick: (Product) -> Unit,
     onAddToCart: (Product) -> Unit,
@@ -751,9 +753,11 @@ fun BuyerSellerProfileScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     val prod1 = pair[0]
+                                    val cat1Name = categoriesList.find { it.id == prod1.categoryId }?.name ?: store.businessCategory
                                     SellerProductItemCard(
                                         product = prod1,
                                         isStoreAvailable = isOpen,
+                                        categoryName = cat1Name,
                                         onClick = { onProductClick(prod1) },
                                         onAddToCart = { onAddToCart(prod1) },
                                         modifier = Modifier.weight(1f)
@@ -761,9 +765,11 @@ fun BuyerSellerProfileScreen(
 
                                     if (pair.size > 1) {
                                         val prod2 = pair[1]
+                                        val cat2Name = categoriesList.find { it.id == prod2.categoryId }?.name ?: store.businessCategory
                                         SellerProductItemCard(
                                             product = prod2,
                                             isStoreAvailable = isOpen,
+                                            categoryName = cat2Name,
                                             onClick = { onProductClick(prod2) },
                                             onAddToCart = { onAddToCart(prod2) },
                                             modifier = Modifier.weight(1f)
@@ -875,6 +881,7 @@ private fun SellerProductItemCard(
     isStoreAvailable: Boolean,
     onClick: () -> Unit,
     onAddToCart: () -> Unit,
+    categoryName: String? = null,
     modifier: Modifier = Modifier
 ) {
     val isAvailable = isStoreAvailable && product.stock > 0
@@ -903,7 +910,7 @@ private fun SellerProductItemCard(
             ) {
                 ValleGoProductImage(
                     imageUrl = product.imageUrl,
-                    categoryName = null,
+                    categoryName = categoryName,
                     productName = product.name,
                     emojiSize = 36,
                     modifier = Modifier.fillMaxSize()

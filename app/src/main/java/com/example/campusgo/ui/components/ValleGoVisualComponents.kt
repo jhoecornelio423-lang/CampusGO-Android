@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -69,7 +69,8 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
     return when {
         text.contains("hamburguesa") || text.contains("almuerzo") || text.contains("comida") ||
         text.contains("pollo") || text.contains("chaufa") || text.contains("salchipapa") ||
-        text.contains("arroz") || text.contains("sandwich") || text.contains("menú") || text.contains("menu") -> {
+        text.contains("arroz") || text.contains("sandwich") || text.contains("menú") || text.contains("menu") ||
+        text.contains("carne") || text.contains("lomo") || text.contains("tallarin") || text.contains("ensalada") -> {
             CategoryVisualTheme(
                 iconResId = R.drawable.ic_cat_food,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFFEDD5), Color(0xFFFED7AA))),
@@ -79,7 +80,10 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
         text.contains("postre") || text.contains("dulce") || text.contains("queque") ||
         text.contains("torta") || text.contains("tarta") || text.contains("alfajor") ||
         text.contains("brownie") || text.contains("pastel") || text.contains("galleta") ||
-        text.contains("chocolate") || text.contains("crepa") || text.contains("waffle") -> {
+        text.contains("chocolate") || text.contains("crepa") || text.contains("waffle") ||
+        text.contains("fresa") || text.contains("fruta") || text.contains("manzana") ||
+        text.contains("platano") || text.contains("plátano") || text.contains("mango") ||
+        text.contains("helado") -> {
             CategoryVisualTheme(
                 iconResId = R.drawable.ic_cat_desserts,
                 backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFCE7F3), Color(0xFFFBCFE8))),
@@ -113,11 +117,20 @@ fun resolveCategoryVisualTheme(categoryName: String?, productName: String? = nul
                 contentColor = Color(0xFF6D28D9)
             )
         }
+        text.contains("ropa") || text.contains("polo") || text.contains("polera") ||
+        text.contains("camisa") || text.contains("accesorio") || text.contains("textil") ||
+        text.contains("pulsera") || text.contains("collar") -> {
+            CategoryVisualTheme(
+                iconResId = R.drawable.ic_category_custom,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFF3E8FF), Color(0xFFDDD6FE))),
+                contentColor = Color(0xFF7C3AED)
+            )
+        }
         else -> {
             CategoryVisualTheme(
-                iconResId = R.drawable.ic_cat_all,
-                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0))),
-                contentColor = Color(0xFF475569)
+                iconResId = R.drawable.ic_cat_food,
+                backgroundBrush = Brush.verticalGradient(listOf(Color(0xFFFFEDD5), Color(0xFFFED7AA))),
+                contentColor = Color(0xFFC2410C)
             )
         }
     }

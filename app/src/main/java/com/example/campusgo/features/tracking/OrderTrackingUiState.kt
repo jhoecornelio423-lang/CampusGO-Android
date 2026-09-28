@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.tracking
+package com.example.campusgo.features.tracking
 
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.OrderStatus
@@ -22,15 +22,20 @@ data class OrderTrackingUiState(
     val isSubmittingReview: Boolean = false
 ) {
     val activeOrders: List<Order>
-        get() = orders.filter {
-            it.status == OrderStatus.PENDIENTE ||
-            it.status == OrderStatus.EN_PROCESO ||
-            it.status == OrderStatus.PARCIALMENTE_ACEPTADA
+        get() = orders.filter { order ->
+            val allFinal = order.subOrders.isNotEmpty() && order.subOrders.all { it.status.isFinal }
+            !allFinal && (
+                order.status == OrderStatus.PENDIENTE ||
+                order.status == OrderStatus.EN_PROCESO ||
+                order.status == OrderStatus.PARCIALMENTE_ACEPTADA
+            )
         }
 
     val pastOrders: List<Order>
-        get() = orders.filter {
-            it.status == OrderStatus.COMPLETADA ||
-            it.status == OrderStatus.CANCELADA
+        get() = orders.filter { order ->
+            val allFinal = order.subOrders.isNotEmpty() && order.subOrders.all { it.status.isFinal }
+            allFinal ||
+            order.status == OrderStatus.COMPLETADA ||
+            order.status == OrderStatus.CANCELADA
         }
 }

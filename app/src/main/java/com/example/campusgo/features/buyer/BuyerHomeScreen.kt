@@ -494,6 +494,7 @@ fun BuyerHomeScreen(
             store = selectedStoreForProfile!!,
             meetingPoints = allMeetingPoints,
             cartCalculation = cartCalculation,
+            categoriesList = categoriesList,
             onNavigateBack = {
                 selectedProductForDetail = null
                 selectedStoreForProfile = null
@@ -579,47 +580,67 @@ fun BuyerHomeScreen(
                 val prodNameLower = prod.name.lowercase()
                 val prodDescLower = prod.description?.lowercase().orEmpty()
                 val storeCatLower = store.businessCategory?.lowercase().orEmpty()
+                val isApparelOrAccessory = catName.contains("ROPA") || catName.contains("ACCESORIO") || catName.contains("TEXTIL") ||
+                        catName.contains("MANUALIDAD") || catName.contains("REGALO") || catName.contains("SERVICIO") || catName.contains("ASESOR") ||
+                        prodNameLower.contains("polo") || prodNameLower.contains("polera") || prodNameLower.contains("camisa")
+
                 val matchesCategory = when (selectedCategoryFilter) {
                     "TODOS" -> true
                     "COMIDAS" -> {
-                        val isBurger = catName.contains("HAMBURGUESA") || prodNameLower.contains("hamburguesa") || prodNameLower.contains("burger")
-                        !isBurger && (catName.contains("COMIDA") || catName.contains("ALMUERZO") || catName.contains("MENÚ") || catName.contains("MENU") ||
-                                storeCatLower.contains("comida") || storeCatLower.contains("almuerzo") || storeCatLower.contains("menu") ||
+                        if (isApparelOrAccessory) {
+                            false
+                        } else {
+                            val isBurger = catName.contains("HAMBURGUESA") || prodNameLower.contains("hamburguesa") || prodNameLower.contains("burger")
+                            val isDrink = catName.contains("BEBIDA") || catName.contains("JUGO") || catName.contains("REFRESCO")
+                            val isDessert = catName.contains("POSTRE") || catName.contains("DULCE") || catName.contains("REPOSTER")
+                            !isBurger && !isDrink && !isDessert && (
+                                catName.contains("COMIDA") || catName.contains("ALMUERZO") || catName.contains("MENÚ") || catName.contains("MENU") ||
                                 prodNameLower.contains("almuerzo") || prodNameLower.contains("menú") || prodNameLower.contains("menu") ||
-                                prodNameLower.contains("pollo") || prodNameLower.contains("chaufa") || prodNameLower.contains("lomo") ||
+                                prodNameLower.contains("chaufa") || prodNameLower.contains("lomo") ||
                                 prodNameLower.contains("arroz") || prodNameLower.contains("tallarin") || prodNameLower.contains("sopa") ||
-                                prodNameLower.contains("segundo") || prodNameLower.contains("milanesa") || prodDescLower.contains("segundo"))
+                                prodNameLower.contains("segundo") || prodNameLower.contains("milanesa") || prodDescLower.contains("segundo") ||
+                                (prodNameLower.contains("pollo") && !prodNameLower.contains("polo"))
+                            )
+                        }
                     }
                     "HAMBURGUESAS" -> {
-                        catName.contains("HAMBURGUESA") || catName.contains("FAST") ||
-                                storeCatLower.contains("hamburguesa") || storeCatLower.contains("comida rápida") || storeCatLower.contains("rapida") ||
+                        if (isApparelOrAccessory) {
+                            false
+                        } else {
+                            catName.contains("HAMBURGUESA") || catName.contains("FAST") ||
                                 prodNameLower.contains("hamburguesa") || prodNameLower.contains("burger") || prodNameLower.contains("salchipapa") ||
                                 prodNameLower.contains("broaster") || prodNameLower.contains("alitas") || prodNameLower.contains("nugget") ||
                                 prodNameLower.contains("hot dog") || prodNameLower.contains("papas fritas")
+                        }
                     }
                     "BEBIDAS" -> {
-                        catName.contains("BEBIDA") || catName.contains("JUGO") || catName.contains("REFRESCO") ||
-                                storeCatLower.contains("bebida") || storeCatLower.contains("jugo") ||
+                        if (isApparelOrAccessory) {
+                            false
+                        } else {
+                            catName.contains("BEBIDA") || catName.contains("JUGO") || catName.contains("REFRESCO") ||
                                 prodNameLower.contains("bebida") || prodNameLower.contains("jugo") || prodNameLower.contains("chicha") ||
                                 prodNameLower.contains("maracuyá") || prodNameLower.contains("maracuya") || prodNameLower.contains("café") ||
                                 prodNameLower.contains("cafe") || prodNameLower.contains("gaseosa") || prodNameLower.contains("agua") ||
                                 prodNameLower.contains("smoothie") || prodNameLower.contains("frappe") || prodNameLower.contains("infusion")
+                        }
                     }
                     "POSTRES" -> {
-                        catName.contains("POSTRE") || catName.contains("DULCE") || catName.contains("REPOSTER") ||
-                                storeCatLower.contains("postre") || storeCatLower.contains("dulce") ||
+                        if (isApparelOrAccessory) {
+                            false
+                        } else {
+                            catName.contains("POSTRE") || catName.contains("DULCE") || catName.contains("REPOSTER") ||
                                 prodNameLower.contains("postre") || prodNameLower.contains("queque") || prodNameLower.contains("torta") ||
                                 prodNameLower.contains("alfajor") || prodNameLower.contains("pie") || prodNameLower.contains("brownie") ||
                                 prodNameLower.contains("dulce") || prodNameLower.contains("pastel") || prodNameLower.contains("galleta") ||
                                 prodNameLower.contains("trufa") || prodNameLower.contains("cupcake") || prodNameLower.contains("waffle")
+                        }
                     }
                     "ACCESORIOS" -> {
-                        catName.contains("ACCESORIO") || catName.contains("PAPEL") || catName.contains("UTIL") || catName.contains("VARIEDAD") ||
-                                storeCatLower.contains("accesorio") || storeCatLower.contains("papeler") || storeCatLower.contains("variedad") ||
-                                prodNameLower.contains("accesorio") || prodNameLower.contains("cuaderno") || prodNameLower.contains("lapicero") ||
-                                prodNameLower.contains("pulsera") || prodNameLower.contains("joya") || prodNameLower.contains("mochila") ||
-                                prodNameLower.contains("cartuchera") || prodNameLower.contains("sticker") || prodNameLower.contains("llavero") ||
-                                prodNameLower.contains("aretes") || prodNameLower.contains("collar") || prodNameLower.contains("funda")
+                        isApparelOrAccessory || catName.contains("PAPEL") || catName.contains("UTIL") || catName.contains("VARIEDAD") ||
+                            prodNameLower.contains("accesorio") || prodNameLower.contains("cuaderno") || prodNameLower.contains("lapicero") ||
+                            prodNameLower.contains("pulsera") || prodNameLower.contains("joya") || prodNameLower.contains("mochila") ||
+                            prodNameLower.contains("cartuchera") || prodNameLower.contains("sticker") || prodNameLower.contains("llavero") ||
+                            prodNameLower.contains("aretes") || prodNameLower.contains("collar") || prodNameLower.contains("funda")
                     }
                     else -> true
                 }

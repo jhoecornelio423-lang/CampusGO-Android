@@ -30,7 +30,8 @@ import com.example.campusgo.ui.components.StrikeMeter
 fun SellerNotificationsBottomSheet(
     warnings: List<ProfileWarning>,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSeller: Boolean = true
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val configuration = LocalConfiguration.current
@@ -98,7 +99,7 @@ fun SellerNotificationsBottomSheet(
                             color = Color(0xFF16324F)
                         )
                         Text(
-                            text = if (warnings.isEmpty()) "Todo en orden con tu puesto" else "${warnings.size} aviso${if (warnings.size != 1) "s" else ""} registrado${if (warnings.size != 1) "s" else ""}",
+                            text = if (warnings.isEmpty()) (if (isSeller) "Todo en orden con tu puesto" else "Todo en orden con tu cuenta") else "${warnings.size} aviso${if (warnings.size != 1) "s" else ""} registrado${if (warnings.size != 1) "s" else ""}",
                             fontSize = 12.sp,
                             color = Color(0xFF64748B)
                         )
@@ -161,7 +162,7 @@ fun SellerNotificationsBottomSheet(
                                         color = Color(0xFF14532D)
                                     )
                                     Text(
-                                        text = "¡Excelente! Tu puesto no registra advertencias formales ni sanciones del administrador del campus.",
+                                        text = if (isSeller) "¡Excelente! Tu puesto no registra advertencias formales ni sanciones del administrador del campus." else "¡Excelente! Tu cuenta de comprador no registra advertencias formales ni sanciones del administrador.",
                                         fontSize = 12.sp,
                                         color = Color(0xFF166534),
                                         lineHeight = 17.sp
@@ -207,8 +208,8 @@ fun SellerNotificationsBottomSheet(
                                         )
                                         Text(
                                             text = when {
-                                                warnings.size >= 5 -> "Cuenta suspendida automáticamente por acumulación de sanciones."
-                                                warnings.size == 4 -> "Riesgo crítico: 1 infracción más causará la suspensión del puesto."
+                                                warnings.size >= 5 -> if (isSeller) "Cuenta suspendida automáticamente por acumulación de sanciones." else "Cuenta suspendida automáticamente por acumulación de faltas."
+                                                warnings.size == 4 -> if (isSeller) "Riesgo crítico: 1 infracción más causará la suspensión del puesto." else "Riesgo crítico: 1 infracción más suspenderá tu cuenta para hacer pedidos."
                                                 warnings.size >= 2 -> "Riesgo moderado (${warnings.size}/5 strikes): evita reincidencias."
                                                 else -> "Advertencia formal (1/5 strikes): por favor corrige las conductas reportadas."
                                             },
@@ -224,7 +225,7 @@ fun SellerNotificationsBottomSheet(
                                 HorizontalDivider(color = Color(0xFFFEE2E2))
 
                                 Text(
-                                    text = "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial.",
+                                    text = if (isSeller) "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial." else "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos.",
                                     fontSize = 11.5.sp,
                                     color = Color(0xFF7F1D1D),
                                     lineHeight = 16.sp
