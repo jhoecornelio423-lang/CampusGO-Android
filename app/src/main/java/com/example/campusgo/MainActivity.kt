@@ -13,10 +13,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.example.campusgo.core.notification.CampusGoFirebaseMessagingService
 import com.example.campusgo.core.notification.CampusGoPushService
 import com.example.campusgo.theme.CampusGOTheme
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.postgrest.Postgrest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
+
+    private val auth: Auth by inject()
+    private val postgrest: Postgrest by inject()
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -58,13 +68,21 @@ class MainActivity : ComponentActivity() {
                     val token = task.result
                     android.util.Log.d("CampusGoFCM", "FCM Registration Token actual: $token")
                     val prefs = getSharedPreferences(
-                        com.example.campusgo.core.notification.CampusGoFirebaseMessagingService.PREFS_NAME,
+                        CampusGoFirebaseMessagingService.PREFS_NAME,
                         android.content.Context.MODE_PRIVATE
                     )
                     prefs.edit().putString(
-                        com.example.campusgo.core.notification.CampusGoFirebaseMessagingService.KEY_FCM_TOKEN,
+                        CampusGoFirebaseMessagingService.KEY_FCM_TOKEN,
                         token
                     ).apply()
+
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        CampusGoFirebaseMessagingService.syncCurrentTokenWithSupabase(
+                            context = applicationContext,
+                            auth = auth,
+                            postgrest = postgrest
+                        )
+                    }
                 } else {
                     android.util.Log.w("CampusGoFCM", "No se pudo obtener el FCM token", task.exception)
                 }

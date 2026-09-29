@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "562399049113",
-    "project_id": "vallego-campus-go",
-    "storage_bucket": "vallego-campus-go.firebasestorage.app"
+    "project_number": "336778533432",
+    "project_id": "vallego-dc178",
+    "storage_bucket": "vallego-dc178.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:562399049113:android:a2ddb7e1d1a1b81eea8f08",
+        "mobilesdk_app_id": "1:336778533432:android:f7db20c7af191bb71e24cd",
         "android_client_info": {
           "package_name": "com.example.campusgo"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCCsugdUeu3oPk3nz8gPU-H3jkU-zjN8Sg"
+          "current_key": "AIzaSyAndIJ_sesxNiEBghVEFeUIw12zWGENNwg"
         }
       ],
       "services": {

@@ -88,15 +88,38 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
 
     private suspend fun syncTokenWithSupabase(token: String) {
         try {
-            val user = auth.currentUserOrNull()
-            if (user != null) {
+            val user = auth.currentUserOrNull() ?: return
+
+            // 1. Persistir en profiles
+            kotlin.runCatching {
                 postgrest.from("profiles").update(
                     mapOf("fcm_token" to token)
                 ) {
                     filter { eq("id", user.id) }
                 }
-                Log.d(TAG, "FCM Token sincronizado exitosamente con Supabase para usuario ${user.id}")
             }
+
+            // 2. Limpiar tokens obsoletos en push_tokens para evitar fallos 404 de Firebase
+            kotlin.runCatching {
+                postgrest.from("push_tokens").delete {
+                    filter {
+                        eq("user_id", user.id)
+                        neq("token", token)
+                    }
+                }
+            }
+
+            // 3. Registrar o actualizar token activo en push_tokens para la Edge Function send-push
+            kotlin.runCatching {
+                postgrest.from("push_tokens").upsert(
+                    mapOf(
+                        "user_id" to user.id,
+                        "token" to token,
+                        "platform" to "android"
+                    )
+                )
+            }
+            Log.d(TAG, "FCM Token sincronizado exitosamente con profiles y push_tokens para usuario ${user.id}")
         } catch (e: Exception) {
             Log.w(TAG, "Aviso sincronizando FCM Token con Supabase: ${e.message}")
         }
@@ -116,12 +139,36 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
             val user = auth.currentUserOrNull() ?: return
 
             try {
-                postgrest.from("profiles").update(
-                    mapOf("fcm_token" to token)
-                ) {
-                    filter { eq("id", user.id) }
+                // 1. Actualizar profiles
+                kotlin.runCatching {
+                    postgrest.from("profiles").update(
+                        mapOf("fcm_token" to token)
+                    ) {
+                        filter { eq("id", user.id) }
+                    }
                 }
-                Log.d(TAG, "FCM Token actualizado en Supabase tras login")
+
+                // 2. Limpiar tokens obsoletos de este usuario
+                kotlin.runCatching {
+                    postgrest.from("push_tokens").delete {
+                        filter {
+                            eq("user_id", user.id)
+                            neq("token", token)
+                        }
+                    }
+                }
+
+                // 3. Registrar token activo en push_tokens
+                kotlin.runCatching {
+                    postgrest.from("push_tokens").upsert(
+                        mapOf(
+                            "user_id" to user.id,
+                            "token" to token,
+                            "platform" to "android"
+                        )
+                    )
+                }
+                Log.d(TAG, "FCM Token actualizado en profiles y push_tokens tras login para ${user.id}")
             } catch (e: Exception) {
                 Log.w(TAG, "Error actualizando FCM Token en Supabase: ${e.message}")
             }

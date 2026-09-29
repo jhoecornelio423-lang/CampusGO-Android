@@ -83,9 +83,43 @@ object CampusGoNotificationHelper {
                 setShowBadge(false)
             }
 
+            // Canal pedidos (usado por Edge Function send-push de Supabase)
+            val pedidosChannel = NotificationChannel(
+                "pedidos",
+                "Pedidos y Actualizaciones",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificaciones de pedidos de CampusGO"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 200, 300)
+                enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                setSound(defaultSoundUri, audioAttributes)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+
+            // Canal soporte
+            val soporteChannel = NotificationChannel(
+                "soporte",
+                "Mensajes y Soporte",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificaciones de soporte y reportes"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 200, 100, 200)
+                enableLights(true)
+                lightColor = android.graphics.Color.BLUE
+                setSound(defaultSoundUri, audioAttributes)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+
             notificationManager.createNotificationChannel(orderChannel)
             notificationManager.createNotificationChannel(chatChannel)
             notificationManager.createNotificationChannel(serviceChannel)
+            notificationManager.createNotificationChannel(pedidosChannel)
+            notificationManager.createNotificationChannel(soporteChannel)
         }
     }
 
