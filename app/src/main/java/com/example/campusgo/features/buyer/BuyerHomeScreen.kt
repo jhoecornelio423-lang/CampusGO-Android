@@ -24,7 +24,10 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import android.content.Context
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -338,6 +341,31 @@ fun BuyerHomeScreen(
     var selectedStoreId by remember { mutableStateOf<String?>(null) }
 
     var selectedProductForDetail by remember { mutableStateOf<Pair<Product, StoreCatalogGroup>?>(null) }
+
+    var hasDismissedWarningBanner by remember { mutableStateOf(false) }
+    var lastWarningCount by remember { mutableStateOf(-1) }
+    var showWarningBanner by remember { mutableStateOf(false) }
+    val warningTimerProgress = remember { Animatable(1f) }
+
+    LaunchedEffect(buyerWarnings) {
+        if (buyerWarnings.isNotEmpty()) {
+            val isNewStrike = lastWarningCount != -1 && buyerWarnings.size > lastWarningCount
+            val shouldShow = !hasDismissedWarningBanner || isNewStrike
+
+            lastWarningCount = buyerWarnings.size
+
+            if (shouldShow) {
+                hasDismissedWarningBanner = true
+                showWarningBanner = true
+                warningTimerProgress.snapTo(1f)
+                warningTimerProgress.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 3000, easing = LinearEasing)
+                )
+                showWarningBanner = false
+            }
+        }
+    }
 
     // Manejo nativo del botón / gesto Atrás de Android
     BackHandler(enabled = activeChatSummary != null) {
@@ -981,13 +1009,24 @@ fun BuyerHomeScreen(
                                     .padding(bottom = 96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                    // Advertencias formales emitidas por el Administrador
-                    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                        OfficialWarningBanner(
-                            warnings = buyerWarnings,
-                            isSeller = false,
-                            onBannerClick = { showStrikesBottomSheet = true }
-                        )
+                    // Advertencias formales emitidas por el Administrador (3 segundos y desaparece)
+                    AnimatedVisibility(
+                        visible = showWarningBanner && buyerWarnings.isNotEmpty(),
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit = fadeOut(tween(400)) + shrinkVertically(tween(400))
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            OfficialWarningBanner(
+                                warnings = buyerWarnings,
+                                isSeller = false,
+                                timerProgress = warningTimerProgress.value,
+                                onBannerClick = {
+                                    hasDismissedWarningBanner = true
+                                    showWarningBanner = false
+                                    showStrikesBottomSheet = true
+                                }
+                            )
+                        }
                     }
 
                     // 0. Aviso de notificación dinámica con alarma en movimiento, temporizador de 5 segundos y texto según estado

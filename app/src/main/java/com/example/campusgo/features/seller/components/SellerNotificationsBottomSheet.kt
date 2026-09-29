@@ -225,7 +225,7 @@ fun SellerNotificationsBottomSheet(
                                 HorizontalDivider(color = Color(0xFFFEE2E2))
 
                                 Text(
-                                    text = if (isSeller) "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial." else "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos.",
+                                    text = if (isSeller) "Regla Disciplinaria Oficial: Cada llamada de atenci\u00F3n oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspender\u00E1 autom\u00E1ticamente tu puesto comercial." else "Regla Disciplinaria Oficial: Cada llamada de atenci\u00F3n oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspender\u00E1 autom\u00E1ticamente tu cuenta impidiendo realizar pedidos.",
                                     fontSize = 11.5.sp,
                                     color = Color(0xFF7F1D1D),
                                     lineHeight = 16.sp

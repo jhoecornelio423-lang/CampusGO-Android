@@ -485,7 +485,7 @@ fun AdminBuyerDetailScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Botón para Llamar la Atención (Solo si no ha alcanzado el tope de 5 strikes)
+                    // Botón para Llamar la Atenci\u00F3n (Solo si no ha alcanzado el tope de 5 strikes)
                     if (warnings.size < 5) {
                         Button(
                             onClick = { onIssueWarning(buyer) },
@@ -497,7 +497,7 @@ fun AdminBuyerDetailScreen(
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Llamar la Atención (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Llamar la Atenci\u00F3n (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 

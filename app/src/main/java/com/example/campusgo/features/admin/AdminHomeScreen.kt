@@ -395,7 +395,7 @@ fun AdminHomeScreen(
         )
     }
 
-    // Modal Llamar la Atención (Vendedor o Comprador)
+    // Modal Llamar la Atenci\u00F3n (Vendedor o Comprador)
     if (uiState.selectedUserForWarning != null) {
         val targetUser = uiState.selectedUserForWarning!!
         val isSeller = targetUser.role == UserRole.EMPRENDEDOR || targetUser.role == UserRole.SUSPENDED
@@ -440,7 +440,7 @@ fun AdminHomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Llamada de Atención",
+                        text = "Llamada de Atenci\u00F3n",
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFE65100)
                     )
@@ -449,7 +449,7 @@ fun AdminHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Emitir llamada de atención oficial a: ${if (isSeller) targetUser.displayStoreName else targetUser.fullName}. Quedará registrada permanentemente en su historial disciplinario.",
+                        text = "Emitir llamada de atenci\u00F3n oficial a: ${if (isSeller) targetUser.displayStoreName else targetUser.fullName}. Quedar\u00E1 registrada permanentemente en su historial disciplinario.",
                         style = MaterialTheme.typography.bodySmall
                     )
                     commonReasons.forEach { reason ->
@@ -1347,7 +1347,7 @@ fun AdminIncidentCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (reportedUser != null) {
-                        // Botón 1: Llamar la atención
+                        // Botón 1: Llamar la atenci\u00F3n
                         Button(
                             onClick = { onIssueWarning(reportedUser) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
@@ -1362,7 +1362,7 @@ fun AdminIncidentCard(
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Llamar atención", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                            Text("Llamar atenci\u00F3n", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                         }
 
                         // Botón 2: Suspender Cuenta
@@ -1731,7 +1731,7 @@ fun SellerDirectoryCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = "Llamar la atención",
+                                contentDescription = "Llamar la atenci\u00F3n",
                                 tint = Color(0xFFE65100),
                                 modifier = Modifier.size(18.dp)
                             )
@@ -2020,7 +2020,7 @@ fun BuyerDirectoryCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = "Llamar la atención",
+                                contentDescription = "Llamar la atenci\u00F3n",
                                 tint = Color(0xFFE65100),
                                 modifier = Modifier.size(18.dp)
                             )

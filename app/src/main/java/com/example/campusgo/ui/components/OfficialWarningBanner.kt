@@ -55,82 +55,82 @@ fun OfficialWarningBanner(
                 modifier = Modifier.padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFFFECB3)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.WarningAmber,
-                    contentDescription = null,
-                    tint = Color(0xFFE65100),
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Llamado de Atención Oficial",
-                        fontWeight = FontWeight.ExtraBold,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = Color(0xFFB7410E)
-                    )
-                    Surface(
-                        color = Color(0xFFE65100),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "${warnings.size} ${if (warnings.size == 1) "strike" else "strikes"}",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Motivo: ${latestWarning.reason}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF5D4037),
-                    maxLines = 2
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (isSeller) "Toca para ver • O consúltalo siempre en ?? arriba" else "Toca para ver el historial y regularizar tu estado ?",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE65100),
-                    fontSize = 11.sp
-                )
-            }
-        }
-        if (timerProgress != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.5.dp)
-                    .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                    .background(Color(0xFFFFE082))
-            ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(fraction = timerProgress.coerceIn(0f, 1f))
-                        .fillMaxHeight()
-                        .background(Color(0xFFE65100))
-                )
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFFFECB3)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WarningAmber,
+                        contentDescription = null,
+                        tint = Color(0xFFE65100),
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Llamado de Atenci\u00F3n Oficial",
+                            fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFB7410E)
+                        )
+                        Surface(
+                            color = Color(0xFFE65100),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "${warnings.size} ${if (warnings.size == 1) "strike" else "strikes"}",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Motivo: ${latestWarning.reason}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF5D4037),
+                        maxLines = 2
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isSeller) "Toca para ver \u2022 O cons\u00FAltalo siempre en \uD83D\uDD14 arriba" else "Toca para ver el historial y regularizar tu estado \u2192",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE65100),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            if (timerProgress != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.5.dp)
+                        .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                        .background(Color(0xFFFFE082))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = timerProgress.coerceIn(0f, 1f))
+                            .fillMaxHeight()
+                            .background(Color(0xFFE65100))
+                    )
+                }
             }
         }
     }
-}
 
     if (showDetailsDialog) {
         OfficialWarningDetailDialog(
@@ -179,7 +179,7 @@ fun OfficialWarningDetailDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Aclaración reglamentaria
+                // Aclaraci\u00F3n reglamentaria
                 Surface(
                     color = Color(0xFFFFEBEE),
                     shape = RoundedCornerShape(10.dp),
@@ -199,9 +199,9 @@ fun OfficialWarningDetailDialog(
                         )
                         Text(
                             text = if (isSeller) {
-                                "El Administrador del Campus emitió estas advertencias por incumplimiento de entrega, calidad o conducta. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial."
+                                "El Administrador del Campus emiti\u00F3 estas advertencias por incumplimiento de entrega, calidad o conducta. Al acumular 5 strikes, el sistema suspender\u00E1 autom\u00E1ticamente tu puesto comercial."
                             } else {
-                                "El Administrador del Campus registró estas llamadas de atención por incidencias reportadas. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos."
+                                "El Administrador del Campus registr\u00F3 estas llamadas de atenci\u00F3n por incidencias reportadas. Al acumular 5 strikes, el sistema suspender\u00E1 autom\u00E1ticamente tu cuenta impidiendo realizar pedidos."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF880E4F),

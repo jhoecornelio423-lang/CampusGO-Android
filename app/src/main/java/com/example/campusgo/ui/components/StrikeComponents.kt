@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -282,7 +282,7 @@ fun StrikeManagementCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Regla de Seguridad Campus: Cada llamada de atención oficial equivale a 1 strike. Al recibir 5 strikes, la cuenta es suspendida automáticamente por el sistema de forma inmediata.",
+                        text = "Regla de Seguridad Campus: Cada llamada de atenci\u00F3n oficial equivale a 1 strike. Al recibir 5 strikes, la cuenta es suspendida autom\u00E1ticamente por el sistema de forma inmediata.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF1E293B),
                         fontSize = 11.sp,

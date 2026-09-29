@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -131,8 +131,8 @@ fun ReportIncidentDialog(
                 ),
                 IncidentReasonOption(
                     "INAPPROPRIATE_BEHAVIOR",
-                    "Mala atención durante la entrega",
-                    "Falta de respeto o trato descortés en el campus"
+                    "Mala atenci\u00F3n durante la entrega",
+                    "Falta de respeto o trato descort\u00E9s en el campus"
                 ),
                 IncidentReasonOption(
                     "OTHER",
@@ -269,7 +269,7 @@ fun ReportIncidentDialog(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Este reporte llegará directamente al Panel del Administrador del Campus para su investigación y sanción si corresponde.",
+                            text = "Este reporte llegar\u00E1 directamente al Panel del Administrador del Campus para su investigaci\u00F3n y sanci\u00F3n si corresponde.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF92400E),
                             fontSize = 12.sp,

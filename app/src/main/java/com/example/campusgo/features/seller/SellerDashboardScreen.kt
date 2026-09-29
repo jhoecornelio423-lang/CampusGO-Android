@@ -138,13 +138,10 @@ fun SellerDashboardScreen(
     val prefs = remember(context) { context.getSharedPreferences("campusgo_seller_prefs", Context.MODE_PRIVATE) }
     val snackbarHostState = remember { SnackbarHostState() }
     var showNotificationsSheet by remember { mutableStateOf(false) }
-    var hasShownWarningBannerOnEntry by rememberSaveable { mutableStateOf(false) }
+    var hasShownWarningBannerOnEntry by remember { mutableStateOf(false) }
     var showWarningBanner by remember { mutableStateOf(false) }
     val timerProgress = remember { Animatable(1f) }
-    var lastReadWarningCount by rememberSaveable(curProf.id) {
-        val initialSeen = prefs.getStringSet("seen_warning_ids_${curProf.id}", emptySet())?.size ?: 0
-        mutableStateOf(initialSeen)
-    }
+    var lastReadWarningCount by remember { mutableStateOf(-1) }
     var showDatePickerDialog by remember { mutableStateOf(false) }
     val chatRepository: ChatRepository = koinInject()
     val unreadChatCount by remember(curProf.id) {
@@ -212,21 +209,21 @@ fun SellerDashboardScreen(
     }
 
     LaunchedEffect(uiState.warnings) {
-        if (uiState.warnings.isNotEmpty() && !hasShownWarningBannerOnEntry) {
-            val currentWarningIds = uiState.warnings.map { it.id }.toSet()
-            val seenWarningIds = prefs.getStringSet("seen_warning_ids_${curProf.id}", emptySet()) ?: emptySet()
-            val hasUnseenWarnings = currentWarningIds.any { it !in seenWarningIds }
+        if (uiState.warnings.isNotEmpty()) {
+            val isNewStrike = lastReadWarningCount != -1 && uiState.warnings.size > lastReadWarningCount
+            val shouldShow = !hasShownWarningBannerOnEntry || isNewStrike
 
-            if (hasUnseenWarnings) {
+            lastReadWarningCount = uiState.warnings.size
+
+            if (shouldShow) {
                 hasShownWarningBannerOnEntry = true
                 showWarningBanner = true
                 timerProgress.snapTo(1f)
                 timerProgress.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 5000, easing = LinearEasing)
+                    animationSpec = tween(durationMillis = 3000, easing = LinearEasing)
                 )
                 showWarningBanner = false
-                prefs.edit().putStringSet("seen_warning_ids_${curProf.id}", seenWarningIds + currentWarningIds).apply()
             }
         }
     }
@@ -2028,10 +2025,8 @@ fun SellerDashboardScreen(
                                     isSeller = true,
                                     timerProgress = timerProgress.value,
                                     onBannerClick = {
-                                        val currentWarningIds = uiState.warnings.map { it.id }.toSet()
-                                        val seenWarningIds = prefs.getStringSet("seen_warning_ids_${curProf.id}", emptySet()) ?: emptySet()
-                                        prefs.edit().putStringSet("seen_warning_ids_${curProf.id}", seenWarningIds + currentWarningIds).apply()
                                         lastReadWarningCount = uiState.warnings.size
+                                        hasShownWarningBannerOnEntry = true
                                         showWarningBanner = false
                                         showNotificationsSheet = true
                                     }

@@ -458,7 +458,7 @@ fun AdminSellerDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(text = "Horario de Atención", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "Horario de Atenci\u00F3n", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 val scheduleText = if (!seller.openTime.isNullOrBlank() && !seller.closeTime.isNullOrBlank()) {
                                     "${seller.openTime} a ${seller.closeTime}"
                                 } else {
@@ -733,7 +733,7 @@ fun AdminSellerDetailScreen(
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Llamar la Atención (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Llamar la Atenci\u00F3n (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 
