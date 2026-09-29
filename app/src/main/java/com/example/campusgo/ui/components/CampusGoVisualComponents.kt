@@ -190,17 +190,6 @@ fun CampusGoProductImage(
 }
 
 @Composable
-fun ValleGoProductImage(
-    imageUrl: String?,
-    modifier: Modifier = Modifier,
-    categoryName: String? = null,
-    productName: String? = null,
-    contentScale: ContentScale = ContentScale.Crop,
-    shape: Shape = RoundedCornerShape(12.dp),
-    emojiSize: Int = 26
-) = CampusGoProductImage(imageUrl, modifier, categoryName, productName, contentScale, shape, emojiSize)
-
-@Composable
 fun CampusGoBusinessBanner(
     bannerUrl: String?,
     storeName: String?,
@@ -243,15 +232,6 @@ fun CampusGoBusinessBanner(
         }
     }
 }
-
-@Composable
-fun ValleGoBusinessBanner(
-    bannerUrl: String?,
-    storeName: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop,
-    shape: Shape = RoundedCornerShape(16.dp)
-) = CampusGoBusinessBanner(bannerUrl, storeName, modifier, contentScale, shape)
 
 @Composable
 private fun FallbackStoreBannerContent(storeName: String?) {
@@ -343,15 +323,6 @@ fun CampusGoBusinessAvatar(
 }
 
 @Composable
-fun ValleGoBusinessAvatar(
-    avatarUrl: String?,
-    storeName: String?,
-    modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
-    shape: Shape = CircleShape
-) = CampusGoBusinessAvatar(avatarUrl, storeName, modifier, size, shape)
-
-@Composable
 fun CampusGoUserAvatar(
     avatarUrl: String?,
     name: String?,
@@ -416,15 +387,6 @@ fun CampusGoUserAvatar(
         }
     }
 }
-
-@Composable
-fun ValleGoUserAvatar(
-    avatarUrl: String?,
-    name: String?,
-    modifier: Modifier = Modifier,
-    size: Dp = 40.dp,
-    shape: Shape = CircleShape
-) = CampusGoUserAvatar(avatarUrl, name, modifier, size, shape)
 
 fun isSubOrderExpired(createdAtIso: String?): Boolean {
     if (createdAtIso.isNullOrBlank()) return false
@@ -639,9 +601,6 @@ fun compressImageUri(
     }
 }
 
-/**
- * Obtiene el ID del recurso drawable para el método de pago correspondiente.
- */
 fun getPaymentMethodLogoRes(method: PaymentMethod?): Int? = when (method) {
     PaymentMethod.YAPE -> R.drawable.yape_logo
     PaymentMethod.PLIN -> R.drawable.plin_logo
@@ -649,9 +608,6 @@ fun getPaymentMethodLogoRes(method: PaymentMethod?): Int? = when (method) {
     else -> null
 }
 
-/**
- * Obtiene el ID del recurso drawable según el nombre o código del método de pago.
- */
 fun getPaymentMethodLogoResByName(name: String?): Int? = when (name?.uppercase()?.trim()) {
     "YAPE" -> R.drawable.yape_logo
     "PLIN" -> R.drawable.plin_logo
@@ -659,9 +615,6 @@ fun getPaymentMethodLogoResByName(name: String?): Int? = when (name?.uppercase()
     else -> null
 }
 
-/**
- * Renderiza el logo oficial del método de pago con tamaño pequeño proporcional al texto.
- */
 @Composable
 fun PaymentMethodLogo(
     method: PaymentMethod?,
@@ -691,9 +644,6 @@ fun PaymentMethodLogo(
     }
 }
 
-/**
- * Renderiza el logo oficial del método de pago usando su nombre (String).
- */
 @Composable
 fun PaymentMethodLogoByName(
     name: String?,
@@ -726,16 +676,16 @@ fun PaymentMethodLogoByName(
 /**
  * Constantes y estilos profesionales para ventanas emergentes / diálogos en CampusGO.
  */
-val ValleGoDialogShape = RoundedCornerShape(24.dp)
-val ValleGoDialogContainerColor = Color.White
-val ValleGoDialogTonalElevation = 6.dp
+val CampusGoDialogShape = RoundedCornerShape(24.dp)
+val CampusGoDialogContainerColor = Color.White
+val CampusGoDialogTonalElevation = 6.dp
 
 /**
  * Modificador estándar para ventanas emergentes que aplica recorte suave y borde sutil
  * otorgando un acabado profesional de tarjeta flotante.
  */
-fun Modifier.valleGoDialogStyle(
-    shape: Shape = ValleGoDialogShape,
+fun Modifier.campusGoDialogStyle(
+    shape: Shape = CampusGoDialogShape,
     borderColor: Color = Color(0xFFE2E8F0)
 ): Modifier = this
     .clip(shape)
@@ -767,12 +717,6 @@ fun formatAccountCreationDate(isoDate: String?): String {
     return isoDate.take(10)
 }
 
-/**
- * Permite alternar dinámicamente el color de los iconos de la barra de estado.
- * En pantallas con fondo oscuro (como WelcomeScreen y AuthScreen), desactiva
- * isAppearanceLightStatusBars para que la hora, batería y notificaciones sean blancas.
- * Al salir de la pantalla, restaura automáticamente el estado anterior.
- */
 @Composable
 fun SetDarkScreenStatusBar(isDark: Boolean = true) {
     val view = androidx.compose.ui.platform.LocalView.current

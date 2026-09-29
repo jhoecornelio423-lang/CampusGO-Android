@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-class ValleGoPushService : Service(), KoinComponent {
+class CampusGoPushService : Service(), KoinComponent {
 
     private val postgrest: Postgrest by inject()
     private val auth: Auth by inject()
@@ -63,8 +63,8 @@ class ValleGoPushService : Service(), KoinComponent {
 
     override fun onCreate() {
         super.onCreate()
-        ValleGoNotificationHelper.createNotificationChannels(this)
-        val ongoingNotification = ValleGoNotificationHelper.getForegroundServiceNotification(
+        CampusGoNotificationHelper.createNotificationChannels(this)
+        val ongoingNotification = CampusGoNotificationHelper.getForegroundServiceNotification(
             context = this,
             title = "CampusGO",
             content = "Monitoreando pedidos y notificaciones en campus"
@@ -72,30 +72,30 @@ class ValleGoPushService : Service(), KoinComponent {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(
-                    ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID,
+                    CampusGoNotificationHelper.SERVICE_NOTIFICATION_ID,
                     ongoingNotification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
                 )
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
-                    ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID,
+                    CampusGoNotificationHelper.SERVICE_NOTIFICATION_ID,
                     ongoingNotification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                 )
             } else {
-                startForeground(ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID, ongoingNotification)
+                startForeground(CampusGoNotificationHelper.SERVICE_NOTIFICATION_ID, ongoingNotification)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error iniciando servicio en primer plano", e)
         }
 
         val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ValleGo:PushServiceWakeLock")?.apply {
+        wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:PushServiceWakeLock")?.apply {
             setReferenceCounted(false)
         }
 
         PushWatchdogReceiver.scheduleNextWatchdog(applicationContext)
-        Log.d(TAG, "ValleGoPushService iniciado en primer plano.")
+        Log.d(TAG, "CampusGoPushService iniciado en primer plano.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -135,12 +135,12 @@ class ValleGoPushService : Service(), KoinComponent {
     }
 
     private fun isAlreadyNotified(eventKey: String): Boolean {
-        val prefs = getSharedPreferences("vallego_notifs_cache", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("campusgo_notifs_cache", Context.MODE_PRIVATE)
         return prefs.getBoolean(eventKey, false)
     }
 
     private fun markAsNotified(eventKey: String) {
-        val prefs = getSharedPreferences("vallego_notifs_cache", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("campusgo_notifs_cache", Context.MODE_PRIVATE)
         prefs.edit().putBoolean(eventKey, true).apply()
     }
 
@@ -341,8 +341,8 @@ class ValleGoPushService : Service(), KoinComponent {
                 } else {
                     "Has recibido un nuevo pedido por S/. $totalStr. Toca para atenderlo."
                 }
-                ValleGoNotificationHelper.showOrderNotification(
-                    context = this@ValleGoPushService,
+                CampusGoNotificationHelper.showOrderNotification(
+                    context = this@CampusGoPushService,
                     notificationId = sub.id.hashCode(),
                     title = "¡Nuevo pedido recibido!",
                     message = messageText,
@@ -450,8 +450,8 @@ class ValleGoPushService : Service(), KoinComponent {
 
                     when (currentSubStatus) {
                         "accepted", "aceptado" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = sub.id.hashCode(),
                                 title = "Pedido aceptado",
                                 message = "$storeName aceptó tu pedido$summaryPart.",
@@ -459,8 +459,8 @@ class ValleGoPushService : Service(), KoinComponent {
                             )
                         }
                         "preparing", "in_preparation", "en_preparacion" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = sub.id.hashCode(),
                                 title = "Pedido en preparación",
                                 message = "$storeName comenzó a preparar tu pedido$summaryPart.",
@@ -472,8 +472,8 @@ class ValleGoPushService : Service(), KoinComponent {
                                 val hash = (sub.orderId + sub.id).hashCode()
                                 String.format(java.util.Locale.US, "%04d", kotlin.math.abs(hash % 10000))
                             }
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = sub.id.hashCode(),
                                 title = "¡Tu pedido está listo!",
                                 message = "Tu pedido de $storeName está listo. Acércate al punto de encuentro: $meetingPoint$schedule con tu PIN #$pinCode.",
@@ -481,8 +481,8 @@ class ValleGoPushService : Service(), KoinComponent {
                             )
                         }
                         "completed", "completado" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = sub.id.hashCode(),
                                 title = "¡Pedido entregado!",
                                 message = "Tu entrega con $storeName fue completada exitosamente.",
@@ -491,8 +491,8 @@ class ValleGoPushService : Service(), KoinComponent {
                         }
                         "rejected", "rechazado", "cancelled", "cancelado" -> {
                             val reasonPart = if (!sub.rejectionReason.isNullOrBlank()) ": ${sub.rejectionReason}" else "."
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = sub.id.hashCode(),
                                 title = "Pedido cancelado/rechazado",
                                 message = "$storeName no pudo atender tu pedido$reasonPart",
@@ -525,8 +525,8 @@ class ValleGoPushService : Service(), KoinComponent {
 
                     when (currentStatus) {
                         "accepted", "aceptado", "in_preparation", "en_preparacion" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = order.id.hashCode(),
                                 title = "Pedido en preparación",
                                 message = "El vendedor comenzó a preparar tu pedido$summaryPart.",
@@ -534,8 +534,8 @@ class ValleGoPushService : Service(), KoinComponent {
                             )
                         }
                         "ready", "listo", "esperando_entrega" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = order.id.hashCode(),
                                 title = "¡Tu pedido está listo!",
                                 message = "Tu pedido está listo. Acércate al punto de encuentro: $meetingPoint$schedule.",
@@ -543,8 +543,8 @@ class ValleGoPushService : Service(), KoinComponent {
                             )
                         }
                         "completed", "completado" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = order.id.hashCode(),
                                 title = "¡Pedido entregado!",
                                 message = "Tu pedido$summaryPart ha sido completado exitosamente. ¡Buen provecho!",
@@ -552,8 +552,8 @@ class ValleGoPushService : Service(), KoinComponent {
                             )
                         }
                         "cancelled", "cancelado", "rejected", "rechazado" -> {
-                            ValleGoNotificationHelper.showOrderNotification(
-                                context = this@ValleGoPushService,
+                            CampusGoNotificationHelper.showOrderNotification(
+                                context = this@CampusGoPushService,
                                 notificationId = order.id.hashCode(),
                                 title = "Pedido cancelado",
                                 message = "Tu pedido$summaryPart fue cancelado.",
@@ -595,15 +595,15 @@ class ValleGoPushService : Service(), KoinComponent {
 
                 if (isChatOpenWithSender) {
                     markAsNotified(eventKey)
-                    ValleGoNotificationHelper.cancelChatNotifications(this@ValleGoPushService, msg.subOrderId)
+                    CampusGoNotificationHelper.cancelChatNotifications(this@CampusGoPushService, msg.subOrderId)
                     continue
                 }
 
                 val senderName = getSenderName(msg.senderId)
                 markAsNotified(eventKey)
 
-                ValleGoNotificationHelper.showChatNotification(
-                    context = this@ValleGoPushService,
+                CampusGoNotificationHelper.showChatNotification(
+                    context = this@CampusGoPushService,
                     notificationId = msg.id.hashCode(),
                     senderName = senderName,
                     message = msg.content,
@@ -646,30 +646,30 @@ class ValleGoPushService : Service(), KoinComponent {
         if (wakeLock?.isHeld == true) {
             try { wakeLock?.release() } catch (_: Exception) {}
         }
-        Log.d(TAG, "ValleGoPushService destruido. Reprogramando rescate mediante PushWatchdog...")
+        Log.d(TAG, "CampusGoPushService destruido. Reprogramando rescate mediante PushWatchdog...")
         PushWatchdogReceiver.scheduleNextWatchdog(applicationContext, 1000L)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        private const val TAG = "ValleGoPushService"
+        private const val TAG = "CampusGoPushService"
 
         fun start(context: Context) {
             try {
-                val intent = Intent(context, ValleGoPushService::class.java)
+                val intent = Intent(context, CampusGoPushService::class.java)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(intent)
                 } else {
                     context.startService(intent)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error al iniciar ValleGoPushService", e)
+                Log.e(TAG, "Error al iniciar CampusGoPushService", e)
             }
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, ValleGoPushService::class.java)
+            val intent = Intent(context, CampusGoPushService::class.java)
             context.stopService(intent)
         }
     }

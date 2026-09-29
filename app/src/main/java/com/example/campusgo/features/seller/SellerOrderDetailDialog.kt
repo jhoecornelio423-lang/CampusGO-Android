@@ -40,7 +40,7 @@ import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.IncidentContextType
 import com.example.campusgo.ui.components.PaymentMethodLogo
 import com.example.campusgo.ui.components.ReportIncidentDialog
-import com.example.campusgo.ui.components.ValleGoUserAvatar
+import com.example.campusgo.ui.components.CampusGoUserAvatar
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -303,7 +303,7 @@ fun SellerOrderDetailDialog(
                                         }
                                     }
                             ) {
-                                ValleGoUserAvatar(
+                                CampusGoUserAvatar(
                                     avatarUrl = subOrder.buyerAvatarUrl,
                                     name = subOrder.buyerName,
                                     size = 46.dp

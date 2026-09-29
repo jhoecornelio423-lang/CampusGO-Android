@@ -107,10 +107,10 @@ import com.example.campusgo.R
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.ui.components.SetDarkScreenStatusBar
-import com.example.campusgo.ui.components.ValleGoDialogContainerColor
-import com.example.campusgo.ui.components.ValleGoDialogShape
-import com.example.campusgo.ui.components.ValleGoDialogTonalElevation
-import com.example.campusgo.ui.components.valleGoDialogStyle
+import com.example.campusgo.ui.components.CampusGoDialogContainerColor
+import com.example.campusgo.ui.components.CampusGoDialogShape
+import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
+import com.example.campusgo.ui.components.campusGoDialogStyle
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -1215,10 +1215,10 @@ fun AuthScreen(
     if (showSupportDialog) {
         AlertDialog(
             onDismissRequest = { showSupportDialog = false },
-            shape = ValleGoDialogShape,
-            containerColor = ValleGoDialogContainerColor,
-            tonalElevation = ValleGoDialogTonalElevation,
-            modifier = Modifier.valleGoDialogStyle(),
+            shape = CampusGoDialogShape,
+            containerColor = CampusGoDialogContainerColor,
+            tonalElevation = CampusGoDialogTonalElevation,
+            modifier = Modifier.campusGoDialogStyle(),
             title = {
                 Text(
                     text = "Centro de Soporte y Reportes Campus Go",

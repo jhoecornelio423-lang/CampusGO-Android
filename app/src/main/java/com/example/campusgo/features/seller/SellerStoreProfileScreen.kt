@@ -57,8 +57,8 @@ import com.example.campusgo.ui.components.ProfileInfoBottomSheet
 import com.example.campusgo.ui.components.ProfileInfoType
 import com.example.campusgo.ui.components.StoreStatusBadge
 import com.example.campusgo.ui.components.StrikeBadge
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
-import com.example.campusgo.ui.components.ValleGoBusinessBanner
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessBanner
 import com.example.campusgo.ui.components.compressImageUri
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -373,7 +373,7 @@ fun SellerStoreProfileScreen(
                         }
                     )
             ) {
-                ValleGoBusinessBanner(
+                CampusGoBusinessBanner(
                     bannerUrl = bannerUrl.takeIf { it.isNotBlank() },
                     storeName = businessName,
                     shape = bannerShape,
@@ -683,7 +683,7 @@ fun SellerStoreProfileScreen(
                             color = Color.White,
                             modifier = Modifier.size(92.dp)
                         ) {
-                            ValleGoBusinessAvatar(
+                            CampusGoBusinessAvatar(
                                 avatarUrl = avatarUrl.takeIf { it.isNotBlank() },
                                 storeName = businessName,
                                 size = 92.dp

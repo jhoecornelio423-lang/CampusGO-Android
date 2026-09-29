@@ -51,9 +51,9 @@ import com.example.campusgo.ui.components.IncidentContextType
 import com.example.campusgo.ui.components.PaymentMethodLogoByName
 import com.example.campusgo.ui.components.ReportIncidentDialog
 import com.example.campusgo.ui.components.StoreStatusBadge
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
-import com.example.campusgo.ui.components.ValleGoBusinessBanner
-import com.example.campusgo.ui.components.ValleGoProductImage
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessBanner
+import com.example.campusgo.ui.components.CampusGoProductImage
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -169,7 +169,7 @@ fun BuyerSellerProfileScreen(
                         .fillMaxWidth()
                         .height(220.dp)
                 ) {
-                    ValleGoBusinessBanner(
+                    CampusGoBusinessBanner(
                         bannerUrl = store.bannerUrl,
                         storeName = store.sellerName,
                         modifier = Modifier
@@ -241,7 +241,7 @@ fun BuyerSellerProfileScreen(
                                             showEnlargedPhoto = true
                                         }
                                 ) {
-                                    ValleGoBusinessAvatar(
+                                    CampusGoBusinessAvatar(
                                         avatarUrl = store.avatarUrl,
                                         storeName = store.sellerName,
                                         size = 76.dp
@@ -908,7 +908,7 @@ private fun SellerProductItemCard(
                     .height(112.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             ) {
-                ValleGoProductImage(
+                CampusGoProductImage(
                     imageUrl = product.imageUrl,
                     categoryName = categoryName,
                     productName = product.name,

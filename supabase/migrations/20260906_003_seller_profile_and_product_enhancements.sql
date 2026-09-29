@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MIGRACIÓN 003: PERFIL DE NEGOCIO, MEJORAS DE PRODUCTO, EXPIRACIÓN A 15 MIN Y CANCELACIÓN
--- Proyecto: Valle-Go
+-- Proyecto: CampusGO
 -- ============================================================================
 
 -- 1. Columnas de personalización comercial en profiles

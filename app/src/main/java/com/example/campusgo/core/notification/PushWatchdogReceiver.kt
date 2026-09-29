@@ -11,7 +11,7 @@ import android.util.Log
 
 /**
  * Receptor de alta resiliencia para el servicio de notificaciones de CampusGO.
- * Garantiza que ValleGoPushService se mantenga activo o se reinicie de forma limpia
+ * Garantiza que CampusGoPushService se mantenga activo o se reinicie de forma limpia
  * tras el arranque del sistema, actualizaciones de la app, eliminación de la app de recientes
  * o periodos prolongados en reposo profundo (Doze Mode).
  */
@@ -19,16 +19,16 @@ class PushWatchdogReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: ACTION_WATCHDOG_TICK
-        Log.d(TAG, "Broadcast recibido ($action). Asegurando estado de ValleGoPushService...")
+        Log.d(TAG, "Broadcast recibido ($action). Asegurando estado de CampusGoPushService...")
 
         val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ValleGo:PushWatchdogWakeLock")
+        val wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:PushWatchdogWakeLock")
 
         try {
             wakeLock?.acquire(5000L)
-            ValleGoPushService.start(context)
+            CampusGoPushService.start(context)
         } catch (e: Exception) {
-            Log.e(TAG, "Error al iniciar ValleGoPushService desde watchdog", e)
+            Log.e(TAG, "Error al iniciar CampusGoPushService desde watchdog", e)
         } finally {
             try {
                 if (wakeLock?.isHeld == true) wakeLock.release()

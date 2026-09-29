@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.data.repository
+package com.example.campusgo.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -24,7 +24,7 @@ object SellerPaymentMethodsStorage {
     }
 
     private fun getPrefs(): SharedPreferences? {
-        return appContext?.getSharedPreferences("vallego_seller_payment_methods", Context.MODE_PRIVATE)
+        return appContext?.getSharedPreferences("campusgo_seller_payment_methods", Context.MODE_PRIVATE)
     }
 
     fun parseMethodsFromDescription(description: String?): List<String>? {

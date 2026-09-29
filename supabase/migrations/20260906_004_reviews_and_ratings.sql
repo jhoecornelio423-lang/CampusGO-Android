@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MIGRACIÓN 004: SISTEMA DE CALIFICACIONES (REVIEWS) Y ESTADÍSTICAS DEL VENDEDOR EN BACKEND
--- Proyecto: Valle-Go / Campus Go
+-- Proyecto: CampusGO
 -- ============================================================================
 
 -- 1. Tabla de Calificaciones y Reseñas

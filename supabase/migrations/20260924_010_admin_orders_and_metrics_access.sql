@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MIGRACIÓN 010: ACCESO DE ADMINISTRADOR A PEDIDOS Y MÉTRICAS HISTÓRICAS DE CAMPUS
--- Proyecto: Valle-Go
+-- Proyecto: CampusGO
 -- ============================================================================
 
 -- 1. Políticas RLS para que usuarios con rol 'admin' puedan auditar y ver todos los pedidos

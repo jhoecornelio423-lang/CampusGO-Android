@@ -36,7 +36,7 @@ import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.features.buyer.StoreCatalogGroup
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -378,7 +378,7 @@ fun BuyerFavoritesView(
                                         shadowElevation = 2.dp,
                                         modifier = Modifier.size(56.dp)
                                     ) {
-                                        ValleGoBusinessAvatar(
+                                        CampusGoBusinessAvatar(
                                             avatarUrl = store.avatarUrl,
                                             storeName = store.sellerName,
                                             size = 56.dp

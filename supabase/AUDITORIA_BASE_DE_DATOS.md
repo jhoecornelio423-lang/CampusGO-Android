@@ -8,7 +8,7 @@
 
 ## 1. Inventario y Diagnóstico de Tablas (20 Tablas Públicas)
 
-Se analizaron las 20 tablas de la base de datos PostgreSQL en Supabase contrastadas contra el código Kotlin de la aplicación Android (`app/src/main/java/com/example/vallego`).
+Se analizaron las 20 tablas de la base de datos PostgreSQL en Supabase contrastadas contra el código Kotlin de la aplicación Android (`app/src/main/java/com/example/campusgo`).
 
 | Tabla | Columnas | Registros | Uso en App Móvil | Observaciones / Estado |
 | :--- | :---: | :---: | :--- | :--- |
@@ -49,7 +49,7 @@ Si en los próximos cambios se implementan nuevas funciones, tener en cuenta:
 4. **`product_reports`:**
    * Totalmente sustituida por `order_incidents`. Se recomienda eliminar.
 5. **`push_tokens`:**
-   * Útil únicamente si se implementa Firebase Cloud Messaging (FCM) con notificaciones push estándar. Actualmente la app usa `ValleGoPushService` en primer plano.
+   * Útil únicamente si se implementa Firebase Cloud Messaging (FCM) con notificaciones push estándar. Actualmente la app usa `CampusGoPushService` en primer plano.
 
 ---
 

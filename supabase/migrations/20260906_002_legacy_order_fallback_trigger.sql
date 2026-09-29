@@ -6,7 +6,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    IF current_setting('vallego.atomic_checkout', true) = 'true' THEN
+    IF current_setting('campusgo.atomic_checkout', true) = 'true' THEN
         RETURN NEW;
     END IF;
 
@@ -54,7 +54,7 @@ DECLARE
     v_sub_id UUID;
     v_seller_id UUID;
 BEGIN
-    IF current_setting('vallego.atomic_checkout', true) = 'true' THEN
+    IF current_setting('campusgo.atomic_checkout', true) = 'true' THEN
         RETURN NEW;
     END IF;
 
@@ -114,7 +114,7 @@ DECLARE
     v_existing_order_id UUID;
 BEGIN
     -- Set flag so legacy triggers know this is an atomic checkout
-    PERFORM set_config('vallego.atomic_checkout', 'true', true);
+    PERFORM set_config('campusgo.atomic_checkout', 'true', true);
 
     v_buyer_id := auth.uid();
     IF v_buyer_id IS NULL THEN

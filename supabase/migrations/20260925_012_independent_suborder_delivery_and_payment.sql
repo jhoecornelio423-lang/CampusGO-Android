@@ -34,7 +34,7 @@ DECLARE
     v_sub_time TEXT;
 BEGIN
     -- Bandera local para omitir triggers heredados
-    PERFORM set_config('vallego.atomic_checkout', 'true', true);
+    PERFORM set_config('campusgo.atomic_checkout', 'true', true);
 
     v_buyer_id := auth.uid();
     IF v_buyer_id IS NULL THEN

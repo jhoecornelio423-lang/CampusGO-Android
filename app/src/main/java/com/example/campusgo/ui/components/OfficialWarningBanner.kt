@@ -1,4 +1,4 @@
-ï»¿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -78,7 +78,7 @@ fun OfficialWarningBanner(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Llamado de AtenciÃ³n Oficial",
+                        text = "Llamado de Atención Oficial",
                         fontWeight = FontWeight.ExtraBold,
                         style = MaterialTheme.typography.titleSmall,
                         color = Color(0xFFB7410E)
@@ -105,7 +105,7 @@ fun OfficialWarningBanner(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (isSeller) "Toca para ver â€¢ O consÃºltalo siempre en ðŸ”” arriba" else "Toca para ver el historial y regularizar tu estado â†’",
+                    text = if (isSeller) "Toca para ver • O consúltalo siempre en ?? arriba" else "Toca para ver el historial y regularizar tu estado ?",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFE65100),
@@ -149,10 +149,10 @@ fun OfficialWarningDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = ValleGoDialogShape,
-        containerColor = ValleGoDialogContainerColor,
-        tonalElevation = ValleGoDialogTonalElevation,
-        modifier = Modifier.valleGoDialogStyle(),
+        shape = CampusGoDialogShape,
+        containerColor = CampusGoDialogContainerColor,
+        tonalElevation = CampusGoDialogTonalElevation,
+        modifier = Modifier.campusGoDialogStyle(),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -179,7 +179,7 @@ fun OfficialWarningDetailDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // AclaraciÃ³n reglamentaria
+                // Aclaración reglamentaria
                 Surface(
                     color = Color(0xFFFFEBEE),
                     shape = RoundedCornerShape(10.dp),
@@ -199,9 +199,9 @@ fun OfficialWarningDetailDialog(
                         )
                         Text(
                             text = if (isSeller) {
-                                "El Administrador del Campus emitiÃ³ estas advertencias por incumplimiento de entrega, calidad o conducta. Al acumular 5 strikes, el sistema suspenderÃ¡ automÃ¡ticamente tu puesto comercial."
+                                "El Administrador del Campus emitió estas advertencias por incumplimiento de entrega, calidad o conducta. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial."
                             } else {
-                                "El Administrador del Campus registrÃ³ estas llamadas de atenciÃ³n por incidencias reportadas. Al acumular 5 strikes, el sistema suspenderÃ¡ automÃ¡ticamente tu cuenta impidiendo realizar pedidos."
+                                "El Administrador del Campus registró estas llamadas de atención por incidencias reportadas. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF880E4F),

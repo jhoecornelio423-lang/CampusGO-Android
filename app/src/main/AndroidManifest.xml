@@ -11,13 +11,13 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
-        android:name=".ValleGoApplication"
+        android:name=".CampusGoApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ValleGO">
+        android:theme="@style/Theme.CampusGO">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -30,13 +30,13 @@
         </activity>
 
         <service
-            android:name=".core.notification.ValleGoPushService"
+            android:name=".core.notification.CampusGoPushService"
             android:foregroundServiceType="dataSync|remoteMessaging"
             android:stopWithTask="false"
             android:exported="false" />
 
         <service
-            android:name=".core.notification.ValleGoFirebaseMessagingService"
+            android:name=".core.notification.CampusGoFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

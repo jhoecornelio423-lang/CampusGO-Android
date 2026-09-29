@@ -73,12 +73,12 @@ import com.example.campusgo.ui.components.PaymentMethodLogo
 import com.example.campusgo.ui.components.PeekRating
 import com.example.campusgo.ui.components.RateExperienceBottomSheet
 import com.example.campusgo.ui.components.SubOrderCountdownTimerBadge
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
-import com.example.campusgo.ui.components.ValleGoDialogContainerColor
-import com.example.campusgo.ui.components.ValleGoDialogShape
-import com.example.campusgo.ui.components.ValleGoDialogTonalElevation
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoDialogContainerColor
+import com.example.campusgo.ui.components.CampusGoDialogShape
+import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
 import com.example.campusgo.ui.components.isSubOrderExpired
-import com.example.campusgo.ui.components.valleGoDialogStyle
+import com.example.campusgo.ui.components.campusGoDialogStyle
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -151,10 +151,10 @@ fun OrderTrackingScreen(
     if (uiState.orderToCancel != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissCancelDialog() },
-            shape = ValleGoDialogShape,
-            containerColor = ValleGoDialogContainerColor,
-            tonalElevation = ValleGoDialogTonalElevation,
-            modifier = Modifier.valleGoDialogStyle(),
+            shape = CampusGoDialogShape,
+            containerColor = CampusGoDialogContainerColor,
+            tonalElevation = CampusGoDialogTonalElevation,
+            modifier = Modifier.campusGoDialogStyle(),
             icon = {
                 Box(
                     modifier = Modifier
@@ -689,10 +689,10 @@ fun BuyerOrderCard(
             if (showSellerChatPicker) {
                 AlertDialog(
                     onDismissRequest = { showSellerChatPicker = false },
-                    shape = ValleGoDialogShape,
-                    containerColor = ValleGoDialogContainerColor,
-                    tonalElevation = ValleGoDialogTonalElevation,
-                    modifier = Modifier.valleGoDialogStyle(),
+                    shape = CampusGoDialogShape,
+                    containerColor = CampusGoDialogContainerColor,
+                    tonalElevation = CampusGoDialogTonalElevation,
+                    modifier = Modifier.campusGoDialogStyle(),
                     icon = {
                         Box(
                             modifier = Modifier

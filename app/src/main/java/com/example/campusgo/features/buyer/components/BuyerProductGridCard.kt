@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.example.campusgo.R
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.features.buyer.StoreCatalogGroup
-import com.example.campusgo.ui.components.ValleGoProductImage
+import com.example.campusgo.ui.components.CampusGoProductImage
 
 @Composable
 fun BuyerProductGridCard(
@@ -68,7 +68,7 @@ fun BuyerProductGridCard(
                     .height(112.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             ) {
-                ValleGoProductImage(
+                CampusGoProductImage(
                     imageUrl = product.imageUrl,
                     categoryName = categoryName,
                     productName = product.name,

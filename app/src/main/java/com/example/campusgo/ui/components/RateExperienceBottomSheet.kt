@@ -1,4 +1,4 @@
-ï»¿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -29,9 +29,9 @@ fun RateExperienceBottomSheet(
     targetAvatarUrl: String? = null,
     targetRoleLabel: String = "",
     isStore: Boolean = false,
-    promptText: String = "Â¿CÃ³mo estuvo tu experiencia?",
-    commentPlaceholder: String = "Â¿AlgÃºn comentario adicional? (Opcional)",
-    submitButtonText: String = "Cerrar y Calificar â­",
+    promptText: String = "¿Cómo estuvo tu experiencia?",
+    commentPlaceholder: String = "¿Algún comentario adicional? (Opcional)",
+    submitButtonText: String = "Cerrar y Calificar ?",
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
     onSubmit: (rating: Int, comment: String?) -> Unit
@@ -143,14 +143,14 @@ fun RateExperienceBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (isStore) {
-                            ValleGoBusinessAvatar(
+                            CampusGoBusinessAvatar(
                                 avatarUrl = targetAvatarUrl,
                                 storeName = targetName,
                                 size = 52.dp,
                                 shape = CircleShape
                             )
                         } else {
-                            ValleGoUserAvatar(
+                            CampusGoUserAvatar(
                                 avatarUrl = targetAvatarUrl,
                                 name = targetName,
                                 size = 52.dp
@@ -209,13 +209,13 @@ fun RateExperienceBottomSheet(
                             )
                         }
 
-                        // Badge dinÃ¡mico segÃºn estrellas
+                        // Badge dinámico según estrellas
                         val (reactionText, reactionColor, reactionBg) = when (selectedStars) {
-                            5 -> Triple("Â¡Excelente experiencia! ðŸŒŸ", Color(0xFFB45309), Color(0xFFFEF3C7))
-                            4 -> Triple("Muy buena atenciÃ³n ðŸ‘", Color(0xFF15803D), Color(0xFFDCFCE7))
-                            3 -> Triple("Buena atenciÃ³n ðŸ‘Œ", Color(0xFF0369A1), Color(0xFFE0F2FE))
-                            2 -> Triple("AtenciÃ³n regular ðŸ˜", Color(0xFFC2410C), Color(0xFFFFEDD5))
-                            else -> Triple("Mala experiencia ðŸ‘Ž", Color(0xFFB91C1C), Color(0xFFFEE2E2))
+                            5 -> Triple("¡Excelente experiencia! ??", Color(0xFFB45309), Color(0xFFFEF3C7))
+                            4 -> Triple("Muy buena atención ??", Color(0xFF15803D), Color(0xFFDCFCE7))
+                            3 -> Triple("Buena atención ??", Color(0xFF0369A1), Color(0xFFE0F2FE))
+                            2 -> Triple("Atención regular ??", Color(0xFFC2410C), Color(0xFFFFEDD5))
+                            else -> Triple("Mala experiencia ??", Color(0xFFB91C1C), Color(0xFFFEE2E2))
                         }
 
                         Surface(
@@ -256,7 +256,7 @@ fun RateExperienceBottomSheet(
                     )
                 )
 
-                // BotÃ³n Principal de Enviar CalificaciÃ³n
+                // Botón Principal de Enviar Calificación
                 Button(
                     onClick = { onSubmit(selectedStars, comment.takeIf { it.isNotBlank() }) },
                     enabled = selectedStars in 1..5 && !isSubmitting,

@@ -1,4 +1,4 @@
-Ôªøpackage com.example.campusgo.features.admin
+package com.example.campusgo.features.admin
 
 import android.content.Intent
 import android.net.Uri
@@ -34,15 +34,15 @@ import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.StrikeBadge
 import com.example.campusgo.ui.components.StrikeManagementCard
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
 /**
- * Pantalla completa dedicada al seguimiento, auditor√≠a y moderaci√≥n del Comprador.
- * Permite ver informaci√≥n de contacto, m√©tricas de compras, historial de advertencias,
- * suspender/reactivar cuenta y emitir llamadas de atenci√≥n oficiales.
+ * Pantalla completa dedicada al seguimiento, auditorÌa y moderaciÛn del Comprador.
+ * Permite ver informaciÛn de contacto, mÈtricas de compras, historial de advertencias,
+ * suspender/reactivar cuenta y emitir llamadas de atenciÛn oficiales.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -150,7 +150,7 @@ fun AdminBuyerDetailScreen(
                             .padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Avatar con borde y animaci√≥n de clic
+                        // Avatar con borde y animaciÛn de clic
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
@@ -163,7 +163,7 @@ fun AdminBuyerDetailScreen(
                                 border = BorderStroke(3.dp, if (isSuspended) Color(0xFFC8102E) else Color(0xFF003366)),
                                 shadowElevation = 4.dp
                             ) {
-                                ValleGoBusinessAvatar(
+                                CampusGoBusinessAvatar(
                                     avatarUrl = buyer.avatarUrl,
                                     storeName = buyer.fullName,
                                     size = 88.dp
@@ -218,7 +218,7 @@ fun AdminBuyerDetailScreen(
                 }
             }
 
-            // 2. MOTIVO DE SUSPENSI√ìN (SI EST√Å SUSPENDIDO)
+            // 2. MOTIVO DE SUSPENSI”N (SI EST¡ SUSPENDIDO)
             if (isSuspended && !buyer.suspensionReason.isNullOrBlank()) {
                 item {
                     Card(
@@ -259,7 +259,7 @@ fun AdminBuyerDetailScreen(
                 }
             }
 
-            // 3. ACTIVIDAD Y ESTAD√çSTICAS DEL COMPRADOR
+            // 3. ACTIVIDAD Y ESTADÕSTICAS DEL COMPRADOR
             item {
                 Column(
                     modifier = Modifier
@@ -267,7 +267,7 @@ fun AdminBuyerDetailScreen(
                         .padding(horizontal = 20.dp)
                 ) {
                     Text(
-                        text = "Actividad y Estad√≠sticas de Compras",
+                        text = "Actividad y EstadÌsticas de Compras",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall,
                         color = Color(0xFF003366)
@@ -326,7 +326,7 @@ fun AdminBuyerDetailScreen(
                 }
             }
 
-            // 4. DATOS DE IDENTIFICACI√ìN Y CONTACTO R√ÅPIDO
+            // 4. DATOS DE IDENTIFICACI”N Y CONTACTO R¡PIDO
             item {
                 Card(
                     modifier = Modifier
@@ -340,7 +340,7 @@ fun AdminBuyerDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Informaci√≥n Personal y Contacto",
+                            text = "InformaciÛn Personal y Contacto",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall,
                             color = Color(0xFF003366)
@@ -348,7 +348,7 @@ fun AdminBuyerDetailScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                        // Tel√©fono con botones de acci√≥n directa
+                        // TelÈfono con botones de acciÛn directa
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -363,7 +363,7 @@ fun AdminBuyerDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
-                                    Text(text = "Tel√©fono de Contacto", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(text = "TelÈfono de Contacto", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(
                                         text = buyer.phone.takeIf { it.isNotBlank() } ?: "No registrado",
                                         fontWeight = FontWeight.SemiBold,
@@ -413,7 +413,7 @@ fun AdminBuyerDetailScreen(
                             }
                         }
 
-                        // C√≥digo UCV
+                        // CÛdigo UCV
                         if (!buyer.studentCode.isNullOrBlank()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -424,7 +424,7 @@ fun AdminBuyerDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
-                                    Text(text = "C√≥digo de Estudiante", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(text = "CÛdigo de Estudiante", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(text = buyer.studentCode, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                 }
                             }
@@ -477,7 +477,7 @@ fun AdminBuyerDetailScreen(
                 }
             }
 
-            // 6. ACCIONES DISCIPLINARIAS Y DE MODERACI√ìN (LLAMAR LA ATENCI√ìN & SUSPENDER/REACTIVAR)
+            // 6. ACCIONES DISCIPLINARIAS Y DE MODERACI”N (LLAMAR LA ATENCI”N & SUSPENDER/REACTIVAR)
             item {
                 Column(
                     modifier = Modifier
@@ -485,7 +485,7 @@ fun AdminBuyerDetailScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Bot√≥n para Llamar la Atenci√≥n (Solo si no ha alcanzado el tope de 5 strikes)
+                    // BotÛn para Llamar la AtenciÛn (Solo si no ha alcanzado el tope de 5 strikes)
                     if (warnings.size < 5) {
                         Button(
                             onClick = { onIssueWarning(buyer) },
@@ -497,11 +497,11 @@ fun AdminBuyerDetailScreen(
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Llamar la Atenci√≥n (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Llamar la AtenciÛn (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 
-                    // Bot√≥n para Suspender o Reactivar
+                    // BotÛn para Suspender o Reactivar
                     if (isSuspended) {
                         Button(
                             onClick = { onReactivate(buyer) },
@@ -539,7 +539,7 @@ fun AdminBuyerDetailScreen(
         EnlargedPhotoViewerDialog(
             photoUrl = buyer.avatarUrl,
             name = buyer.fullName,
-            roleDescription = "Comprador Universitario ‚Ä¢ Campus ${buyer.campus}",
+            roleDescription = "Comprador Universitario ï Campus ${buyer.campus}",
             isBanner = false,
             onDismiss = { showEnlargedPhoto = false }
         )

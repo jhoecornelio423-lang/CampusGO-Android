@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import com.example.campusgo.R
 import com.example.campusgo.domain.model.Product
-import com.example.campusgo.ui.components.ValleGoProductImage
+import com.example.campusgo.ui.components.CampusGoProductImage
 import com.example.campusgo.ui.components.resolveCategoryVisualTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,7 +82,7 @@ fun ProductDetailBottomSheet(
                         .height(170.dp)
                         .clip(RoundedCornerShape(16.dp))
                 ) {
-                    ValleGoProductImage(
+                    CampusGoProductImage(
                         imageUrl = product.imageUrl,
                         categoryName = categoryName,
                         productName = product.name,

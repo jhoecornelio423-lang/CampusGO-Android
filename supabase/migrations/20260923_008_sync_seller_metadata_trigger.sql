@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MIGRACIÓN 008: SINCRONIZAR METADATOS DE VENDEDOR EN TRIGGER DE AUTH
--- Proyecto: Valle-Go
+-- Proyecto: CampusGO
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()

@@ -1,10 +1,10 @@
-Ôªøpackage com.example.campusgo.features.chat
+package com.example.campusgo.features.chat
 
 /**
- * Gestor en memoria para la sesi√≥n activa de chat en pantalla.
- * Permite que ValleGoPushService sepa si el usuario est√° actualmente conversando
- * con un comprador/vendedor espec√≠fico para silenciar notificaciones locales redundantes,
- * pero seguir notificando si otros usuarios env√≠an mensajes.
+ * Gestor en memoria para la sesiÛn activa de chat en pantalla.
+ * Permite que CampusGoPushService sepa si el usuario est· actualmente conversando
+ * con un comprador/vendedor especÌfico para silenciar notificaciones locales redundantes,
+ * pero seguir notificando si otros usuarios envÌan mensajes.
  */
 object ActiveChatSessionManager {
 

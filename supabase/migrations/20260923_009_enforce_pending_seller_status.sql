@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MIGRACIÓN 009: ESTADO PENDIENTE POR DEFECTO Y DISPARADOR SELLER_APPLICATIONS
--- Proyecto: Valle-Go
+-- Proyecto: CampusGO
 -- ============================================================================
 
 -- 1. Actualizar el valor por defecto de business_status a 'PENDIENTE'

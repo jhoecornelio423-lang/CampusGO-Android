@@ -1,6 +1,5 @@
-﻿package com.example.campusgo.theme
+package com.example.campusgo.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -27,7 +26,7 @@ private val CampusGoLightColorScheme = lightColorScheme(
     outline = Color(0xFFE5E7EB)
 )
 
-private val ValleGODarkColorScheme = darkColorScheme(
+private val CampusGoDarkColorScheme = darkColorScheme(
     primary = Color(0xFF1ABC9C),          // Verde Turquesa brillante
     onPrimary = Color(0xFF00382E),
     primaryContainer = Color(0xFF005144),
@@ -48,7 +47,7 @@ private val ValleGODarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun CampusGoTheme(
+fun CampusGOTheme(
     darkTheme: Boolean = false, // Forzado siempre a modo claro para mantener legibilidad y branding institucional
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
@@ -61,11 +60,8 @@ fun CampusGoTheme(
 }
 
 @Composable
-fun ValleGOTheme(
+fun CampusGoTheme(
     darkTheme: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
-) {
-    CampusGoTheme(darkTheme = false, dynamicColor = false, content = content)
-}
-
+) = CampusGOTheme(darkTheme, dynamicColor, content)

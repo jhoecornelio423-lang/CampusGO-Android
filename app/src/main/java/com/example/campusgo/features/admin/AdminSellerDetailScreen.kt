@@ -1,4 +1,4 @@
-Ôªøpackage com.example.campusgo.features.admin
+package com.example.campusgo.features.admin
 
 import android.content.Intent
 import android.net.Uri
@@ -43,13 +43,13 @@ import com.example.campusgo.ui.components.PaymentMethodLogoByName
 import com.example.campusgo.ui.components.StoreStatusBadge
 import com.example.campusgo.ui.components.StrikeBadge
 import com.example.campusgo.ui.components.StrikeManagementCard
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
-import com.example.campusgo.ui.components.ValleGoBusinessBanner
-import com.example.campusgo.ui.components.ValleGoProductImage
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessBanner
+import com.example.campusgo.ui.components.CampusGoProductImage
 
 /**
- * Pantalla completa dedicada para el seguimiento y auditor√≠a detallada de un puesto por el Administrador.
- * No es un di√°logo ni ventana emergente: ocupa la pantalla completa con navegaci√≥n directa de retorno.
+ * Pantalla completa dedicada para el seguimiento y auditorÌa detallada de un puesto por el Administrador.
+ * No es un di·logo ni ventana emergente: ocupa la pantalla completa con navegaciÛn directa de retorno.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -144,7 +144,7 @@ fun AdminSellerDetailScreen(
                         .wrapContentHeight()
                 ) {
                     // Banner principal
-                    ValleGoBusinessBanner(
+                    CampusGoBusinessBanner(
                         bannerUrl = seller.bannerUrl,
                         storeName = seller.displayStoreName,
                         modifier = Modifier
@@ -168,7 +168,7 @@ fun AdminSellerDetailScreen(
                             .clickable {
                                 enlargedPhotoUrl = seller.avatarUrl?.takeIf { it.isNotBlank() }
                                 enlargedPhotoTitle = seller.displayStoreName
-                                enlargedPhotoRole = "Emprendedor Universitario ‚Ä¢ Campus ${seller.campus}"
+                                enlargedPhotoRole = "Emprendedor Universitario ï Campus ${seller.campus}"
                                 isEnlargedBanner = false
                                 showEnlargedPhoto = true
                             }
@@ -178,7 +178,7 @@ fun AdminSellerDetailScreen(
                             border = BorderStroke(3.dp, Color.White),
                             shadowElevation = 4.dp
                         ) {
-                            ValleGoBusinessAvatar(
+                            CampusGoBusinessAvatar(
                                 avatarUrl = seller.avatarUrl,
                                 storeName = seller.displayStoreName,
                                 size = 80.dp
@@ -188,7 +188,7 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 2. ENCABEZADO DE IDENTIFICACI√ìN DE LA TIENDA
+            // 2. ENCABEZADO DE IDENTIFICACI”N DE LA TIENDA
             item {
                 Column(
                     modifier = Modifier
@@ -215,7 +215,7 @@ fun AdminSellerDetailScreen(
                             )
                         }
 
-                        // Calificaci√≥n
+                        // CalificaciÛn
                         Surface(
                             color = Color(0xFFFFF8E1),
                             shape = RoundedCornerShape(8.dp),
@@ -226,7 +226,7 @@ fun AdminSellerDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "‚òÖ",
+                                    text = "?",
                                     color = Color(0xFFFFA000),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
@@ -244,7 +244,7 @@ fun AdminSellerDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Chips de Categor√≠a y Estado
+                    // Chips de CategorÌa y Estado
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -280,7 +280,7 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 3. TARJETA DE ALERTA DE SUSPENSI√ìN (Si est√° suspendido)
+            // 3. TARJETA DE ALERTA DE SUSPENSI”N (Si est· suspendido)
             if (isSuspended) {
                 item {
                     Card(
@@ -304,7 +304,7 @@ fun AdminSellerDetailScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "Puesto Suspendido por Administraci√≥n",
+                                    text = "Puesto Suspendido por AdministraciÛn",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = Color(0xFFC8102E)
@@ -322,7 +322,7 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 4. TELEMETR√çA Y RENDIMIENTO HIST√ìRICO DEL PUESTO
+            // 4. TELEMETRÕA Y RENDIMIENTO HIST”RICO DEL PUESTO
             item {
                 Column(
                     modifier = Modifier
@@ -389,7 +389,7 @@ fun AdminSellerDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Informaci√≥n del Emprendedor y Punto de Venta",
+                            text = "InformaciÛn del Emprendedor y Punto de Venta",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall,
                             color = Color(0xFF003366)
@@ -397,7 +397,7 @@ fun AdminSellerDetailScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                        // Titular y C√≥digo
+                        // Titular y CÛdigo
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Person,
@@ -412,7 +412,7 @@ fun AdminSellerDetailScreen(
                             }
                         }
 
-                        // C√≥digo UCV
+                        // CÛdigo UCV
                         if (!seller.studentCode.isNullOrBlank()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -423,13 +423,13 @@ fun AdminSellerDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
-                                    Text(text = "C√≥digo de Estudiante", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(text = "CÛdigo de Estudiante", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(text = seller.studentCode, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                 }
                             }
                         }
 
-                        // Ubicaci√≥n f√≠sica de entrega en campus
+                        // UbicaciÛn fÌsica de entrega en campus
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_location_custom),
@@ -439,7 +439,7 @@ fun AdminSellerDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(text = "Ubicaci√≥n / Pabell√≥n", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "UbicaciÛn / PabellÛn", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     text = seller.businessLocation?.takeIf { it.isNotBlank() } ?: "Campus ${seller.campus}",
                                     fontWeight = FontWeight.SemiBold,
@@ -448,7 +448,7 @@ fun AdminSellerDetailScreen(
                             }
                         }
 
-                        // Horario de atenci√≥n
+                        // Horario de atenciÛn
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
@@ -458,7 +458,7 @@ fun AdminSellerDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(text = "Horario de Atenci√≥n", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "Horario de AtenciÛn", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 val scheduleText = if (!seller.openTime.isNullOrBlank() && !seller.closeTime.isNullOrBlank()) {
                                     "${seller.openTime} a ${seller.closeTime}"
                                 } else {
@@ -468,7 +468,7 @@ fun AdminSellerDetailScreen(
                             }
                         }
 
-                        // Tel√©fono con botones de acci√≥n directa
+                        // TelÈfono con botones de acciÛn directa
                         if (seller.phone.isNotBlank()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -484,7 +484,7 @@ fun AdminSellerDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
-                                        Text(text = "Tel√©fono de Contacto", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(text = "TelÈfono de Contacto", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Text(text = seller.phone, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     }
                                 }
@@ -521,9 +521,9 @@ fun AdminSellerDetailScreen(
                             }
                         }
 
-                        // M√©todos de pago aceptados
+                        // MÈtodos de pago aceptados
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(text = "M√©todos de Pago Habilitados", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = "MÈtodos de Pago Habilitados", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 seller.effectivePaymentMethods.forEach { method ->
                                     Surface(
@@ -544,10 +544,10 @@ fun AdminSellerDetailScreen(
                             }
                         }
 
-                        // Descripci√≥n de la tienda
+                        // DescripciÛn de la tienda
                         seller.displayBusinessDescription?.let { desc ->
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(text = "Descripci√≥n del Puesto", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "DescripciÛn del Puesto", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Surface(
                                     color = Color.White.copy(alpha = 0.7f),
                                     shape = RoundedCornerShape(8.dp),
@@ -566,7 +566,7 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 6. CAT√ÅLOGO DE PRODUCTOS DEL PUESTO
+            // 6. CAT¡LOGO DE PRODUCTOS DEL PUESTO
             item {
                 Column(
                     modifier = Modifier
@@ -580,7 +580,7 @@ fun AdminSellerDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Cat√°logo de Productos (${products.size})",
+                            text = "Cat·logo de Productos (${products.size})",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall,
                             color = Color(0xFF003366)
@@ -609,7 +609,7 @@ fun AdminSellerDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Este puesto a√∫n no tiene productos registrados en su cat√°logo.",
+                                    text = "Este puesto a˙n no tiene productos registrados en su cat·logo.",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -636,7 +636,7 @@ fun AdminSellerDetailScreen(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            ValleGoProductImage(
+                            CampusGoProductImage(
                                 imageUrl = product.imageUrl,
                                 categoryName = product.categoryId,
                                 productName = product.name,
@@ -714,7 +714,7 @@ fun AdminSellerDetailScreen(
                 }
             }
 
-            // 8. BOTONES DE ACCI√ìN ADMINISTRATIVA (LLAMAR ATENCI√ìN & SUSPENDER/REACTIVAR)
+            // 8. BOTONES DE ACCI”N ADMINISTRATIVA (LLAMAR ATENCI”N & SUSPENDER/REACTIVAR)
             item {
                 Column(
                     modifier = Modifier
@@ -733,7 +733,7 @@ fun AdminSellerDetailScreen(
                         ) {
                             Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Llamar la Atenci√≥n (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Llamar la AtenciÛn (+1 Strike)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 

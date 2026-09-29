@@ -1,4 +1,4 @@
-ï»¿package com.example.campusgo.features.chat
+package com.example.campusgo.features.chat
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -24,7 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import com.example.campusgo.core.notification.ValleGoNotificationHelper
+import com.example.campusgo.core.notification.CampusGoNotificationHelper
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,7 +33,7 @@ import com.example.campusgo.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.SubOrderStatus
-import com.example.campusgo.ui.components.ValleGoUserAvatar
+import com.example.campusgo.ui.components.CampusGoUserAvatar
 
 data class ActiveChatSummary(
     val subOrderId: String,
@@ -68,7 +68,7 @@ fun ActiveChatsSheet(
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
-        ValleGoNotificationHelper.cancelChatNotifications(context)
+        CampusGoNotificationHelper.cancelChatNotifications(context)
     }
 
     Surface(
@@ -142,7 +142,7 @@ fun ActiveChatsSheet(
                             )
                         }
                         if (!userAvatarUrl.isNullOrBlank()) {
-                            ValleGoUserAvatar(
+                            CampusGoUserAvatar(
                                 avatarUrl = userAvatarUrl,
                                 name = null,
                                 size = 32.dp
@@ -187,7 +187,7 @@ fun ActiveChatsSheet(
                             color = Color(0xFF1E293B)
                         )
                         Text(
-                            text = "Los chats de coordinaciÃ³n se habilitan automÃ¡ticamente cuando tienes un pedido en curso con un comprador o vendedor.",
+                            text = "Los chats de coordinación se habilitan automáticamente cuando tienes un pedido en curso con un comprador o vendedor.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFF64748B),
                             textAlign = TextAlign.Center
@@ -237,7 +237,7 @@ private fun ActiveChatItemCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ValleGoUserAvatar(
+            CampusGoUserAvatar(
                 avatarUrl = chat.otherUserAvatarUrl,
                 name = chat.otherUserName,
                 size = 46.dp
@@ -289,11 +289,11 @@ private fun ActiveChatItemCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // MenciÃ³n breve y distintiva del pedido (cÃ³digo de entrega y productos)
+                // Mención breve y distintiva del pedido (código de entrega y productos)
                 val codeDisplay = chat.deliveryCode.ifBlank {
                     (kotlin.math.abs(chat.subOrderId.hashCode()) % 9000 + 1000).toString()
                 }
-                val deliveryTag = "CÃ³digo #$codeDisplay"
+                val deliveryTag = "Código #$codeDisplay"
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = Color(0xFFF1F5F9),
@@ -313,7 +313,7 @@ private fun ActiveChatItemCard(
                         )
                         Text(
                             text = if (chat.itemsSummary.isNotBlank()) {
-                                "$deliveryTag â€¢ ${chat.itemsSummary}"
+                                "$deliveryTag • ${chat.itemsSummary}"
                             } else {
                                 deliveryTag
                             },
@@ -365,7 +365,7 @@ private fun ActiveChatItemCard(
                             text = when (chat.status) {
                                 SubOrderStatus.PENDIENTE -> "Pendiente"
                                 SubOrderStatus.ACEPTADO -> "Aceptado"
-                                SubOrderStatus.EN_PREPARACION -> "En preparaciÃ³n"
+                                SubOrderStatus.EN_PREPARACION -> "En preparación"
                                 SubOrderStatus.LISTO -> "Listo para entrega"
                                 SubOrderStatus.ESPERANDO_ENTREGA -> "En punto de entrega"
                                 else -> "Activo"

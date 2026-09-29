@@ -15,11 +15,11 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
 /**
- * Servicio de Firebase Cloud Messaging (FCM) para recepción nativa de notificaciones push.
+ * Servicio de Firebase Cloud Messaging (FCM) para recepción nativa de notificaciones push en CampusGO.
  * Despierta el dispositivo de forma instantánea incluso en reposo profundo (Doze Mode)
  * o con la aplicación completamente cerrada, sin necesidad de bucles HTTP locales.
  */
-class ValleGoFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
+class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     private val auth: Auth by inject()
     private val postgrest: Postgrest by inject()
@@ -66,7 +66,7 @@ class ValleGoFirebaseMessagingService : FirebaseMessagingService(), KoinComponen
                 return
             }
 
-            ValleGoNotificationHelper.showChatNotification(
+            CampusGoNotificationHelper.showChatNotification(
                 context = applicationContext,
                 notificationId = (subOrderId ?: senderId ?: body).hashCode(),
                 senderName = senderName,
@@ -76,7 +76,7 @@ class ValleGoFirebaseMessagingService : FirebaseMessagingService(), KoinComponen
         } else {
             // Notificación de nuevo pedido o cambio de estado
             val notifId = (subOrderId ?: orderId ?: body).hashCode()
-            ValleGoNotificationHelper.showOrderNotification(
+            CampusGoNotificationHelper.showOrderNotification(
                 context = applicationContext,
                 notificationId = notifId,
                 title = title,
@@ -103,7 +103,7 @@ class ValleGoFirebaseMessagingService : FirebaseMessagingService(), KoinComponen
     }
 
     companion object {
-        private const val TAG = "ValleGoFCM"
+        private const val TAG = "CampusGoFCM"
         const val PREFS_NAME = "campusgo_fcm_prefs"
         const val KEY_FCM_TOKEN = "fcm_token"
 

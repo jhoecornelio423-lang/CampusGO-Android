@@ -1,5 +1,5 @@
 -- Migración: Añadir columna supported_payment_methods a profiles
--- ValleGO Android v0.5.0-beta
+-- CampusGO Android v0.5.0-beta
 
 ALTER TABLE public.profiles 
 ADD COLUMN IF NOT EXISTS supported_payment_methods TEXT[] DEFAULT '{EFECTIVO,YAPE,PLIN}';

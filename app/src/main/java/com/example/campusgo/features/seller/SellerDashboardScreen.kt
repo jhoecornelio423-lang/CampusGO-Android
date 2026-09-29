@@ -112,15 +112,15 @@ import com.example.campusgo.ui.components.OfficialWarningBanner
 import com.example.campusgo.ui.components.RateExperienceBottomSheet
 import com.example.campusgo.ui.components.StoreStatusBadge
 import com.example.campusgo.ui.components.SubOrderCountdownTimerBadge
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
-import com.example.campusgo.ui.components.ValleGoBusinessBanner
-import com.example.campusgo.ui.components.ValleGoProductImage
-import com.example.campusgo.ui.components.ValleGoUserAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessBanner
+import com.example.campusgo.ui.components.CampusGoProductImage
+import com.example.campusgo.ui.components.CampusGoUserAvatar
 import com.example.campusgo.domain.repository.ChatRepository
-import com.example.campusgo.ui.components.ValleGoDialogContainerColor
-import com.example.campusgo.ui.components.ValleGoDialogShape
-import com.example.campusgo.ui.components.ValleGoDialogTonalElevation
-import com.example.campusgo.ui.components.valleGoDialogStyle
+import com.example.campusgo.ui.components.CampusGoDialogContainerColor
+import com.example.campusgo.ui.components.CampusGoDialogShape
+import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
+import com.example.campusgo.ui.components.campusGoDialogStyle
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -135,7 +135,7 @@ fun SellerDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val curProf = uiState.sellerProfile ?: profile
-    val prefs = remember(context) { context.getSharedPreferences("vallego_seller_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember(context) { context.getSharedPreferences("campusgo_seller_prefs", Context.MODE_PRIVATE) }
     val snackbarHostState = remember { SnackbarHostState() }
     var showNotificationsSheet by remember { mutableStateOf(false) }
     var hasShownWarningBannerOnEntry by rememberSaveable { mutableStateOf(false) }
@@ -630,7 +630,7 @@ fun SellerDashboardScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            ValleGoProductImage(
+                            CampusGoProductImage(
                                 imageUrl = prodImageUrl.takeIf { it.isNotBlank() },
                                 categoryName = uiState.categories.find { it.id == selectedCatId }?.name,
                                 productName = prodName,
@@ -956,7 +956,7 @@ fun SellerDashboardScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            ValleGoProductImage(
+                            CampusGoProductImage(
                                 imageUrl = imageInput.takeIf { it.isNotBlank() },
                                 categoryName = uiState.categories.find { it.id == selectedCatId }?.name,
                                 productName = nameInput,
@@ -1861,7 +1861,7 @@ fun SellerDashboardScreen(
                                 .clickable { viewModel.setSelectedTab(SellerTab.PERFIL) }
                                 .padding(vertical = 4.dp, horizontal = 2.dp)
                         ) {
-                            ValleGoUserAvatar(
+                            CampusGoUserAvatar(
                                 avatarUrl = curProf.avatarUrl,
                                 name = curProf.businessName ?: curProf.fullName,
                                 size = 38.dp
@@ -2825,7 +2825,7 @@ fun SellerSubOrderCard(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier.padding(top = 2.dp)
                             ) {
-                                ValleGoUserAvatar(
+                                CampusGoUserAvatar(
                                     avatarUrl = subOrder.buyerAvatarUrl,
                                     name = subOrder.buyerName,
                                     size = 20.dp
@@ -3251,7 +3251,7 @@ fun ProductCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Imagen del producto con fallback elegante de categoría (pastel + emoji)
-            ValleGoProductImage(
+            CampusGoProductImage(
                 imageUrl = product.imageUrl,
                 categoryName = categoryName,
                 productName = product.name,

@@ -13,8 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import com.example.campusgo.core.notification.ValleGoPushService
-import com.example.campusgo.theme.ValleGOTheme
+import com.example.campusgo.core.notification.CampusGoPushService
+import com.example.campusgo.theme.CampusGOTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            ValleGoPushService.start(this)
+            CampusGoPushService.start(this)
         }
     }
 
@@ -56,29 +56,29 @@ class MainActivity : ComponentActivity() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val token = task.result
-                    android.util.Log.d("ValleGoFCM", "FCM Registration Token actual: $token")
+                    android.util.Log.d("CampusGoFCM", "FCM Registration Token actual: $token")
                     val prefs = getSharedPreferences(
-                        com.example.campusgo.core.notification.ValleGoFirebaseMessagingService.PREFS_NAME,
+                        com.example.campusgo.core.notification.CampusGoFirebaseMessagingService.PREFS_NAME,
                         android.content.Context.MODE_PRIVATE
                     )
                     prefs.edit().putString(
-                        com.example.campusgo.core.notification.ValleGoFirebaseMessagingService.KEY_FCM_TOKEN,
+                        com.example.campusgo.core.notification.CampusGoFirebaseMessagingService.KEY_FCM_TOKEN,
                         token
                     ).apply()
                 } else {
-                    android.util.Log.w("ValleGoFCM", "No se pudo obtener el FCM token", task.exception)
+                    android.util.Log.w("CampusGoFCM", "No se pudo obtener el FCM token", task.exception)
                 }
             }
 
         // Iniciar el servicio en segundo plano de sincronización de pedidos
         try {
-            ValleGoPushService.start(this)
+            CampusGoPushService.start(this)
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Error iniciando ValleGoPushService", e)
+            android.util.Log.e("MainActivity", "Error iniciando CampusGoPushService", e)
         }
 
         setContent {
-            ValleGOTheme {
+            CampusGOTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = androidx.compose.ui.graphics.Color.White

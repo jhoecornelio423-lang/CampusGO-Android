@@ -109,10 +109,10 @@ import com.example.campusgo.features.cart.CartScreen
 import com.example.campusgo.features.tracking.OrderTrackingScreen
 import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.StoreStatusBadge
-import com.example.campusgo.ui.components.ValleGoBusinessAvatar
-import com.example.campusgo.ui.components.ValleGoBusinessBanner
-import com.example.campusgo.ui.components.ValleGoProductImage
-import com.example.campusgo.ui.components.ValleGoUserAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.ui.components.CampusGoBusinessBanner
+import com.example.campusgo.ui.components.CampusGoProductImage
+import com.example.campusgo.ui.components.CampusGoUserAvatar
 import com.example.campusgo.ui.components.compressImageUri
 import com.example.campusgo.ui.components.formatAccountCreationDate
 import kotlinx.coroutines.delay
@@ -724,7 +724,7 @@ fun BuyerHomeScreen(
                                         .clickable { currentTab = BuyerBottomNavTab.PERFIL }
                                         .padding(vertical = 4.dp, horizontal = 4.dp)
                                 ) {
-                                    ValleGoUserAvatar(
+                                    CampusGoUserAvatar(
                                         avatarUrl = currentProfile.avatarUrl,
                                         name = currentProfile.fullName,
                                         size = 40.dp
@@ -1294,7 +1294,7 @@ fun BuyerHomeScreen(
                                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                                             modifier = Modifier.weight(1f)
                                         ) {
-                                            ValleGoBusinessAvatar(
+                                            CampusGoBusinessAvatar(
                                                 avatarUrl = currentSelectedStore.avatarUrl,
                                                 storeName = currentSelectedStore.sellerName,
                                                 size = 42.dp

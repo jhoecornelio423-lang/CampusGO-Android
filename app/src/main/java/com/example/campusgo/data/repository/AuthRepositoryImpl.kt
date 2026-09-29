@@ -63,7 +63,7 @@ class AuthRepositoryImpl(
                                                 postgrest.from("profiles").update(mapOf("fcm_token" to fcmToken)) {
                                                     filter { eq("id", user.id) }
                                                 }
-                                                android.util.Log.d("ValleGoFCM", "FCM token sincronizado en login para ${user.id}")
+                                                android.util.Log.d("CampusGoFCM", "FCM token sincronizado en login para ${user.id}")
                                             }
                                         }
                                     }

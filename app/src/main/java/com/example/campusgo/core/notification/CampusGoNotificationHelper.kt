@@ -14,7 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.example.campusgo.MainActivity
 import com.example.campusgo.R
 
-object ValleGoNotificationHelper {
+object CampusGoNotificationHelper {
 
     const val CHANNEL_ORDERS = "campusgo_orders_channel_v3"
     const val CHANNEL_CHAT = "campusgo_chat_channel_v3"
@@ -130,7 +130,7 @@ object ValleGoNotificationHelper {
         try {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
         } catch (e: SecurityException) {
-            android.util.Log.e("ValleGoNotification", "Permiso de notificaciones denegado", e)
+            android.util.Log.e("CampusGoNotification", "Permiso de notificaciones denegado", e)
         }
     }
 
@@ -182,7 +182,7 @@ object ValleGoNotificationHelper {
                 NotificationManagerCompat.from(context).notify(resolvedNotifId, notification)
             }
         } catch (e: SecurityException) {
-            android.util.Log.e("ValleGoNotification", "Permiso de notificaciones denegado", e)
+            android.util.Log.e("CampusGoNotification", "Permiso de notificaciones denegado", e)
         }
     }
 
@@ -228,7 +228,7 @@ object ValleGoNotificationHelper {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("ValleGoNotification", "Error cancelando notificaciones de chat", e)
+            android.util.Log.e("CampusGoNotification", "Error cancelando notificaciones de chat", e)
         }
     }
 

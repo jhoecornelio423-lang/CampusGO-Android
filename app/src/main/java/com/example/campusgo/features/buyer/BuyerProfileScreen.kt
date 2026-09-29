@@ -42,7 +42,7 @@ import com.example.campusgo.ui.components.OfficialWarningBanner
 import com.example.campusgo.ui.components.ProfileInfoBottomSheet
 import com.example.campusgo.ui.components.ProfileInfoType
 import com.example.campusgo.ui.components.StrikeBadge
-import com.example.campusgo.ui.components.ValleGoUserAvatar
+import com.example.campusgo.ui.components.CampusGoUserAvatar
 import com.example.campusgo.ui.components.compressImageUri
 import com.example.campusgo.ui.components.formatAccountCreationDate
 
@@ -196,7 +196,7 @@ fun BuyerProfileScreen(
                         Box(
                             modifier = if (!isEditMode && hasAvatarPhoto) Modifier.clip(CircleShape).clickable { showEnlargedPhoto = true } else Modifier
                         ) {
-                            ValleGoUserAvatar(
+                            CampusGoUserAvatar(
                                 avatarUrl = avatarUrl?.trim()?.takeIf { it.isNotBlank() },
                                 name = fullName,
                                 size = 96.dp
