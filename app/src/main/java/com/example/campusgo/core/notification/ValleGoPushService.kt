@@ -21,6 +21,10 @@ import com.example.campusgo.features.chat.ActiveChatSessionManager
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +70,13 @@ class ValleGoPushService : Service(), KoinComponent {
             content = "Monitoreando pedidos y notificaciones en campus"
         )
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID,
+                    ongoingNotification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+                )
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     ValleGoNotificationHelper.SERVICE_NOTIFICATION_ID,
                     ongoingNotification,
@@ -107,6 +117,20 @@ class ValleGoPushService : Service(), KoinComponent {
             } catch (e: Exception) {
                 Log.w(TAG, "Aviso al refrescar sesión preventivamente: ${e.message}")
             }
+        }
+    }
+
+    private fun isRecent(dateStr: String?, maxAgeMinutes: Long = 30): Boolean {
+        if (dateStr.isNullOrBlank()) return true
+        return try {
+            val cleanStr = dateStr.substringBefore(".").substringBefore("+").substringBefore("Z")
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = format.parse(cleanStr) ?: return true
+            (System.currentTimeMillis() - date.time) < (maxAgeMinutes * 60 * 1000L)
+        } catch (_: Exception) {
+            true
         }
     }
 
@@ -286,12 +310,15 @@ class ValleGoPushService : Service(), KoinComponent {
         val allSubs = (subOrders + synthesizedSubs).sortedByDescending { it.createdAt }
 
         if (isSellerFirstRun) {
-            allSubs.forEach {
-                seenSellerOrderIds.add(it.id)
-                markAsNotified("seller_sub_${it.id}")
+            allSubs.forEach { sub ->
+                val isTerminal = sub.status.lowercase() in listOf("completed", "completado", "rejected", "rechazado", "cancelled", "cancelado")
+                val isOld = !isRecent(sub.createdAt, maxAgeMinutes = 30)
+                if (isTerminal || isOld) {
+                    seenSellerOrderIds.add(sub.id)
+                    markAsNotified("seller_sub_${sub.id}")
+                }
             }
             isSellerFirstRun = false
-            return
         }
 
         for (sub in allSubs) {
@@ -304,7 +331,7 @@ class ValleGoPushService : Service(), KoinComponent {
             val isNew = !seenSellerOrderIds.contains(sub.id)
             val isPending = sub.status.lowercase() in listOf("pending", "pendiente")
 
-            if (isNew && isPending) {
+            if (isPending && (isNew || !isAlreadyNotified(eventKey))) {
                 seenSellerOrderIds.add(sub.id)
                 markAsNotified(eventKey)
                 val itemsSummary = getOrderItemsSummary(orderId = sub.orderId, subOrderId = sub.id)
@@ -382,25 +409,36 @@ class ValleGoPushService : Service(), KoinComponent {
         }
 
         if (isBuyerFirstRun) {
-            orders.forEach {
-                lastKnownBuyerStatuses[it.id] = it.status.lowercase()
-                markAsNotified("buyer_order_${it.id}_${it.status.lowercase()}")
+            orders.forEach { o ->
+                val isTerminal = o.status.lowercase() in listOf("completed", "completado", "rejected", "rechazado", "cancelled", "cancelado")
+                val isOld = !isRecent(o.updatedAt ?: o.createdAt, maxAgeMinutes = 30)
+                if (isTerminal || isOld || isAlreadyNotified("buyer_order_${o.id}_${o.status.lowercase()}")) {
+                    lastKnownBuyerStatuses[o.id] = o.status.lowercase()
+                    markAsNotified("buyer_order_${o.id}_${o.status.lowercase()}")
+                }
             }
-            subOrders.forEach {
-                lastKnownBuyerSubOrderStatuses[it.id] = it.status.lowercase()
-                markAsNotified("buyer_sub_${it.id}_${it.status.lowercase()}")
+            subOrders.forEach { sub ->
+                val isTerminal = sub.status.lowercase() in listOf("completed", "completado", "rejected", "rechazado", "cancelled", "cancelado")
+                val isOld = !isRecent(sub.updatedAt ?: sub.createdAt, maxAgeMinutes = 30)
+                if (isTerminal || isOld || isAlreadyNotified("buyer_sub_${sub.id}_${sub.status.lowercase()}")) {
+                    lastKnownBuyerSubOrderStatuses[sub.id] = sub.status.lowercase()
+                    markAsNotified("buyer_sub_${sub.id}_${sub.status.lowercase()}")
+                }
             }
             isBuyerFirstRun = false
-            return
         }
 
         // 1. Monitoreo reactivo de subpedidos (Notificaciones granulares por puesto)
         for (sub in subOrders) {
             val currentSubStatus = sub.status.lowercase()
             val previousSubStatus = lastKnownBuyerSubOrderStatuses[sub.id]
+            val eventKey = "buyer_sub_${sub.id}_$currentSubStatus"
 
-            if (previousSubStatus != null && previousSubStatus != currentSubStatus) {
-                val eventKey = "buyer_sub_${sub.id}_$currentSubStatus"
+            val shouldNotify = ((previousSubStatus != null && previousSubStatus != currentSubStatus) ||
+                               (previousSubStatus == null && !isAlreadyNotified(eventKey) && isRecent(sub.updatedAt ?: sub.createdAt, 30))) &&
+                               currentSubStatus !in listOf("pending", "pendiente")
+
+            if (shouldNotify) {
                 if (!isAlreadyNotified(eventKey)) {
                     markAsNotified(eventKey)
                     val parentOrder = orderMap[sub.orderId]
@@ -471,9 +509,13 @@ class ValleGoPushService : Service(), KoinComponent {
         for (order in orders) {
             val currentStatus = order.status.lowercase()
             val previousStatus = lastKnownBuyerStatuses[order.id]
+            val eventKey = "buyer_order_${order.id}_$currentStatus"
 
-            if (previousStatus != null && previousStatus != currentStatus) {
-                val eventKey = "buyer_order_${order.id}_$currentStatus"
+            val shouldNotifyOrder = ((previousStatus != null && previousStatus != currentStatus) ||
+                                    (previousStatus == null && !isAlreadyNotified(eventKey) && isRecent(order.updatedAt ?: order.createdAt, 30))) &&
+                                    currentStatus !in listOf("pending", "pendiente")
+
+            if (shouldNotifyOrder) {
                 if (!isAlreadyNotified(eventKey)) {
                     markAsNotified(eventKey)
                     val itemsSummary = getOrderItemsSummary(order.id)
