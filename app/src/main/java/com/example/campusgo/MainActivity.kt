@@ -30,11 +30,7 @@ class MainActivity : ComponentActivity() {
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            CampusGoPushService.start(this)
-        }
-    }
+    ) { _ -> }
 
     override fun attachBaseContext(newBase: android.content.Context) {
         val configuration = android.content.res.Configuration(newBase.resources.configuration)
@@ -88,12 +84,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-        // Iniciar el servicio en segundo plano de sincronización de pedidos
+        // Detener servicio en primer plano previo para no mostrar la notificación persistente
         try {
-            CampusGoPushService.start(this)
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Error iniciando CampusGoPushService", e)
-        }
+            CampusGoPushService.stop(this)
+            com.example.campusgo.core.notification.PushWatchdogReceiver.cancelWatchdog(this)
+        } catch (_: Exception) {}
 
         setContent {
             CampusGOTheme {

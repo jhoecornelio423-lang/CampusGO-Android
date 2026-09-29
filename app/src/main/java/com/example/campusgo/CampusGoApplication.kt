@@ -36,10 +36,8 @@ class CampusGoApplication : Application(), ImageLoaderFactory {
         SellerPaymentMethodsStorage.initialize(this)
 
         try {
-            PushWatchdogReceiver.scheduleNextWatchdog(this)
-        } catch (e: Exception) {
-            android.util.Log.e("CampusGoApp", "Error programando PushWatchdog en Application", e)
-        }
+            PushWatchdogReceiver.cancelWatchdog(this)
+        } catch (_: Exception) {}
     }
 
     override fun newImageLoader(): ImageLoader {

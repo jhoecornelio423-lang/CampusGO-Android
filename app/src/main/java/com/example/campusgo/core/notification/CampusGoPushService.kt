@@ -636,8 +636,8 @@ class CampusGoPushService : Service(), KoinComponent {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "onTaskRemoved invocado. Activando PushWatchdog para mantener servicio...")
-        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext, 1000L)
+        Log.d(TAG, "onTaskRemoved: Servicio finalizado limpiamente.")
+        stopSelf()
     }
 
     override fun onDestroy() {
@@ -646,8 +646,9 @@ class CampusGoPushService : Service(), KoinComponent {
         if (wakeLock?.isHeld == true) {
             try { wakeLock?.release() } catch (_: Exception) {}
         }
-        Log.d(TAG, "CampusGoPushService destruido. Reprogramando rescate mediante PushWatchdog...")
-        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext, 1000L)
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        nm?.cancel(CampusGoNotificationHelper.SERVICE_NOTIFICATION_ID)
+        Log.d(TAG, "CampusGoPushService destruido y notificación fija removida.")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -656,21 +657,18 @@ class CampusGoPushService : Service(), KoinComponent {
         private const val TAG = "CampusGoPushService"
 
         fun start(context: Context) {
-            try {
-                val intent = Intent(context, CampusGoPushService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error al iniciar CampusGoPushService", e)
-            }
+            // Deprecado tras la activación de Firebase Cloud Messaging (FCM) nativo.
+            // No iniciar ForegroundService para no mostrar la notificación persistente.
+            stop(context)
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, CampusGoPushService::class.java)
-            context.stopService(intent)
+            try {
+                val intent = Intent(context, CampusGoPushService::class.java)
+                context.stopService(intent)
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                nm?.cancel(CampusGoNotificationHelper.SERVICE_NOTIFICATION_ID)
+            } catch (_: Exception) {}
         }
     }
 }

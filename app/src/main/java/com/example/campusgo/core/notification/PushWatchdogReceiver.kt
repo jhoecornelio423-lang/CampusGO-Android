@@ -18,25 +18,9 @@ import android.util.Log
 class PushWatchdogReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action ?: ACTION_WATCHDOG_TICK
-        Log.d(TAG, "Broadcast recibido ($action). Asegurando estado de CampusGoPushService...")
-
-        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:PushWatchdogWakeLock")
-
-        try {
-            wakeLock?.acquire(5000L)
-            CampusGoPushService.start(context)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al iniciar CampusGoPushService desde watchdog", e)
-        } finally {
-            try {
-                if (wakeLock?.isHeld == true) wakeLock.release()
-            } catch (_: Exception) {}
-
-            // Programar el siguiente latido preventivo
-            scheduleNextWatchdog(context)
-        }
+        // Con Firebase Cloud Messaging nativo, el ForegroundService y su notificación persistente ya no son necesarios
+        cancelWatchdog(context)
+        CampusGoPushService.stop(context)
     }
 
     companion object {
@@ -45,7 +29,7 @@ class PushWatchdogReceiver : BroadcastReceiver() {
         const val ACTION_RESTART_SERVICE = "com.example.campusgo.action.RESTART_SERVICE"
         private const val WATCHDOG_INTERVAL_MS = 300_000L // Latido de rescate cada 5 min para Doze Mode
 
-        fun scheduleNextWatchdog(context: Context, delayMillis: Long = WATCHDOG_INTERVAL_MS) {
+        fun cancelWatchdog(context: Context) {
             try {
                 val intent = Intent(context, PushWatchdogReceiver::class.java).apply {
                     action = ACTION_WATCHDOG_TICK
@@ -56,26 +40,13 @@ class PushWatchdogReceiver : BroadcastReceiver() {
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-
                 val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-                val triggerAt = System.currentTimeMillis() + delayMillis
+                alarmManager?.cancel(pendingIntent)
+            } catch (_: Exception) {}
+        }
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager?.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerAt,
-                        pendingIntent
-                    )
-                } else {
-                    alarmManager?.set(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerAt,
-                        pendingIntent
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error programando siguiente latido de watchdog", e)
-            }
+        fun scheduleNextWatchdog(context: Context, delayMillis: Long = WATCHDOG_INTERVAL_MS) {
+            // Con FCM nativo no se reprograman alarmas de polling local
         }
     }
 }

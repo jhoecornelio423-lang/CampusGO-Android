@@ -25,14 +25,16 @@ object CampusGoNotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Limpieza proactiva de canales antiguos con nombres heredados o sin sonido explícito
+            // Limpieza proactiva de canales antiguos y eliminación del canal del servicio foreground
             try {
+                notificationManager.deleteNotificationChannel(CHANNEL_SERVICE)
                 notificationManager.deleteNotificationChannel("campusgo_orders_channel_v2")
                 notificationManager.deleteNotificationChannel("campusgo_chat_channel_v2")
                 notificationManager.deleteNotificationChannel("campusgo_service_channel_v2")
                 notificationManager.deleteNotificationChannel("vallego_orders_channel")
                 notificationManager.deleteNotificationChannel("vallego_chat_channel")
                 notificationManager.deleteNotificationChannel("vallego_service_channel")
+                notificationManager.cancel(SERVICE_NOTIFICATION_ID)
             } catch (_: Exception) {}
 
             val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -73,16 +75,6 @@ object CampusGoNotificationHelper {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
-            // Canal para el servicio en segundo plano (Baja prioridad, silencioso)
-            val serviceChannel = NotificationChannel(
-                CHANNEL_SERVICE,
-                "Servicio en Segundo Plano CampusGO",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Mantiene activa la escucha de pedidos en tiempo real"
-                setShowBadge(false)
-            }
-
             // Canal pedidos (usado por Edge Function send-push de Supabase)
             val pedidosChannel = NotificationChannel(
                 "pedidos",
@@ -117,7 +109,6 @@ object CampusGoNotificationHelper {
 
             notificationManager.createNotificationChannel(orderChannel)
             notificationManager.createNotificationChannel(chatChannel)
-            notificationManager.createNotificationChannel(serviceChannel)
             notificationManager.createNotificationChannel(pedidosChannel)
             notificationManager.createNotificationChannel(soporteChannel)
         }
