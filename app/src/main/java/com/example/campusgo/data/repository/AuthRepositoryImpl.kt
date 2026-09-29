@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.data.repository
+package com.example.campusgo.data.repository
 
 import com.example.campusgo.domain.model.ApplicationStatus
 import com.example.campusgo.domain.model.SellerApplication
@@ -54,6 +54,21 @@ class AuthRepositoryImpl(
                     is SessionStatus.Authenticated -> {
                         val user = auth.currentUserOrNull()
                         if (user != null) {
+                            // Sincronizar FCM Token con Supabase si está disponible
+                            try {
+                                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                                    .addOnSuccessListener { fcmToken ->
+                                        scope.launch {
+                                            runCatching {
+                                                postgrest.from("profiles").update(mapOf("fcm_token" to fcmToken)) {
+                                                    filter { eq("id", user.id) }
+                                                }
+                                                android.util.Log.d("ValleGoFCM", "FCM token sincronizado en login para ${user.id}")
+                                            }
+                                        }
+                                    }
+                            } catch (_: Exception) {}
+
                             val meta = user.userMetadata
                             val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull ?: "Estudiante Universitario"
                             val metaRoleStr = meta?.get("role")?.jsonPrimitive?.contentOrNull ?: "comprador"

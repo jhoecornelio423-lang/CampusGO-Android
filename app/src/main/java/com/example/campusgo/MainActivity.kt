@@ -51,6 +51,25 @@ class MainActivity : ComponentActivity() {
         // Solicitar permiso de notificaciones para Android 13+ (API 33+)
         checkAndRequestNotificationPermission()
 
+        // Obtener y almacenar token FCM
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    android.util.Log.d("ValleGoFCM", "FCM Registration Token actual: $token")
+                    val prefs = getSharedPreferences(
+                        com.example.campusgo.core.notification.ValleGoFirebaseMessagingService.PREFS_NAME,
+                        android.content.Context.MODE_PRIVATE
+                    )
+                    prefs.edit().putString(
+                        com.example.campusgo.core.notification.ValleGoFirebaseMessagingService.KEY_FCM_TOKEN,
+                        token
+                    ).apply()
+                } else {
+                    android.util.Log.w("ValleGoFCM", "No se pudo obtener el FCM token", task.exception)
+                }
+            }
+
         // Iniciar el servicio en segundo plano de sincronización de pedidos
         try {
             ValleGoPushService.start(this)

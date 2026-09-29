@@ -5,6 +5,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.google.services)
 }
 
 val localProperties = Properties()
@@ -127,4 +128,8 @@ dependencies {
   // Media3 ExoPlayer
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.ui)
+
+  // Firebase Cloud Messaging
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.messaging)
 }
