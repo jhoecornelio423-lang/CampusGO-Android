@@ -85,7 +85,7 @@ import java.util.TimeZone
 private val CampusBlue = Color(0xFF00A884)
 
 /**
- * Pantalla completa de Chat Temporal de CoordinaciÛn (Estilo WhatsApp).
+ * Pantalla completa de Chat Temporal de Coordinaci√≥n (Estilo WhatsApp).
  * Ocupa el 100% de la pantalla sin dejar entrever el fondo de la app ni la barra inferior.
  * Conecta con ActiveChatSessionManager para silenciar notificaciones del interlocutor actual.
  */
@@ -109,7 +109,7 @@ fun OrderChatBottomSheet(
     var showReportDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
 
-    // Asegurar iconos blancos en la barra de estado mientras el chat estÈ abierto
+    // Asegurar iconos blancos en la barra de estado mientras el chat est√© abierto
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
     DisposableEffect(window) {
@@ -128,9 +128,9 @@ fun OrderChatBottomSheet(
         CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
     }
 
-    // Registrar en memoria la conversaciÛn activa para que CampusGoPushService
-    // suprima las notificaciones locales emergentes de ESTA misma conversaciÛn,
-    // y cancelar inmediatamente cualquier notificaciÛn pendiente en la barra de estado.
+    // Registrar en memoria la conversaci√≥n activa para que CampusGoPushService
+    // suprima las notificaciones locales emergentes de ESTA misma conversaci√≥n,
+    // y cancelar inmediatamente cualquier notificaci√≥n pendiente en la barra de estado.
     DisposableEffect(uiState.subOrderId, uiState.otherUserId) {
         if (uiState.subOrderId.isNotBlank()) {
             ActiveChatSessionManager.activeSubOrderId = uiState.subOrderId
@@ -145,7 +145,7 @@ fun OrderChatBottomSheet(
         }
     }
 
-    // Auto-scroll al ˙ltimo mensaje y asegurar que no queden notificaciones en la barra
+    // Auto-scroll al √∫ltimo mensaje y asegurar que no queden notificaciones en la barra
     LaunchedEffect(uiState.messages.size) {
         if (uiState.subOrderId.isNotBlank()) {
             CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
@@ -162,7 +162,7 @@ fun OrderChatBottomSheet(
         }
     }
 
-    // Si est· en la pantalla completa de perfil, el botÛn Atr·s regresa al chat
+    // Si est√° en la pantalla completa de perfil, el bot√≥n Atr√°s regresa al chat
     if (showFullScreenProfile) {
         ChatUserProfileFullScreen(
             otherProfile = uiState.otherUserProfile,
@@ -232,7 +232,7 @@ fun OrderChatBottomSheet(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 1. FONDO DE CHAT FIJO E INM”VIL (Cubre 100% de la pantalla, no se mueve al abrir el teclado)
+            // 1. FONDO DE CHAT FIJO E INM√ìVIL (Cubre 100% de la pantalla, no se mueve al abrir el teclado)
             Image(
                 painter = painterResource(id = R.drawable.fondo_de_chat),
                 contentDescription = null,
@@ -240,7 +240,7 @@ fun OrderChatBottomSheet(
                 contentScale = ContentScale.Crop
             )
 
-            // 2. CAPA DE INTERFAZ DEL CHAT (Se ajusta din·micamente con el teclado sobre el fondo fijo)
+            // 2. CAPA DE INTERFAZ DEL CHAT (Se ajusta din√°micamente con el teclado sobre el fondo fijo)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -258,7 +258,7 @@ fun OrderChatBottomSheet(
                     onOpenReport = { showReportDialog = true }
                 )
 
-                // B. AVISO DE PRIVACIDAD EFÕMERO (Flota directamente sobre el fondo de chat, sin fondo blanco)
+                // B. AVISO DE PRIVACIDAD EF√çMERO (Flota directamente sobre el fondo de chat, sin fondo blanco)
                 ChatPrivacyCard(isFinished = uiState.isFinished)
 
                 // C. ZONA PRINCIPAL DE MENSAJES (Transparente para mostrar el wallpaper fijo)
@@ -296,7 +296,7 @@ fun OrderChatBottomSheet(
                     }
                 }
 
-                // D. ACCIONES R¡PIDAS (PÌldoras flotantes directamente sobre el wallpaper)
+                // D. ACCIONES R√ÅPIDAS (P√≠ldoras flotantes directamente sobre el wallpaper)
                 if (!uiState.isFinished) {
                     QuickRepliesRow(
                         onReplySelected = { text ->
@@ -305,7 +305,7 @@ fun OrderChatBottomSheet(
                     )
                 }
 
-                // E. BARRA DE ENTRADA DE TEXTO (Flota al ras del teclado o la barra de navegaciÛn)
+                // E. BARRA DE ENTRADA DE TEXTO (Flota al ras del teclado o la barra de navegaci√≥n)
                 if (!uiState.isFinished) {
                     CampusGoInputBar(
                         text = uiState.inputText,
@@ -320,7 +320,7 @@ fun OrderChatBottomSheet(
         }
 
 
-        // 6. VISOR DE FOTOGRAFÕA EN ALTA RESOLUCI”N
+        // 6. VISOR DE FOTOGRAF√çA EN ALTA RESOLUCI√ìN
         if (showEnlargedPhoto) {
             EnlargedPhotoViewerDialog(
                 photoUrl = enlargedPhotoUrl,
@@ -335,7 +335,7 @@ fun OrderChatBottomSheet(
             )
         }
 
-        // 7. DI¡LOGO DE REPORTE DE INCIDENCIA
+        // 7. DI√ÅLOGO DE REPORTE DE INCIDENCIA
         if (showReportDialog) {
             val isReportingSeller = uiState.otherUserProfile?.role == UserRole.EMPRENDEDOR
             ReportIncidentDialog(
@@ -435,7 +435,7 @@ private fun CampusGoTopBar(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_location_custom),
                                 contentDescription = null,
-                                tint = WarmYellow, // Amarillo c·lido oficial (#F4B942)
+                                tint = WarmYellow, // Amarillo c√°lido oficial (#F4B942)
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -443,7 +443,7 @@ private fun CampusGoTopBar(
                             val codeDisplay = deliveryCode.ifBlank {
                                 if (subOrderId.isNotBlank()) (kotlin.math.abs(subOrderId.hashCode()) % 9000 + 1000).toString() else ""
                             }
-                            val orderTag = if (codeDisplay.isNotBlank()) "CÛdigo #$codeDisplay ï " else ""
+                            val orderTag = if (codeDisplay.isNotBlank()) "C√≥digo #$codeDisplay ‚Ä¢ " else ""
                             Text(
                                 text = "$orderTag$locationText",
                                 fontSize = 11.5.sp,
@@ -566,7 +566,7 @@ private fun CampusGoMessageBubble(message: ChatMessage) {
                         Spacer(modifier = Modifier.width(3.dp))
                         Icon(
                             imageVector = if (message.isRead) Icons.Default.DoneAll else Icons.Default.Check,
-                            contentDescription = if (message.isRead) "LeÌdo" else "Enviado",
+                            contentDescription = if (message.isRead) "Le√≠do" else "Enviado",
                             tint = if (message.isRead) TurquoiseGreen else Color(0xFF94A3B8),
                             modifier = Modifier.size(13.dp)
                         )
@@ -580,11 +580,11 @@ private fun CampusGoMessageBubble(message: ChatMessage) {
 @Composable
 private fun QuickRepliesRow(onReplySelected: (String) -> Unit) {
     val quickOptions = listOf(
-        "?? Ya estoy en el punto",
-        "? Llego en 2 min",
-        "?? øEn quÈ parte est·s?",
-        "?? Visto polo/polera negra",
-        "?? Tu pedido est· listo"
+        "üìç Ya estoy en el punto",
+        "‚ö° Llego en 2 min",
+        "üß≠ ¬øEn qu√© parte est√°s?",
+        "üëï Visto polo/polera negra",
+        "üì¶ Tu pedido est√° listo"
     )
 
     Row(
@@ -701,7 +701,7 @@ private fun FinishedOrderChatNotice() {
             shadowElevation = 2.dp
         ) {
             Text(
-                text = "El pedido ha sido completado. El chat temporal concluyÛ y el historial ha sido eliminado por privacidad.",
+                text = "El pedido ha sido completado. El chat temporal concluy√≥ y el historial ha sido eliminado por privacidad.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF475569),
                 textAlign = TextAlign.Center,
@@ -758,7 +758,7 @@ private fun EmptyChatState(
             }
 
             Text(
-                text = "CoordinaciÛn con $otherUserName",
+                text = "Coordinaci√≥n con $otherUserName",
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 color = Color(0xFF0F172A),
@@ -766,7 +766,7 @@ private fun EmptyChatState(
             )
 
             Text(
-                text = "Escribe aquÌ para acordar los detalles de entrega en el punto de encuentro. Los mensajes se eliminar·n al finalizar el pedido.",
+                text = "Escribe aqu√≠ para acordar los detalles de entrega en el punto de encuentro. Los mensajes se eliminar√°n al finalizar el pedido.",
                 fontSize = 12.5.sp,
                 color = Color(0xFF64748B),
                 textAlign = TextAlign.Center,
@@ -821,7 +821,7 @@ private fun ChatUserProfileFullScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // 1. Barra superior de navegaciÛn nativa (Full Screen TopBar)
+            // 1. Barra superior de navegaci√≥n nativa (Full Screen TopBar)
             Surface(
                 color = Color.White,
                 shadowElevation = 2.dp,
@@ -1045,7 +1045,7 @@ private fun ChatUserProfileFullScreen(
                         }
                     }
 
-                    // Tarjeta de InformaciÛn Detallada del Puesto (Sin telÈfonos)
+                    // Tarjeta de Informaci√≥n Detallada del Puesto (Sin tel√©fonos)
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -1057,7 +1057,7 @@ private fun ChatUserProfileFullScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Text(
-                                text = "InformaciÛn del Puesto",
+                                text = "Informaci√≥n del Puesto",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = Color(0xFF003366)
@@ -1074,7 +1074,7 @@ private fun ChatUserProfileFullScreen(
                             if (!otherProfile.businessLocation.isNullOrBlank()) {
                                 ProfileDetailRow(
                                     iconPainter = painterResource(id = R.drawable.ic_location_custom),
-                                    label = "UbicaciÛn del Puesto",
+                                    label = "Ubicaci√≥n del Puesto",
                                     value = otherProfile.businessLocation
                                 )
                             }
@@ -1082,7 +1082,7 @@ private fun ChatUserProfileFullScreen(
                             if (!otherProfile.openTime.isNullOrBlank() || !otherProfile.closeTime.isNullOrBlank()) {
                                 ProfileDetailRow(
                                     iconPainter = painterResource(id = R.drawable.ic_alarm_custom),
-                                    label = "Horario de AtenciÛn",
+                                    label = "Horario de Atenci√≥n",
                                     value = "${otherProfile.openTime ?: "08:00"} - ${otherProfile.closeTime ?: "18:00"}"
                                  )
                             }
@@ -1090,7 +1090,7 @@ private fun ChatUserProfileFullScreen(
                             if (otherProfile.effectivePaymentMethods.isNotEmpty()) {
                                 ProfileDetailRow(
                                     icon = Icons.Default.Payments,
-                                    label = "MÈtodos de Pago Aceptados",
+                                    label = "M√©todos de Pago Aceptados",
                                     value = otherProfile.effectivePaymentMethods.joinToString(", ")
                                  )
                             }
@@ -1099,14 +1099,14 @@ private fun ChatUserProfileFullScreen(
                             if (!businessDesc.isNullOrBlank()) {
                                 ProfileDetailRow(
                                     iconPainter = painterResource(id = R.drawable.ic_info_custom),
-                                    label = "DescripciÛn del Negocio",
+                                    label = "Descripci√≥n del Negocio",
                                     value = businessDesc
                                 )
                             }
 
                             ProfileDetailRow(
                                 icon = Icons.Default.Star,
-                                label = "CalificaciÛn",
+                                label = "Calificaci√≥n",
                                 value = "%.1f ?".format(otherProfile.ratingAverage)
                             )
                         }
@@ -1187,7 +1187,7 @@ private fun ChatUserProfileFullScreen(
                         }
                     }
 
-                    // Tarjeta de InformaciÛn Universitaria (Sin telÈfonos)
+                    // Tarjeta de Informaci√≥n Universitaria (Sin tel√©fonos)
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -1199,7 +1199,7 @@ private fun ChatUserProfileFullScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Text(
-                                text = "InformaciÛn Universitaria",
+                                text = "Informaci√≥n Universitaria",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = Color(0xFF003366)
@@ -1221,13 +1221,13 @@ private fun ChatUserProfileFullScreen(
 
                             ProfileDetailRow(
                                 iconPainter = painterResource(id = R.drawable.ic_account_created_custom),
-                                label = "Fecha de CreaciÛn de Cuenta",
+                                label = "Fecha de Creaci√≥n de Cuenta",
                                 value = formatAccountCreationDate(otherProfile.createdAt)
                             )
 
                             ProfileDetailRow(
                                 icon = Icons.Default.Star,
-                                label = "CalificaciÛn",
+                                label = "Calificaci√≥n",
                                 value = "%.1f ?".format(otherProfile.ratingAverage)
                             )
                         }
@@ -1302,7 +1302,7 @@ private fun ChatUserProfileFullScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "CÛdigo de Entrega:",
+                                    text = "C√≥digo de Entrega:",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     color = Color(0xFF004D40)
@@ -1319,7 +1319,7 @@ private fun ChatUserProfileFullScreen(
                     }
                 }
 
-                // BotÛn de Reportar Incidencia / Usuario
+                // Bot√≥n de Reportar Incidencia / Usuario
                 OutlinedButton(
                     onClick = onReportUser,
                     colors = ButtonDefaults.outlinedButtonColors(

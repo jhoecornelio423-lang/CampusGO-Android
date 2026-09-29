@@ -19,7 +19,8 @@ data class OrderTrackingUiState(
     val orderToCancel: Order? = null,
     val reviewedOrders: Map<String, Int> = emptyMap(),
     val subOrderToRate: SubOrder? = null,
-    val isSubmittingReview: Boolean = false
+    val isSubmittingReview: Boolean = false,
+    val historyPageLimit: Int = 20
 ) {
     val activeOrders: List<Order>
         get() = orders.filter { order ->
@@ -38,4 +39,10 @@ data class OrderTrackingUiState(
             order.status == OrderStatus.COMPLETADA ||
             order.status == OrderStatus.CANCELADA
         }
-}
+
+    val paginatedPastOrders: List<Order>
+        get() = pastOrders.take(historyPageLimit)
+
+    val hasMorePastOrders: Boolean
+        get() = pastOrders.size > historyPageLimit
+}

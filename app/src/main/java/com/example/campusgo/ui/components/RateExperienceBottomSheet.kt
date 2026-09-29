@@ -29,8 +29,8 @@ fun RateExperienceBottomSheet(
     targetAvatarUrl: String? = null,
     targetRoleLabel: String = "",
     isStore: Boolean = false,
-    promptText: String = "øCÛmo estuvo tu experiencia?",
-    commentPlaceholder: String = "øAlg˙n comentario adicional? (Opcional)",
+    promptText: String = "¬øC√≥mo estuvo tu experiencia?",
+    commentPlaceholder: String = "¬øAlg√∫n comentario adicional? (Opcional)",
     submitButtonText: String = "Cerrar y Calificar ?",
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
@@ -209,13 +209,13 @@ fun RateExperienceBottomSheet(
                             )
                         }
 
-                        // Badge din·mico seg˙n estrellas
+                        // Badge din√°mico seg√∫n estrellas
                         val (reactionText, reactionColor, reactionBg) = when (selectedStars) {
-                            5 -> Triple("°Excelente experiencia! ??", Color(0xFFB45309), Color(0xFFFEF3C7))
-                            4 -> Triple("Muy buena atenciÛn ??", Color(0xFF15803D), Color(0xFFDCFCE7))
-                            3 -> Triple("Buena atenciÛn ??", Color(0xFF0369A1), Color(0xFFE0F2FE))
-                            2 -> Triple("AtenciÛn regular ??", Color(0xFFC2410C), Color(0xFFFFEDD5))
-                            else -> Triple("Mala experiencia ??", Color(0xFFB91C1C), Color(0xFFFEE2E2))
+                            5 -> Triple("¬°Excelente experiencia! ‚ú®", Color(0xFFB45309), Color(0xFFFEF3C7))
+                            4 -> Triple("Muy buena atenci√≥n üëç", Color(0xFF15803D), Color(0xFFDCFCE7))
+                            3 -> Triple("Buena atenci√≥n üëå", Color(0xFF0369A1), Color(0xFFE0F2FE))
+                            2 -> Triple("Atenci√≥n regular üòê", Color(0xFFC2410C), Color(0xFFFFEDD5))
+                            else -> Triple("Mala experiencia üôÅ", Color(0xFFB91C1C), Color(0xFFFEE2E2))
                         }
 
                         Surface(
@@ -256,7 +256,7 @@ fun RateExperienceBottomSheet(
                     )
                 )
 
-                // BotÛn Principal de Enviar CalificaciÛn
+                // Bot√≥n Principal de Enviar Calificaci√≥n
                 Button(
                     onClick = { onSubmit(selectedStars, comment.takeIf { it.isNotBlank() }) },
                     enabled = selectedStars in 1..5 && !isSubmitting,

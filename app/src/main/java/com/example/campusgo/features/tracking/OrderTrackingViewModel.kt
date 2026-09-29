@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.tracking
+package com.example.campusgo.features.tracking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -42,6 +42,10 @@ class OrderTrackingViewModel(
 
     fun setSelectedTab(tab: TrackingTab) {
         _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    fun loadMoreHistory() {
+        _uiState.update { it.copy(historyPageLimit = it.historyPageLimit + 20) }
     }
 
     fun openCancelDialog(order: Order) {

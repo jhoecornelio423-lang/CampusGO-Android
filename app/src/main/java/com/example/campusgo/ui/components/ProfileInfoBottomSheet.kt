@@ -108,8 +108,8 @@ fun ProfileInfoBottomSheet(
                     Column {
                         Text(
                             text = when (type) {
-                                ProfileInfoType.TERMS -> "Términos y Condiciones"
-                                ProfileInfoType.PRIVACY -> "Políticas de Privacidad"
+                                ProfileInfoType.TERMS -> "TÃ©rminos y Condiciones"
+                                ProfileInfoType.PRIVACY -> "PolÃ­ticas de Privacidad"
                                 ProfileInfoType.HELP -> "Centro de Ayuda"
                                 ProfileInfoType.NONE -> ""
                             },
@@ -119,8 +119,8 @@ fun ProfileInfoBottomSheet(
                         )
                         Text(
                             text = when (type) {
-                                ProfileInfoType.TERMS -> "CampusGO • Normas de la comunidad"
-                                ProfileInfoType.PRIVACY -> "Protección y seguridad de tus datos"
+                                ProfileInfoType.TERMS -> "CampusGO â€¢ Normas de la comunidad"
+                                ProfileInfoType.PRIVACY -> "ProtecciÃ³n y seguridad de tus datos"
                                 ProfileInfoType.HELP -> "Preguntas frecuentes y soporte"
                                 ProfileInfoType.NONE -> ""
                             },
@@ -167,25 +167,25 @@ fun ProfileInfoBottomSheet(
                         )
                         InfoCardItem(
                             title = "3. Pagos Directos",
-                            description = "Los pagos se efectúan directamente al vendedor mediante Yape, Plin o Efectivo contra entrega. CampusGO no cobra comisiones a compradores ni custodia fondos financieros."
+                            description = "Los pagos se efectÃºan directamente al vendedor mediante Yape, Plin o Efectivo contra entrega. CampusGO no cobra comisiones a compradores ni custodia fondos financieros."
                         )
                         InfoCardItem(
-                            title = "4. Normas de Convivencia y Calificación",
-                            description = "El acoso, lenguaje ofensivo en el chat o ausencias reiteradas conllevan advertencias en el perfil y la suspensión de la cuenta. Las calificaciones deben reflejar honestamente la experiencia de compra."
+                            title = "4. Normas de Convivencia y CalificaciÃ³n",
+                            description = "El acoso, lenguaje ofensivo en el chat o ausencias reiteradas conllevan advertencias en el perfil y la suspensiÃ³n de la cuenta. Las calificaciones deben reflejar honestamente la experiencia de compra."
                         )
                         InfoCardItem(
                             title = "5. Reclamos y Reportes",
-                            description = "Si un puesto no entrega a tiempo o existe un inconveniente con el producto, puedes reportar la incidencia con el botón de advertencia para mediación de moderación del campus."
+                            description = "Si un puesto no entrega a tiempo o existe un inconveniente con el producto, puedes reportar la incidencia con el botÃ³n de advertencia para mediaciÃ³n de moderaciÃ³n del campus."
                         )
                     }
                     ProfileInfoType.PRIVACY -> {
                         InfoCardItem(
-                            title = "1. Información que Recopilamos",
-                            description = "Recopilamos únicamente tu nombre completo, número de teléfono para coordinar pedidos, correo institucional, campus y foto de perfil si decides subirla."
+                            title = "1. InformaciÃ³n que Recopilamos",
+                            description = "Recopilamos Ãºnicamente tu nombre completo, nÃºmero de telÃ©fono para coordinar pedidos, correo institucional, campus y foto de perfil si decides subirla."
                         )
                         InfoCardItem(
                             title = "2. Finalidad del Uso de Datos",
-                            description = "Tus datos personales se utilizan exclusivamente para la gestión operativa de tus órdenes, coordinación en los puntos de entrega y validación de membresía universitaria."
+                            description = "Tus datos personales se utilizan exclusivamente para la gestiÃ³n operativa de tus Ã³rdenes, coordinaciÃ³n en los puntos de entrega y validaciÃ³n de membresÃ­a universitaria."
                         )
                         InfoCardItem(
                             title = "3. Confidencialidad y Terceros",
@@ -193,11 +193,11 @@ fun ProfileInfoBottomSheet(
                         )
                         InfoCardItem(
                             title = "4. Seguridad de tus Datos",
-                            description = "Tu información se almacena con altos estándares de seguridad y autenticación cifrada para protegerla contra accesos no autorizados."
+                            description = "Tu informaciÃ³n se almacena con altos estÃ¡ndares de seguridad y autenticaciÃ³n cifrada para protegerla contra accesos no autorizados."
                         )
                         InfoCardItem(
-                            title = "5. Gestión y Eliminación de tu Cuenta",
-                            description = "Puedes modificar tu información en cualquier momento desde Mi Perfil o solicitar la baja total de tu cuenta contactando a nuestro canal de soporte."
+                            title = "5. GestiÃ³n y EliminaciÃ³n de tu Cuenta",
+                            description = "Puedes modificar tu informaciÃ³n en cualquier momento desde Mi Perfil o solicitar la baja total de tu cuenta contactando a nuestro canal de soporte."
                         )
                     }
                     ProfileInfoType.HELP -> {
@@ -210,20 +210,20 @@ fun ProfileInfoBottomSheet(
                         )
 
                         InfoCardItem(
-                            title = "¿Cómo realizo y recojo un pedido?",
-                            description = "Navega por los puestos de tu campus, añade productos a tu carrito, elige el punto de encuentro y horario de recogida, y desliza la barra para confirmar."
+                            title = "Â¿CÃ³mo realizo y recojo un pedido?",
+                            description = "Navega por los puestos de tu campus, aÃ±ade productos a tu carrito, elige el punto de encuentro y horario de recogida, y desliza la barra para confirmar."
                         )
                         InfoCardItem(
-                            title = "¿Qué hago si el vendedor no se presenta?",
-                            description = "Escríbele por el chat de seguimiento de tu orden. Si pasados 10 minutos no responde ni entrega el pedido, puedes generar un reporte con el botón de advertencia para que soporte intervenga."
+                            title = "Â¿QuÃ© hago si el vendedor no se presenta?",
+                            description = "EscrÃ­bele por el chat de seguimiento de tu orden. Si pasados 10 minutos no responde ni entrega el pedido, puedes generar un reporte con el botÃ³n de advertencia para que soporte intervenga."
                         )
                         InfoCardItem(
-                            title = "¿Cómo pago con Yape o Plin?",
-                            description = "Al momento de la entrega o por el chat coordinado, el vendedor te mostrará su código QR o número registrado para transferir el monto exacto de tu compra."
+                            title = "Â¿CÃ³mo pago con Yape o Plin?",
+                            description = "Al momento de la entrega o por el chat coordinado, el vendedor te mostrarÃ¡ su cÃ³digo QR o nÃºmero registrado para transferir el monto exacto de tu compra."
                         )
                         InfoCardItem(
-                            title = "¿Cómo calificar mi compra?",
-                            description = "Una vez que el vendedor marque tu pedido como entregado, la app te solicitará calificar con estrellas tu experiencia para orientar a la comunidad universitaria."
+                            title = "Â¿CÃ³mo calificar mi compra?",
+                            description = "Una vez que el vendedor marque tu pedido como entregado, la app te solicitarÃ¡ calificar con estrellas tu experiencia para orientar a la comunidad universitaria."
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -248,14 +248,14 @@ fun ProfileInfoBottomSheet(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "¿Necesitas ayuda personalizada?",
+                                        text = "Â¿Necesitas ayuda personalizada?",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.titleSmall,
                                         color = Color(0xFF166534)
                                     )
                                 }
                                 Text(
-                                    text = "Escríbenos a nuestro correo de soporte estudiantil para resolver cualquier duda o incidencia con tu cuenta o puesto.",
+                                    text = "EscrÃ­benos a nuestro correo de soporte estudiantil para resolver cualquier duda o incidencia con tu cuenta o puesto.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF15803D)
                                 )

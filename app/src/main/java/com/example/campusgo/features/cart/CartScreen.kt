@@ -104,14 +104,14 @@ fun CartScreen(
     var currentStep by remember { mutableStateOf(CartCheckoutStep.PRODUCTS) }
     var isDeliveryExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // Si el carrito queda vacío, volver automáticamente al paso 1
+    // Si el carrito queda vacÃ­o, volver automÃ¡ticamente al paso 1
     LaunchedEffect(uiState.isEmpty) {
         if (uiState.isEmpty) {
             currentStep = CartCheckoutStep.PRODUCTS
         }
     }
 
-    // Manejo del botón Atrás de Android
+    // Manejo del botÃ³n AtrÃ¡s de Android
     BackHandler(enabled = currentStep != CartCheckoutStep.PRODUCTS) {
         currentStep = when (currentStep) {
             CartCheckoutStep.PAYMENT -> CartCheckoutStep.DELIVERY
@@ -153,7 +153,7 @@ fun CartScreen(
             },
             title = {
                 Text(
-                    text = "¿Vaciar el carrito?",
+                    text = "Â¿Vaciar el carrito?",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF16324F),
                     textAlign = TextAlign.Center
@@ -161,7 +161,7 @@ fun CartScreen(
             },
             text = {
                 Text(
-                    text = "¿Estás seguro de que deseas eliminar todos los productos seleccionados?",
+                    text = "Â¿EstÃ¡s seguro de que deseas eliminar todos los productos seleccionados?",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B),
                     textAlign = TextAlign.Center
@@ -198,7 +198,7 @@ fun CartScreen(
                             .height(44.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Sí, vaciar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("SÃ­, vaciar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             },
@@ -248,7 +248,7 @@ fun CartScreen(
                             text = when (currentStep) {
                                 CartCheckoutStep.PRODUCTS -> "Mi Carrito"
                                 CartCheckoutStep.DELIVERY -> "Punto de Entrega"
-                                CartCheckoutStep.PAYMENT -> "Método de Pago"
+                                CartCheckoutStep.PAYMENT -> "MÃ©todo de Pago"
                             },
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF16324F)
@@ -296,7 +296,7 @@ fun CartScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Tu carrito está vacío",
+                            text = "Tu carrito estÃ¡ vacÃ­o",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -386,7 +386,7 @@ fun CartScreen(
                                             .padding(16.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        // Cabecera de lista con opción rápida de vaciar carrito
+                                        // Cabecera de lista con opciÃ³n rÃ¡pida de vaciar carrito
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -539,7 +539,7 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Barra inferior flotante con el Subtotal, Precio y Botón Continuar
+                                    // Barra inferior flotante con el Subtotal, Precio y BotÃ³n Continuar
                                     Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -625,7 +625,7 @@ fun CartScreen(
                                             .padding(16.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        // Resumen rápido de productos con acceso a modificarlos
+                                        // Resumen rÃ¡pido de productos con acceso a modificarlos
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
@@ -652,7 +652,7 @@ fun CartScreen(
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Column {
                                                         Text(
-                                                            text = "${uiState.calculation.totalItemCount} producto(s) • Total: S/ %.2f".format(uiState.calculation.grandTotal),
+                                                            text = "${uiState.calculation.totalItemCount} producto(s) â€¢ Total: S/ %.2f".format(uiState.calculation.grandTotal),
                                                             style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Bold,
                                                             color = Color(0xFF16324F)
@@ -679,7 +679,7 @@ fun CartScreen(
                                             }
                                         }
 
-                                        // Sección: Punto de Encuentro en Campus
+                                        // SecciÃ³n: Punto de Encuentro en Campus
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(16.dp),
@@ -746,7 +746,7 @@ fun CartScreen(
                                                                 )
                                                                 Spacer(modifier = Modifier.width(8.dp))
                                                                 Text(
-                                                                    text = "Los puestos seleccionados atienden en diferentes zonas del campus. Selecciona el punto de entrega de cada puesto a continuación:",
+                                                                    text = "Los puestos seleccionados atienden en diferentes zonas del campus. Selecciona el punto de entrega de cada puesto a continuaciÃ³n:",
                                                                     style = MaterialTheme.typography.bodySmall,
                                                                     color = Color(0xFF166534)
                                                                 )
@@ -756,7 +756,7 @@ fun CartScreen(
                                                 }
 
                                                 if (uiState.isSplitDeliveryEffective) {
-                                                    // Lista de selección independiente por puesto
+                                                    // Lista de selecciÃ³n independiente por puesto
                                                     Column(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -814,7 +814,7 @@ fun CartScreen(
                                                                         onExpandedChange = { storeDropdownExpanded = !storeDropdownExpanded }
                                                                     ) {
                                                                         val selectedStoreText = selectedStorePoint?.let { pt ->
-                                                                            val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " • Exterior" else " • Interior"
+                                                                            val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " â€¢ Exterior" else " â€¢ Interior"
                                                                             "${pt.name}$zonePart"
                                                                         } ?: if (storePoints.isEmpty()) "Sin puntos disponibles" else "Selecciona punto para este puesto"
 
@@ -879,14 +879,14 @@ fun CartScreen(
                                                         }
                                                     }
                                                 } else {
-                                                    // Dropdown de Punto de Encuentro Único
+                                                    // Dropdown de Punto de Encuentro Ãšnico
                                                     var expanded by remember { mutableStateOf(false) }
                                                     ExposedDropdownMenuBox(
                                                         expanded = expanded,
                                                         onExpandedChange = { expanded = !expanded }
                                                     ) {
                                                         val selectedText = uiState.selectedMeetingPoint?.let { pt ->
-                                                            val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " • Exterior" else " • Interior"
+                                                            val zonePart = if (pt.zoneType.equals("EXTERIOR", ignoreCase = true)) " â€¢ Exterior" else " â€¢ Interior"
                                                             "${pt.name}$zonePart"
                                                         } ?: if (uiState.meetingPoints.isEmpty()) "Sin puntos de entrega disponibles" else "Selecciona un punto de entrega"
 
@@ -1052,7 +1052,7 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Barra inferior flotante con el Subtotal, Precio y Botón Continuar
+                                    // Barra inferior flotante con el Subtotal, Precio y BotÃ³n Continuar
                                     Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1200,7 +1200,7 @@ fun CartScreen(
                                                                 color = Color(0xFF16324F)
                                                             )
                                                             Text(
-                                                                text = "$deliveryPointSummary • ${uiState.selectedTimeSlot}",
+                                                                text = "$deliveryPointSummary â€¢ ${uiState.selectedTimeSlot}",
                                                                 style = MaterialTheme.typography.bodySmall,
                                                                 color = Color(0xFF64748B),
                                                                 maxLines = 1,
@@ -1338,7 +1338,7 @@ fun CartScreen(
                                             }
                                         }
 
-                                        // Resumen rápido de productos con acceso a modificarlos
+                                        // Resumen rÃ¡pido de productos con acceso a modificarlos
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
@@ -1365,7 +1365,7 @@ fun CartScreen(
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Column {
                                                         Text(
-                                                            text = "${uiState.calculation.totalItemCount} producto(s) • Total: S/ %.2f".format(uiState.calculation.grandTotal),
+                                                            text = "${uiState.calculation.totalItemCount} producto(s) â€¢ Total: S/ %.2f".format(uiState.calculation.grandTotal),
                                                             style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Bold,
                                                             color = Color(0xFF16324F)
@@ -1392,7 +1392,7 @@ fun CartScreen(
                                             }
                                         }
 
-                                        // Sección: Método de Pago (Contra entrega)
+                                        // SecciÃ³n: MÃ©todo de Pago (Contra entrega)
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(16.dp),
@@ -1413,14 +1413,14 @@ fun CartScreen(
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
-                                                        text = "Método de Pago (Contra entrega)",
+                                                        text = "MÃ©todo de Pago (Contra entrega)",
                                                         style = MaterialTheme.typography.titleMedium,
                                                         fontWeight = FontWeight.Bold,
                                                         color = Color(0xFF16324F)
                                                     )
                                                 }
 
-                                                // Opciones multi-vendedor para Métodos de Pago
+                                                // Opciones multi-vendedor para MÃ©todos de Pago
                                                 if (uiState.isMultiSeller) {
                                                     if (uiState.hasCommonPaymentMethods) {
                                                         Row(
@@ -1430,7 +1430,7 @@ fun CartScreen(
                                                             CartModeToggleButton(
                                                                 selected = !uiState.isSplitPaymentMode,
                                                                 onClick = { viewModel.setSplitPaymentMode(false) },
-                                                                label = "Mismo método para todos",
+                                                                label = "Mismo mÃ©todo para todos",
                                                                 modifier = Modifier.weight(1f)
                                                             )
                                                             CartModeToggleButton(
@@ -1459,7 +1459,7 @@ fun CartScreen(
                                                                 )
                                                                 Spacer(modifier = Modifier.width(8.dp))
                                                                 Text(
-                                                                    text = "Los puestos seleccionados manejan diferentes métodos de pago. Selecciona la opción de pago para cada puesto:",
+                                                                    text = "Los puestos seleccionados manejan diferentes mÃ©todos de pago. Selecciona la opciÃ³n de pago para cada puesto:",
                                                                     style = MaterialTheme.typography.bodySmall,
                                                                     color = Color(0xFF1E40AF)
                                                                 )
@@ -1475,7 +1475,7 @@ fun CartScreen(
                                                 )
 
                                                 if (uiState.isSplitPaymentEffective) {
-                                                    // Selección de método de pago independiente por puesto
+                                                    // SelecciÃ³n de mÃ©todo de pago independiente por puesto
                                                     Column(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1597,7 +1597,7 @@ fun CartScreen(
                                                         }
                                                     }
                                                 } else {
-                                                    // Selector único general
+                                                    // Selector Ãºnico general
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1613,7 +1613,7 @@ fun CartScreen(
                                                                         disabledPaymentNotice = null
                                                                         viewModel.selectPaymentMethod(method)
                                                                     } else {
-                                                                        val notice = "El método de pago $label no está disponible para este pedido porque el vendedor lo tiene deshabilitado."
+                                                                        val notice = "El mÃ©todo de pago $label no estÃ¡ disponible para este pedido porque el vendedor lo tiene deshabilitado."
                                                                         disabledPaymentNotice = notice
                                                                         Toast.makeText(context, "El vendedor no acepta $label actualmente", Toast.LENGTH_SHORT).show()
                                                                     }
@@ -1673,7 +1673,7 @@ fun CartScreen(
                                                     }
                                                 }
 
-                                                // Notificación cuando se presiona un método deshabilitado
+                                                // NotificaciÃ³n cuando se presiona un mÃ©todo deshabilitado
                                                 AnimatedVisibility(
                                                     visible = disabledPaymentNotice != null,
                                                     enter = fadeIn() + expandVertically(),
@@ -1731,8 +1731,8 @@ fun CartScreen(
                                                         Spacer(modifier = Modifier.width(8.dp))
                                                         Text(
                                                             text = when (uiState.selectedPaymentMethod) {
-                                                                PaymentMethod.YAPE -> "Pagas al vendedor mediante código QR o número de celular al momento de la entrega en el campus."
-                                                                PaymentMethod.PLIN -> "Pagas al vendedor mediante código QR o número de celular al momento de la entrega en el campus."
+                                                                PaymentMethod.YAPE -> "Pagas al vendedor mediante cÃ³digo QR o nÃºmero de celular al momento de la entrega en el campus."
+                                                                PaymentMethod.PLIN -> "Pagas al vendedor mediante cÃ³digo QR o nÃºmero de celular al momento de la entrega en el campus."
                                                                 PaymentMethod.EFECTIVO -> "Pagas en efectivo exacto al vendedor al recibir tus productos."
                                                                 else -> "Coordinas el pago directamente con el vendedor al recibir tu entrega."
                                                             },
@@ -1773,7 +1773,7 @@ fun CartScreen(
                                         }
                                     }
 
-                                    // Barra inferior flotante con el Total y Botón Deslizable Confirmar
+                                    // Barra inferior flotante con el Total y BotÃ³n Deslizable Confirmar
                                     Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1849,7 +1849,7 @@ fun CartScreen(
                                                 hasError = uiState.errorMessage != null,
                                                 isDone = uiState.placedOrder != null,
                                                 label = "Desliza para confirmar pedido",
-                                                doneLabel = "¡Pedido confirmado!",
+                                                doneLabel = "Â¡Pedido confirmado!",
                                                 errorLabel = "Error al procesar pedido",
                                                 trackColor = Color(0xFF00A884),
                                                 handleColor = Color(0xFFF8FAFC),
@@ -1868,7 +1868,7 @@ fun CartScreen(
             }
         }
 
-        // Overlay elegante desenfocado / scrim para el diálogo emergente
+        // Overlay elegante desenfocado / scrim para el diÃ¡logo emergente
         AnimatedVisibility(
             visible = isAnyModalOpen,
             enter = fadeIn(tween(250)),

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
@@ -426,7 +427,7 @@ fun OrderTrackingScreen(
                     val currentOrders = if (uiState.selectedTab == TrackingTab.EN_CURSO) {
                         uiState.activeOrders
                     } else {
-                        uiState.pastOrders
+                        uiState.paginatedPastOrders
                     }
 
                     if (currentOrders.isEmpty()) {
@@ -515,6 +516,83 @@ fun OrderTrackingScreen(
                                     },
                                     onChatPickerVisibilityChanged = { isChatPickerOpen = it }
                                 )
+                            }
+
+                            if (uiState.selectedTab == TrackingTab.HISTORIAL) {
+                                if (uiState.hasMorePastOrders) {
+                                    item(key = "load_more_history_button") {
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 4.dp),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(14.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Mostrando ${uiState.paginatedPastOrders.size} de ${uiState.pastOrders.size} pedidos",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = Color(0xFF64748B),
+                                                    fontWeight = FontWeight.Medium
+                                                )
+
+                                                Button(
+                                                    onClick = { viewModel.loadMoreHistory() },
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(46.dp),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color(0xFF003366),
+                                                        contentColor = Color.White
+                                                    )
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.ExpandMore,
+                                                            contentDescription = null,
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text(
+                                                            text = "Cargar más",
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 14.sp
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (uiState.pastOrders.size > 20) {
+                                    item(key = "all_history_loaded") {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Mostrando todos los pedidos del historial (${uiState.pastOrders.size})",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color(0xFF64748B),
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

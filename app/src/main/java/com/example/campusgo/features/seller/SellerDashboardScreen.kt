@@ -41,6 +41,7 @@ import com.example.campusgo.features.seller.components.SellerNotificationsBottom
 import com.example.campusgo.features.seller.components.SellerDeliveryConfirmationBottomSheet
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
@@ -2188,6 +2189,14 @@ fun SellerDashboardScreen(
                     val displayOrders = remember(uiState.filteredDisplayOrders) {
                         uiState.filteredDisplayOrders
                     }
+                    var sellerHistoryLimit by remember(uiState.isViewingToday, uiState.selectedDate) { mutableIntStateOf(20) }
+                    val visibleOrders = remember(displayOrders, uiState.isViewingToday, sellerHistoryLimit) {
+                        if (!uiState.isViewingToday) {
+                            displayOrders.take(sellerHistoryLimit)
+                        } else {
+                            displayOrders
+                        }
+                    }
 
                     if (displayOrders.isEmpty()) {
                         Card(
@@ -2280,7 +2289,7 @@ fun SellerDashboardScreen(
                                         )
                                     }
                                 }
-                                items(displayOrders, key = { it.id }) { subOrder ->
+                                items(visibleOrders, key = { it.id }) { subOrder ->
                                     val sellerRating = uiState.sellerReviewedOrders[subOrder.id]
                                         ?: uiState.sellerReviewedOrders[subOrder.orderId]
                                         ?: (subOrder.buyerId?.let { uiState.sellerReviewedOrders["${subOrder.orderId}-$it"] })
@@ -2310,6 +2319,83 @@ fun SellerDashboardScreen(
                                             )
                                         }
                                     )
+                                }
+
+                                if (!uiState.isViewingToday) {
+                                    if (displayOrders.size > sellerHistoryLimit) {
+                                        item(key = "load_more_seller_history") {
+                                            Card(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 4.dp),
+                                                shape = RoundedCornerShape(14.dp),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(14.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Mostrando ${visibleOrders.size} de ${displayOrders.size} pedidos",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = Color(0xFF64748B),
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+
+                                                    Button(
+                                                        onClick = { sellerHistoryLimit += 20 },
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(46.dp),
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        colors = ButtonDefaults.buttonColors(
+                                                            containerColor = Color(0xFF003366),
+                                                            contentColor = Color.White
+                                                        )
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.ExpandMore,
+                                                                contentDescription = null,
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text(
+                                                                text = "Cargar más",
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 14.sp
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else if (displayOrders.size > 20) {
+                                        item(key = "all_seller_history_loaded") {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 12.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "Mostrando todos los pedidos del historial (${displayOrders.size})",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color(0xFF64748B),
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             } else {
                                 item(key = "empty_orders") {

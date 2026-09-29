@@ -187,7 +187,7 @@ fun ActiveChatsSheet(
                             color = Color(0xFF1E293B)
                         )
                         Text(
-                            text = "Los chats de coordinación se habilitan automáticamente cuando tienes un pedido en curso con un comprador o vendedor.",
+                            text = "Los chats de coordinaciÃ³n se habilitan automÃ¡ticamente cuando tienes un pedido en curso con un comprador o vendedor.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFF64748B),
                             textAlign = TextAlign.Center
@@ -289,11 +289,11 @@ private fun ActiveChatItemCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Mención breve y distintiva del pedido (código de entrega y productos)
+                // MenciÃ³n breve y distintiva del pedido (cÃ³digo de entrega y productos)
                 val codeDisplay = chat.deliveryCode.ifBlank {
                     (kotlin.math.abs(chat.subOrderId.hashCode()) % 9000 + 1000).toString()
                 }
-                val deliveryTag = "Código #$codeDisplay"
+                val deliveryTag = "CÃ³digo #$codeDisplay"
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = Color(0xFFF1F5F9),
@@ -313,7 +313,7 @@ private fun ActiveChatItemCard(
                         )
                         Text(
                             text = if (chat.itemsSummary.isNotBlank()) {
-                                "$deliveryTag • ${chat.itemsSummary}"
+                                "$deliveryTag â€¢ ${chat.itemsSummary}"
                             } else {
                                 deliveryTag
                             },
@@ -365,7 +365,7 @@ private fun ActiveChatItemCard(
                             text = when (chat.status) {
                                 SubOrderStatus.PENDIENTE -> "Pendiente"
                                 SubOrderStatus.ACEPTADO -> "Aceptado"
-                                SubOrderStatus.EN_PREPARACION -> "En preparación"
+                                SubOrderStatus.EN_PREPARACION -> "En preparaciÃ³n"
                                 SubOrderStatus.LISTO -> "Listo para entrega"
                                 SubOrderStatus.ESPERANDO_ENTREGA -> "En punto de entrega"
                                 else -> "Activo"

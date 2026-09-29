@@ -142,7 +142,7 @@ fun AdminHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "Este punto de encuentro oficial estar· disponible para la entrega de pedidos a los alumnos en el campus.",
+                        "Este punto de encuentro oficial estar√° disponible para la entrega de pedidos a los alumnos en el campus.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -155,7 +155,7 @@ fun AdminHomeScreen(
                     OutlinedTextField(
                         value = pavilion,
                         onValueChange = { pavilion = it },
-                        label = { Text("PabellÛn / Sector (ej. PabellÛn C)") },
+                        label = { Text("Pabell√≥n / Sector (ej. Pabell√≥n C)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -191,9 +191,9 @@ fun AdminHomeScreen(
         var reasonSelected by remember { mutableStateOf("Falta permiso de bienestar universitario") }
         val commonReasons = listOf(
             "Falta permiso de bienestar universitario",
-            "UbicaciÛn propuesta no autorizada",
+            "Ubicaci√≥n propuesta no autorizada",
             "Giro comercial saturado en este turno",
-            "InformaciÛn del estudiante incompleta",
+            "Informaci√≥n del estudiante incompleta",
             "Productos no autorizados para venta en campus"
         )
 
@@ -267,7 +267,7 @@ fun AdminHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Se pausar·n las ventas de '${seller.displayStoreName}'. El puesto cambiar· a 'SUSPENDIDO' y no recibir· pedidos hasta su reactivaciÛn.",
+                        "Se pausar√°n las ventas de '${seller.displayStoreName}'. El puesto cambiar√° a 'SUSPENDIDO' y no recibir√° pedidos hasta su reactivaci√≥n.",
                         style = MaterialTheme.typography.bodySmall
                     )
                     commonReasons.forEach { reason ->
@@ -291,7 +291,7 @@ fun AdminHomeScreen(
                     onClick = { viewModel.confirmSellerSuspension(seller.id, suspensionReason) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
                 ) {
-                    Text("Confirmar SuspensiÛn")
+                    Text("Confirmar Suspensi√≥n")
                 }
             },
             dismissButton = {
@@ -302,7 +302,7 @@ fun AdminHomeScreen(
         )
     }
 
-    // Modal Confirmar EliminaciÛn de Punto de Encuentro
+    // Modal Confirmar Eliminaci√≥n de Punto de Encuentro
     if (uiState.pointToDelete != null) {
         val point = uiState.pointToDelete!!
         AlertDialog(
@@ -316,7 +316,7 @@ fun AdminHomeScreen(
             },
             text = {
                 Text(
-                    "øEst·s seguro de que deseas eliminar permanentemente el punto '${point.name}'? Ya no aparecer· en el mapa de entregas de los estudiantes.",
+                    "¬øEst√°s seguro de que deseas eliminar permanentemente el punto '${point.name}'? Ya no aparecer√° en el mapa de entregas de los estudiantes.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -344,7 +344,7 @@ fun AdminHomeScreen(
             "Incumplimiento reiterado de recojo de pedidos",
             "Falta de respeto o conducta indebida en el campus",
             "Reclamos reiterados por parte de vendedores",
-            "Incumplimiento de pagos o comprobantes inv·lidos",
+            "Incumplimiento de pagos o comprobantes inv√°lidos",
             "Uso indebido de la plataforma"
         )
 
@@ -360,7 +360,7 @@ fun AdminHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Se suspender· la cuenta del estudiante '${buyer.fullName}'. El usuario no podr· realizar pedidos hasta que un administrador reactive su acceso.",
+                        "Se suspender√° la cuenta del estudiante '${buyer.fullName}'. El usuario no podr√° realizar pedidos hasta que un administrador reactive su acceso.",
                         style = MaterialTheme.typography.bodySmall
                     )
                     commonBuyerReasons.forEach { reason ->
@@ -384,7 +384,7 @@ fun AdminHomeScreen(
                     onClick = { viewModel.confirmBuyerSuspension(buyer.id, suspensionReason) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
                 ) {
-                    Text("Confirmar SuspensiÛn")
+                    Text("Confirmar Suspensi√≥n")
                 }
             },
             dismissButton = {
@@ -402,7 +402,7 @@ fun AdminHomeScreen(
         var reasonSelected by remember {
             mutableStateOf(
                 if (isSeller) "Incumplimiento de horario o entrega acordada"
-                else "No se presentÛ a recoger el pedido al punto de encuentro"
+                else "No se present√≥ a recoger el pedido al punto de encuentro"
             )
         }
         var customReason by remember { mutableStateOf("") }
@@ -411,13 +411,13 @@ fun AdminHomeScreen(
         val commonReasons = if (isSeller) {
             listOf(
                 "Incumplimiento de horario o entrega acordada",
-                "Producto no coincide con la descripciÛn o calidad",
+                "Producto no coincide con la descripci√≥n o calidad",
                 "Cobro o precio indebido fuera de la plataforma",
                 "Falta de respeto o trato inapropiado al comprador"
             )
         } else {
             listOf(
-                "No se presentÛ a recoger el pedido al punto de encuentro",
+                "No se present√≥ a recoger el pedido al punto de encuentro",
                 "Falta de respeto o trato indebido al vendedor",
                 "Cancelaciones reiteradas injustificadas",
                 "Incumplimiento de pago o falta de comprobante"
@@ -552,12 +552,12 @@ fun AdminHomeScreen(
                         title = {
                             Column {
                                 Text(
-                                    text = "Panel de AdministraciÛn",
+                                    text = "Panel de Administraci√≥n",
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF003366)
                                 )
                                 Text(
-                                    text = "Campus ${profile.campus} ï ${profile.fullName}",
+                                    text = "Campus ${profile.campus} ‚Ä¢ ${profile.fullName}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -585,7 +585,7 @@ fun AdminHomeScreen(
                             IconButton(onClick = onSignOut) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_logout_custom),
-                                    contentDescription = "Cerrar sesiÛn"
+                                    contentDescription = "Cerrar sesi√≥n"
                                 )
                             }
                         }
@@ -597,7 +597,7 @@ fun AdminHomeScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    // Contenido de la secciÛn seleccionada (con espacio inferior para no solaparse con el Dock flotante)
+                    // Contenido de la secci√≥n seleccionada (con espacio inferior para no solaparse con el Dock flotante)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -671,7 +671,7 @@ fun AdminHomeScreen(
                         }
                     }
 
-                    // Barra de NavegaciÛn Dock Liquid Glass flotante en la parte inferior
+                    // Barra de Navegaci√≥n Dock Liquid Glass flotante en la parte inferior
                     AdminLiquidGlassDock(
                         selectedTab = uiState.selectedTab,
                         pendingApplicationsCount = uiState.metrics.pendingApplicationsCount + uiState.incidents.count { it.isPending },
@@ -947,7 +947,7 @@ fun SellerApplicationsTabContent(
         }
 
         if (activeSubSection == 0) {
-            // SecciÛn 0: Solicitudes de Vendedor
+            // Secci√≥n 0: Solicitudes de Vendedor
             Column {
                 Text(
                     "Solicitudes de Vendedor",
@@ -956,7 +956,7 @@ fun SellerApplicationsTabContent(
                     color = Color(0xFF003366)
                 )
                 Text(
-                    "RevisiÛn y autorizaciÛn de nuevos emprendedores en el campus",
+                    "Revisi√≥n y autorizaci√≥n de nuevos emprendedores en el campus",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1007,7 +1007,7 @@ fun SellerApplicationsTabContent(
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = when (selectedFilter.uppercase()) {
-                                "PENDIENTE" -> "No hay solicitudes pendientes de aprobaciÛn"
+                                "PENDIENTE" -> "No hay solicitudes pendientes de aprobaci√≥n"
                                 "APROBADA" -> "No hay solicitudes aprobadas"
                                 "RECHAZADA" -> "No hay solicitudes rechazadas"
                                 else -> "No hay solicitudes de nuevos vendedores registradas"
@@ -1034,10 +1034,10 @@ fun SellerApplicationsTabContent(
                 }
             }
         } else {
-            // SecciÛn 1: ModeraciÛn de Reportes e Incidencias
+            // Secci√≥n 1: Moderaci√≥n de Reportes e Incidencias
             Column {
                 Text(
-                    "Centro de Reportes y ModeraciÛn",
+                    "Centro de Reportes y Moderaci√≥n",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium,
                     color = Color(0xFF003366)
@@ -1094,10 +1094,10 @@ fun SellerApplicationsTabContent(
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = when (incidentFilter.uppercase()) {
-                                "PENDIENTES", "PENDIENTE" -> "°Excelente! No hay reportes pendientes de moderaciÛn en el campus."
+                                "PENDIENTES", "PENDIENTE" -> "¬°Excelente! No hay reportes pendientes de moderaci√≥n en el campus."
                                 "SANCIONADO" -> "No hay sanciones registradas en este momento."
                                 "RESUELTO" -> "No hay incidencias resueltas registradas."
-                                else -> "No se han emitido reportes de incidencias a˙n."
+                                else -> "No se han emitido reportes de incidencias a√∫n."
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1163,7 +1163,7 @@ fun AdminIncidentCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val (statusBg, statusFg, statusLabel) = when (incident.status.uppercase()) {
-                    "PENDIENTE" -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "PENDIENTE DE REVISI”N")
+                    "PENDIENTE" -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "PENDIENTE DE REVISI√ìN")
                     "SANCIONADO" -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "SANCIONADO")
                     "RESUELTO" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "RESUELTO")
                     else -> Triple(Color(0xFFF1F5F9), Color(0xFF64748B), incident.status)
@@ -1189,7 +1189,7 @@ fun AdminIncidentCard(
                 )
             }
 
-            // TÌtulo de la InfracciÛn / Motivo
+            // T√≠tulo de la Infracci√≥n / Motivo
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1273,7 +1273,7 @@ fun AdminIncidentCard(
                     color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Bold
                 )
-                val reporterName = reporterUser?.businessName ?: reporterUser?.fullName ?: "Usuario #${incident.reporterId?.take(8) ?: "AnÛnimo"}"
+                val reporterName = reporterUser?.businessName ?: reporterUser?.fullName ?: "Usuario #${incident.reporterId?.take(8) ?: "An√≥nimo"}"
                 Text(
                     text = reporterName,
                     fontSize = 12.5.sp,
@@ -1306,7 +1306,7 @@ fun AdminIncidentCard(
                 }
             }
 
-            // Si ya est· resuelto o sancionado, mostrar resoluciÛn del administrador
+            // Si ya est√° resuelto o sancionado, mostrar resoluci√≥n del administrador
             if (!incident.isPending) {
                 Surface(
                     color = if (incident.status == "SANCIONADO") Color(0xFFFFEBEE) else Color(0xFFE8F5E9),
@@ -1315,14 +1315,14 @@ fun AdminIncidentCard(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "ResoluciÛn del Administrador:",
+                            text = "Resoluci√≥n del Administrador:",
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.5.sp,
                             color = if (incident.status == "SANCIONADO") Color(0xFFC8102E) else Color(0xFF2E7D32)
                         )
                         if (!incident.resolutionAction.isNullOrBlank()) {
                             Text(
-                                text = "AcciÛn: ${incident.resolutionAction}",
+                                text = "Acci√≥n: ${incident.resolutionAction}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -1338,7 +1338,7 @@ fun AdminIncidentCard(
                 }
             }
 
-            // Botones de AcciÛn para el Administrador (Solo si est· PENDIENTE)
+            // Botones de Acci√≥n para el Administrador (Solo si est√° PENDIENTE)
             if (incident.isPending) {
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 Row(
@@ -1347,7 +1347,7 @@ fun AdminIncidentCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (reportedUser != null) {
-                        // BotÛn 1: Llamar la atenci\u00F3n
+                        // Bot√≥n 1: Llamar la atenci\u00F3n
                         Button(
                             onClick = { onIssueWarning(reportedUser) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
@@ -1365,7 +1365,7 @@ fun AdminIncidentCard(
                             Text("Llamar atenci\u00F3n", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        // BotÛn 2: Suspender Cuenta
+                        // Bot√≥n 2: Suspender Cuenta
                         OutlinedButton(
                             onClick = { onSuspend(reportedUser) },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
@@ -1378,7 +1378,7 @@ fun AdminIncidentCard(
                         }
                     }
 
-                    // BotÛn 3: Resolver sin sanciÛn
+                    // Bot√≥n 3: Resolver sin sanci√≥n
                     OutlinedButton(
                         onClick = onResolve,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00A884)),
@@ -1468,7 +1468,7 @@ fun SellerApplicationCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "UbicaciÛn propuesta: ${application.proposedLocation}",
+                            text = "Ubicaci√≥n propuesta: ${application.proposedLocation}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1476,7 +1476,7 @@ fun SellerApplicationCard(
                 }
                 if (application.description.isNotBlank()) {
                     Text(
-                        text = "DescripciÛn: ${application.description}",
+                        text = "Descripci√≥n: ${application.description}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1538,10 +1538,10 @@ fun SellersDirectoryTabContent(
     ) {
         Column {
             Text("Puestos del Campus (${sellers.size})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text("GestiÛn, auditorÌa y seguimiento detallado a pantalla completa de puestos universitarios", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Gesti√≥n, auditor√≠a y seguimiento detallado a pantalla completa de puestos universitarios", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        // Barra de b˙squeda con icono y botÛn para limpiar
+        // Barra de b√∫squeda con icono y bot√≥n para limpiar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
@@ -1553,7 +1553,7 @@ fun SellersDirectoryTabContent(
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpiar b˙squeda")
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar b√∫squeda")
                     }
                 }
             },
@@ -1689,7 +1689,7 @@ fun SellerDirectoryCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Motivo de suspensiÛn: ${seller.suspensionReason}",
+                        text = "Motivo de suspensi√≥n: ${seller.suspensionReason}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFC8102E),
                         modifier = Modifier.padding(8.dp)
@@ -1793,22 +1793,22 @@ fun BuyersDirectoryTabContent(
     ) {
         Column {
             Text("Compradores del Campus (${buyers.size})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text("GestiÛn, auditorÌa y seguimiento especializado de estudiantes compradores", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Gesti√≥n, auditor√≠a y seguimiento especializado de estudiantes compradores", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        // Barra de b˙squeda con icono y botÛn para limpiar
+        // Barra de b√∫squeda con icono y bot√≥n para limpiar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Buscar por nombre, telÈfono, cÛdigo...", fontSize = 14.sp) },
+            placeholder = { Text("Buscar por nombre, tel√©fono, c√≥digo...", fontSize = 14.sp) },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color(0xFF003366))
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpiar b˙squeda")
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar b√∫squeda")
                     }
                 }
             },
@@ -1914,7 +1914,7 @@ fun BuyerDirectoryCard(
                     )
                     if (!buyer.studentCode.isNullOrBlank()) {
                         Text(
-                            text = "CÛd: ${buyer.studentCode}",
+                            text = "C√≥d: ${buyer.studentCode}",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF00897B),
                             fontWeight = FontWeight.SemiBold
@@ -1945,7 +1945,7 @@ fun BuyerDirectoryCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Motivo de suspensiÛn: ${buyer.suspensionReason}",
+                        text = "Motivo de suspensi√≥n: ${buyer.suspensionReason}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFC8102E),
                         modifier = Modifier.padding(8.dp)
@@ -1960,7 +1960,7 @@ fun BuyerDirectoryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // TelÈfono con accesos directos
+                // Tel√©fono con accesos directos
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
@@ -1973,7 +1973,7 @@ fun BuyerDirectoryCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = buyer.phone.takeIf { it.isNotBlank() } ?: "Sin telÈfono",
+                        text = buyer.phone.takeIf { it.isNotBlank() } ?: "Sin tel√©fono",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -2093,7 +2093,7 @@ fun CampusMetricsTabContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Centro de AnalÌtica del Campus",
+                            text = "Centro de Anal√≠tica del Campus",
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium
@@ -2113,7 +2113,7 @@ fun CampusMetricsTabContent(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "SupervisiÛn ejecutiva de ventas, pedidos, ranking de puestos y mÈtodos de pago.",
+                        text = "Supervisi√≥n ejecutiva de ventas, pedidos, ranking de puestos y m√©todos de pago.",
                         color = Color.White.copy(alpha = 0.85f),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -2121,11 +2121,11 @@ fun CampusMetricsTabContent(
             }
         }
 
-        // 2. Selector de PerÌodo Temporal
+        // 2. Selector de Per√≠odo Temporal
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "PerÌodo de An·lisis",
+                    text = "Per√≠odo de An√°lisis",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF003366)
@@ -2175,7 +2175,7 @@ fun CampusMetricsTabContent(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AdminMetricCard(
-                        title = "Ventas en PerÌodo",
+                        title = "Ventas en Per√≠odo",
                         value = "S/ %.2f".format(detailedMetrics.totalSales),
                         color = Color(0xFF003366),
                         subtitle = "${detailedMetrics.completedOrders} pedidos cobrados",
@@ -2202,7 +2202,7 @@ fun CampusMetricsTabContent(
                         modifier = Modifier.weight(1f)
                     )
                     AdminMetricCard(
-                        title = "Tasa de …xito",
+                        title = "Tasa de √âxito",
                         value = "%.1f%%".format(detailedMetrics.fulfillmentRate),
                         color = if (detailedMetrics.fulfillmentRate >= 80.0) Color(0xFF2E7D32) else Color(0xFFE65100),
                         subtitle = "Entregas efectivas",
@@ -2305,7 +2305,7 @@ fun CampusMetricsTabContent(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Medalla o posiciÛn
+                            // Medalla o posici√≥n
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
@@ -2376,7 +2376,7 @@ fun CampusMetricsTabContent(
                             )
                         }
 
-                        // Barra de progreso de participaciÛn de ventas
+                        // Barra de progreso de participaci√≥n de ventas
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
@@ -2403,12 +2403,12 @@ fun CampusMetricsTabContent(
             }
         }
 
-        // 5. MÈtodos de Pago
+        // 5. M√©todos de Pago
         if (detailedMetrics.paymentMethods.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "MÈtodos de Pago Utilizados",
+                        text = "M√©todos de Pago Utilizados",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF003366)
@@ -2443,7 +2443,7 @@ fun CampusMetricsTabContent(
                                         color = Color(0xFF00A884)
                                     )
                                     Text(
-                                        text = "${method.count} Ûrdenes (%.0f%%)".format(method.percentage),
+                                        text = "${method.count} √≥rdenes (%.0f%%)".format(method.percentage),
                                         fontSize = 10.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -2455,12 +2455,12 @@ fun CampusMetricsTabContent(
             }
         }
 
-        // 6. Puntos de Entrega M·s Concurridos
+        // 6. Puntos de Entrega M√°s Concurridos
         if (detailedMetrics.topMeetingPoints.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Puntos de Entrega con Mayor Tr·fico",
+                        text = "Puntos de Entrega con Mayor Tr√°fico",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF003366)
@@ -2615,7 +2615,7 @@ fun CampusMetricsTabContent(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = when (incident.incidentType) {
-                                    "NO_SHOW_BUYER" -> "Comprador no se presentÛ (No-Show)"
+                                    "NO_SHOW_BUYER" -> "Comprador no se present√≥ (No-Show)"
                                     "CANCELADO_VENDEDOR" -> "Cancelado por el puesto"
                                     else -> incident.incidentType
                                 },
@@ -2704,7 +2704,7 @@ fun ApplicationStatusBadge(status: ApplicationStatus) {
 }
 
 /**
- * Estructura de datos para un Ìtem del Dock estilo React Bits
+ * Estructura de datos para un √≠tem del Dock estilo React Bits
  */
 private data class AdminDockItemData(
     val tab: AdminTab,
@@ -2714,10 +2714,10 @@ private data class AdminDockItemData(
 )
 
 /**
- * Dock Navigation Bar estilo React Bits con efecto Liquid Glass transl˙cido / blur para el Panel de AdministraciÛn.
- * - Fondo de cristal lÌquido transl˙cido claro con reflejo especular en bordes y brillo satinado
- * - Õtems con animaciÛn Spring el·stica fÌsica (magnificaciÛn y elevaciÛn)
- * - Sin etiqueta superior y sin n˙meros de notificaciÛn (diseÒo ultra limpio y minimalista)
+ * Dock Navigation Bar estilo React Bits con efecto Liquid Glass transl√∫cido / blur para el Panel de Administraci√≥n.
+ * - Fondo de cristal l√≠quido transl√∫cido claro con reflejo especular en bordes y brillo satinado
+ * - √çtems con animaci√≥n Spring el√°stica f√≠sica (magnificaci√≥n y elevaci√≥n)
+ * - Sin etiqueta superior y sin n√∫meros de notificaci√≥n (dise√±o ultra limpio y minimalista)
  */
 @Composable
 fun AdminLiquidGlassDock(
@@ -2750,7 +2750,7 @@ fun AdminLiquidGlassDock(
             ),
             AdminDockItemData(
                 tab = AdminTab.CAMPUS_METRICS,
-                label = "MÈtricas",
+                label = "M√©tricas",
                 iconVector = Icons.AutoMirrored.Filled.TrendingUp
             )
         )
@@ -2762,7 +2762,7 @@ fun AdminLiquidGlassDock(
             .wrapContentHeight(),
         contentAlignment = Alignment.Center
     ) {
-        // Panel del Dock (React Bits .dock-panel) con efecto Liquid Glass transl˙cido / blur
+        // Panel del Dock (React Bits .dock-panel) con efecto Liquid Glass transl√∫cido / blur
         Box(
             modifier = Modifier
                 .wrapContentWidth()
@@ -2774,11 +2774,11 @@ fun AdminLiquidGlassDock(
                 )
                 .clip(RoundedCornerShape(32.dp))
                 .background(
-                    // Liquid Glass Translucent Frosted (vidrio lÌquido claro transl˙cido)
+                    // Liquid Glass Translucent Frosted (vidrio l√≠quido claro transl√∫cido)
                     brush = Brush.verticalGradient(
                         listOf(
-                            Color(0xCCFFFFFF), // Cristal lÌquido frosted con alta transparencia
-                            Color(0xAAFFFFFF)  // Base transl˙cida satinada
+                            Color(0xCCFFFFFF), // Cristal l√≠quido frosted con alta transparencia
+                            Color(0xAAFFFFFF)  // Base transl√∫cida satinada
                         )
                     )
                 )
@@ -2787,14 +2787,14 @@ fun AdminLiquidGlassDock(
                     brush = Brush.verticalGradient(
                         listOf(
                             Color(0xF0FFFFFF), // Reflejo especular blanco puro en borde superior
-                            Color(0x80FFFFFF), // DifusiÛn intermedia del cristal
+                            Color(0x80FFFFFF), // Difusi√≥n intermedia del cristal
                             Color(0x30FFFFFF)  // Borde inferior sutil
                         )
                     ),
                     shape = RoundedCornerShape(32.dp)
                 )
         ) {
-            // Capa de brillo satinado del cristal lÌquido (Gloss Sheen)
+            // Capa de brillo satinado del cristal l√≠quido (Gloss Sheen)
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -2809,7 +2809,7 @@ fun AdminLiquidGlassDock(
                     )
             )
 
-            // Fila de Ìtems del Dock con espaciado el·stico y altura cÛmoda para 5 Ìtems
+            // Fila de √≠tems del Dock con espaciado el√°stico y altura c√≥moda para 5 √≠tems
             Row(
                 modifier = Modifier
                     .padding(horizontal = 10.dp, vertical = 8.dp),
@@ -2830,8 +2830,8 @@ fun AdminLiquidGlassDock(
 }
 
 /**
- * Õtem individual del Dock (React Bits <DockItem>) con animaciÛn de resorte (spring),
- * centrado vertical cÛmodo y feedback de cristal lÌquido transl˙cido.
+ * √çtem individual del Dock (React Bits <DockItem>) con animaci√≥n de resorte (spring),
+ * centrado vertical c√≥modo y feedback de cristal l√≠quido transl√∫cido.
  */
 @Composable
 private fun AdminDockItem(
@@ -2840,7 +2840,7 @@ private fun AdminDockItem(
     badgeCount: Int = 0,
     onClick: () -> Unit
 ) {
-    // Spring physics para magnificaciÛn suave y balanceada
+    // Spring physics para magnificaci√≥n suave y balanceada
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.05f else 1.0f,
         animationSpec = spring(
@@ -2938,7 +2938,7 @@ private fun AdminDockItem(
                 }
             }
 
-            // Si est· seleccionado, mostrar etiqueta compacta en color corporativo
+            // Si est√° seleccionado, mostrar etiqueta compacta en color corporativo
             if (isSelected) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
