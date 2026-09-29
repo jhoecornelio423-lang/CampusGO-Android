@@ -1693,11 +1693,16 @@ fun BuyerHomeScreen(
                 },
                 onUploadAvatar = { bytes, onUploaded ->
                     coroutineScope.launch {
-                        val path = "avatars/${currentProfile.id}_${System.currentTimeMillis()}.jpg"
+                        val oldUrl = currentProfile.avatarUrl
+                        val path = "avatars/user_${currentProfile.id}.jpg"
                         val res = productRepository.uploadImage("business-assets", path, bytes)
                         res.onSuccess { url ->
-                            onUploaded(url)
-                            val updated = currentProfile.copy(avatarUrl = url)
+                            if (!oldUrl.isNullOrBlank() && !oldUrl.contains("avatars/user_${currentProfile.id}.jpg")) {
+                                productRepository.deleteImage("business-assets", oldUrl)
+                            }
+                            val freshUrl = if (url.contains("?")) url else "$url?v=${System.currentTimeMillis()}"
+                            onUploaded(freshUrl)
+                            val updated = currentProfile.copy(avatarUrl = freshUrl)
                             productRepository.updateUserProfile(updated)
                             currentProfile = updated
                         }

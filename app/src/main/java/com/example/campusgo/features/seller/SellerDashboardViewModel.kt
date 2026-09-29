@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller
+package com.example.campusgo.features.seller
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -246,7 +246,8 @@ class SellerDashboardViewModel(
         stock: Int,
         categoryId: String?,
         description: String?,
-        imageUrl: String? = null
+        imageUrl: String? = null,
+        id: String = UUID.randomUUID().toString()
     ) {
         if (name.isBlank() || price <= 0 || stock < 0) {
             _uiState.update { it.copy(errorMessage = "Por favor ingresa nombre, precio y stock válidos.") }
@@ -260,7 +261,7 @@ class SellerDashboardViewModel(
             val fallbackDesc = description?.takeIf { it.isNotBlank() } ?: name.trim()
 
             val newProduct = Product(
-                id = UUID.randomUUID().toString(),
+                id = id,
                 sellerId = currentSellerId,
                 categoryId = fallbackCatId,
                 name = name.trim(),
@@ -493,6 +494,11 @@ class SellerDashboardViewModel(
         )
         _uiState.update { it.copy(isSavingProduct = true) }
         viewModelScope.launch {
+            val oldImage = current.imageUrl
+            val newImage = updatedProd.imageUrl
+            if (!oldImage.isNullOrBlank() && oldImage != newImage && !oldImage.contains("products/prod_${productId}.jpg")) {
+                productRepository.deleteImage("product-images", oldImage)
+            }
             val result = productRepository.updateProduct(updatedProd)
             if (result.isSuccess) {
                 val updatedList = _uiState.value.products.map { if (it.id == productId) updatedProd else it }
@@ -513,9 +519,15 @@ class SellerDashboardViewModel(
     }
 
     fun deleteProduct(productId: String) {
+        val target = _uiState.value.products.find { it.id == productId }
         viewModelScope.launch {
             val result = productRepository.deleteProduct(productId)
             if (result.isSuccess) {
+                target?.imageUrl?.let { imgUrl ->
+                    if (imgUrl.isNotBlank()) {
+                        productRepository.deleteImage("product-images", imgUrl)
+                    }
+                }
                 val updatedList = _uiState.value.products.filter { it.id != productId }
                 _uiState.update {
                     it.copy(
@@ -573,6 +585,15 @@ class SellerDashboardViewModel(
             )
         }
         viewModelScope.launch {
+            val oldBanner = currentProfile?.bannerUrl
+            if (!oldBanner.isNullOrBlank() && oldBanner != bannerUrl && !oldBanner.contains("banners/banner_${currentSellerId}.jpg")) {
+                productRepository.deleteImage("business-assets", oldBanner)
+            }
+            val oldAvatar = currentProfile?.avatarUrl
+            if (!oldAvatar.isNullOrBlank() && oldAvatar != avatarUrl && !oldAvatar.contains("avatars/store_${currentSellerId}.jpg")) {
+                productRepository.deleteImage("business-assets", oldAvatar)
+            }
+
             val result = productRepository.updateBusinessProfile(profileToSave)
             if (result.isSuccess) {
                 val updated = result.getOrNull() ?: profileToSave
@@ -642,7 +663,8 @@ class SellerDashboardViewModel(
             val result = productRepository.uploadImage(bucket, path, bytes)
             _uiState.update { it.copy(isUploadingAsset = false) }
             result.onSuccess { url ->
-                onUploaded(url)
+                val freshUrl = if (url.contains("?")) url else "$url?v=${System.currentTimeMillis()}"
+                onUploaded(freshUrl)
             }.onFailure { err ->
                 _uiState.update { it.copy(errorMessage = "Error al subir imagen: ${err.message}") }
             }

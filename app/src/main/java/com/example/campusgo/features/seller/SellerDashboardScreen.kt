@@ -498,6 +498,7 @@ fun SellerDashboardScreen(
         var prodDesc by remember { mutableStateOf("") }
         var prodImageUrl by remember { mutableStateOf("") }
         var isUploadingPhoto by remember { mutableStateOf(false) }
+        val newProductId = remember { UUID.randomUUID().toString() }
         var selectedCatId by remember(uiState.categories) {
             mutableStateOf(uiState.categories.firstOrNull()?.id ?: "7cee355d-cf67-477c-bade-fc7867ddbe2a")
         }
@@ -513,7 +514,7 @@ fun SellerDashboardScreen(
                 val bytes = compressImageUri(context, selectedUri, maxDimension = 800, quality = 80)
                 if (bytes != null) {
                     isUploadingPhoto = true
-                    val path = "products/prod_${UUID.randomUUID()}_${System.currentTimeMillis()}.jpg"
+                    val path = "products/prod_${newProductId}.jpg"
                     viewModel.uploadAsset("product-images", path, bytes) { uploadedUrl ->
                         prodImageUrl = uploadedUrl
                         isUploadingPhoto = false
@@ -778,7 +779,8 @@ fun SellerDashboardScreen(
                                     stock = s,
                                     categoryId = selectedCatId.ifBlank { uiState.categories.firstOrNull()?.id ?: "7cee355d-cf67-477c-bade-fc7867ddbe2a" },
                                     description = prodDesc.ifBlank { prodName },
-                                    imageUrl = prodImageUrl.takeIf { it.isNotBlank() }
+                                    imageUrl = prodImageUrl.takeIf { it.isNotBlank() },
+                                    id = newProductId
                                 )
                             }
                         },
@@ -836,7 +838,7 @@ fun SellerDashboardScreen(
                 val bytes = compressImageUri(context, selectedUri, maxDimension = 800, quality = 80)
                 if (bytes != null) {
                     isUploadingEditPhoto = true
-                    val path = "products/prod_${prod.id}_${System.currentTimeMillis()}.jpg"
+                    val path = "products/prod_${prod.id}.jpg"
                     viewModel.uploadAsset("product-images", path, bytes) { uploadedUrl ->
                         imageInput = uploadedUrl
                         isUploadingEditPhoto = false

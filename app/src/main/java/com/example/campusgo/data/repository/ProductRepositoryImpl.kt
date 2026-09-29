@@ -480,6 +480,25 @@ class ProductRepositoryImpl(
         }
     }
 
+    override suspend fun deleteImage(bucket: String, pathOrUrl: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val storageClient = storage ?: return@withContext Result.failure(IllegalStateException("Servicio de almacenamiento no inicializado"))
+            val cleanPath = if (pathOrUrl.startsWith("http")) {
+                pathOrUrl.substringAfter("/$bucket/").substringBefore("?")
+            } else {
+                pathOrUrl.substringBefore("?")
+            }.trim().trimStart('/')
+            if (cleanPath.isBlank()) return@withContext Result.success(Unit)
+            val bucketApi = storageClient.from(bucket)
+            bucketApi.delete(listOf(cleanPath))
+            android.util.Log.d("ProductRepo", "Imagen eliminada de $bucket: $cleanPath")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepo", "Error al eliminar imagen de $bucket ($pathOrUrl): ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     override suspend fun getFavoriteProductIds(userId: String): Result<Set<String>> = withContext(Dispatchers.IO) {
         try {
             val list = postgrest.from("favorites").select {

@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import android.view.ViewGroup
 import androidx.annotation.OptIn
@@ -10,11 +10,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -114,7 +116,8 @@ fun VideoSplashScreen(
             .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-        // Reproductor de video acelerado por hardware (SurfaceView)
+        // Reproductor de video acelerado por hardware con relación de aspecto estricta 9:16
+        // Previene cualquier estiramiento o deformación vertical en pantallas alargadas
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -130,7 +133,10 @@ fun VideoSplashScreen(
                     )
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .wrapContentSize(Alignment.Center)
+                .aspectRatio(9f / 16f)
         )
 
         // Botón elegante y discreto para "Saltar"

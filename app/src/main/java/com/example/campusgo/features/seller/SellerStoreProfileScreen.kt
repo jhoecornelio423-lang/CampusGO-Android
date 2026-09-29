@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller
+package com.example.campusgo.features.seller
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -183,7 +183,7 @@ fun SellerStoreProfileScreen(
             val bytes = compressImageUri(context, selectedUri, maxDimension = 1200, quality = 82)
             if (bytes != null && onUploadAsset != null) {
                 isUploadingBanner = true
-                val path = "banners/banner_${activeProfile.id}_${System.currentTimeMillis()}.jpg"
+                val path = "banners/banner_${activeProfile.id}.jpg"
                 onUploadAsset("business-assets", path, bytes) { uploadedUrl ->
                     bannerUrl = uploadedUrl
                     isUploadingBanner = false
@@ -199,7 +199,7 @@ fun SellerStoreProfileScreen(
             val bytes = compressImageUri(context, selectedUri, maxDimension = 512, quality = 85)
             if (bytes != null && onUploadAsset != null) {
                 isUploadingAvatar = true
-                val path = "avatars/avatar_${activeProfile.id}_${System.currentTimeMillis()}.jpg"
+                val path = "avatars/store_${activeProfile.id}.jpg"
                 onUploadAsset("business-assets", path, bytes) { uploadedUrl ->
                     avatarUrl = uploadedUrl
                     isUploadingAvatar = false

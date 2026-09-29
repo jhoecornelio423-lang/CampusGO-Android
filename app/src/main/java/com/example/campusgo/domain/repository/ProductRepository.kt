@@ -18,6 +18,7 @@ interface ProductRepository {
     suspend fun updateBusinessProfile(profile: UserProfile): Result<UserProfile>
     suspend fun updateUserProfile(profile: UserProfile): Result<UserProfile>
     suspend fun uploadImage(bucket: String, path: String, bytes: ByteArray, mimeType: String = "image/jpeg"): Result<String>
+    suspend fun deleteImage(bucket: String, pathOrUrl: String): Result<Unit>
     suspend fun getFavoriteProductIds(userId: String): Result<Set<String>>
     suspend fun addFavorite(userId: String, productId: String): Result<Unit>
     suspend fun removeFavorite(userId: String, productId: String): Result<Unit>
