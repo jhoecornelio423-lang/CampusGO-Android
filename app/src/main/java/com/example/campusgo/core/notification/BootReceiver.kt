@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.core.notification
+package com.example.campusgo.core.notification
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,6 +12,7 @@ class BootReceiver : BroadcastReceiver() {
             Log.d("BootReceiver", "Reinicio detectado ($action). Levantando ValleGoPushService...")
             try {
                 ValleGoPushService.start(context)
+                PushWatchdogReceiver.scheduleNextWatchdog(context)
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Error iniciando ValleGoPushService tras reboot", e)
             }

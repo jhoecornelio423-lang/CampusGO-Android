@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.core.notification
+package com.example.campusgo.core.notification
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -14,23 +16,32 @@ import com.example.campusgo.R
 
 object ValleGoNotificationHelper {
 
-    const val CHANNEL_ORDERS = "campusgo_orders_channel_v2"
-    const val CHANNEL_CHAT = "campusgo_chat_channel_v2"
-    const val CHANNEL_SERVICE = "campusgo_service_channel_v2"
+    const val CHANNEL_ORDERS = "campusgo_orders_channel_v3"
+    const val CHANNEL_CHAT = "campusgo_chat_channel_v3"
+    const val CHANNEL_SERVICE = "campusgo_service_channel_v3"
     const val SERVICE_NOTIFICATION_ID = 9001
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Limpieza proactiva de canales antiguos con nombres heredados
+            // Limpieza proactiva de canales antiguos con nombres heredados o sin sonido explícito
             try {
+                notificationManager.deleteNotificationChannel("campusgo_orders_channel_v2")
+                notificationManager.deleteNotificationChannel("campusgo_chat_channel_v2")
+                notificationManager.deleteNotificationChannel("campusgo_service_channel_v2")
                 notificationManager.deleteNotificationChannel("vallego_orders_channel")
                 notificationManager.deleteNotificationChannel("vallego_chat_channel")
                 notificationManager.deleteNotificationChannel("vallego_service_channel")
             } catch (_: Exception) {}
 
-            // Canal para notificaciones inmediatas de pedidos (Alta prioridad, sonido y vibración)
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+
+            // Canal para notificaciones inmediatas de pedidos (Máxima prioridad, sonido y vibración garantizados)
             val orderChannel = NotificationChannel(
                 CHANNEL_ORDERS,
                 "Pedidos y Actualizaciones CampusGO",
@@ -40,11 +51,13 @@ object ValleGoNotificationHelper {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 300, 200, 300)
                 enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                setSound(defaultSoundUri, audioAttributes)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
-            // Canal para mensajes de chat (Alta prioridad tipo WhatsApp)
+            // Canal para mensajes de chat (Alta prioridad tipo WhatsApp con sonido inmediato)
             val chatChannel = NotificationChannel(
                 CHANNEL_CHAT,
                 "Mensajes de Chat CampusGO",
@@ -54,6 +67,8 @@ object ValleGoNotificationHelper {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 200, 100, 200)
                 enableLights(true)
+                lightColor = android.graphics.Color.BLUE
+                setSound(defaultSoundUri, audioAttributes)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -95,13 +110,17 @@ object ValleGoNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSound(defaultSoundUri)
+            .setVibrate(longArrayOf(0, 300, 200, 300))
+            .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
@@ -139,13 +158,17 @@ object ValleGoNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
         val notification = NotificationCompat.Builder(context, CHANNEL_CHAT)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(senderName)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText("Nuevo mensaje"))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSound(defaultSoundUri)
+            .setVibrate(longArrayOf(0, 200, 100, 200))
+            .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)

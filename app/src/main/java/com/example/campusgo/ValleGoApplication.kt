@@ -31,6 +31,12 @@ class ValleGoApplication : Application(), ImageLoaderFactory {
         }
         com.example.campusgo.core.notification.ValleGoNotificationHelper.createNotificationChannels(this)
         com.example.campusgo.data.repository.SellerPaymentMethodsStorage.initialize(this)
+
+        try {
+            com.example.campusgo.core.notification.PushWatchdogReceiver.scheduleNextWatchdog(this)
+        } catch (e: Exception) {
+            android.util.Log.e("ValleGoApp", "Error programando PushWatchdog en Application", e)
+        }
     }
 
     override fun newImageLoader(): ImageLoader {

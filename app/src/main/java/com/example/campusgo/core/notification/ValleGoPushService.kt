@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.core.notification
+package com.example.campusgo.core.notification
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -55,6 +55,7 @@ class ValleGoPushService : Service(), KoinComponent {
     private val orderItemsSummaryCache = ConcurrentHashMap<String, String>()
     private var cachedUserRole: Pair<String, String>? = null
     private var userRoleCachedAt: Long = 0L
+    private var lastSessionRefreshTime: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -83,12 +84,30 @@ class ValleGoPushService : Service(), KoinComponent {
             setReferenceCounted(false)
         }
 
+        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext)
         Log.d(TAG, "ValleGoPushService iniciado en primer plano.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startOrderMonitoringLoop()
+        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext)
         return START_STICKY
+    }
+
+    private suspend fun ensureValidSession() {
+        val now = System.currentTimeMillis()
+        // Supabase JWT expira a los 60 min. Refrescar proactivamente cada 40 minutos en segundo plano
+        if (now - lastSessionRefreshTime > 40 * 60 * 1000L) {
+            try {
+                if (auth.currentSessionOrNull() != null) {
+                    auth.refreshCurrentSession()
+                    lastSessionRefreshTime = now
+                    Log.d(TAG, "Sesión de Supabase refrescada automáticamente en segundo plano.")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Aviso al refrescar sesión preventivamente: ${e.message}")
+            }
+        }
     }
 
     private fun isAlreadyNotified(eventKey: String): Boolean {
@@ -178,6 +197,9 @@ class ValleGoPushService : Service(), KoinComponent {
                     val user = auth.currentUserOrNull()
                     if (user != null) {
                         val userId = user.id
+                        // Verificar y refrescar proactivamente la sesión para evitar JWT expired en segundo plano
+                        ensureValidSession()
+
                         // Determinar rol con cache TTL de 5 minutos para no saturar Supabase con 15 requests/min
                         val roleStr = if (cachedUserRole?.first == userId && (System.currentTimeMillis() - userRoleCachedAt < 5 * 60 * 1000L)) {
                             cachedUserRole!!.second
@@ -204,6 +226,11 @@ class ValleGoPushService : Service(), KoinComponent {
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Error durante chequeo de pedidos: ${e.message}")
+                    if (e.message?.contains("JWT", ignoreCase = true) == true ||
+                        e.message?.contains("expired", ignoreCase = true) == true ||
+                        e.message?.contains("401") == true) {
+                        runCatching { auth.refreshCurrentSession() }
+                    }
                 } finally {
                     if (wakeLock?.isHeld == true) {
                         try { wakeLock?.release() } catch (_: Exception) {}
@@ -221,7 +248,10 @@ class ValleGoPushService : Service(), KoinComponent {
                     filter { eq("seller_id", sellerId) }
                 }
                 .decodeList<RemoteSubOrderDto>()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e.message?.contains("JWT", ignoreCase = true) == true || e.message?.contains("expired", ignoreCase = true) == true) {
+                runCatching { auth.refreshCurrentSession() }
+            }
             emptyList()
         }
 
@@ -231,7 +261,10 @@ class ValleGoPushService : Service(), KoinComponent {
                     filter { eq("seller_id", sellerId) }
                 }
                 .decodeList<RemoteOrderDto>()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e.message?.contains("JWT", ignoreCase = true) == true || e.message?.contains("expired", ignoreCase = true) == true) {
+                runCatching { auth.refreshCurrentSession() }
+            }
             emptyList()
         }
 
@@ -301,7 +334,10 @@ class ValleGoPushService : Service(), KoinComponent {
                     filter { eq("buyer_id", buyerId) }
                 }
                 .decodeList<RemoteOrderDto>()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e.message?.contains("JWT", ignoreCase = true) == true || e.message?.contains("expired", ignoreCase = true) == true) {
+                runCatching { auth.refreshCurrentSession() }
+            }
             emptyList()
         }
 
@@ -318,7 +354,10 @@ class ValleGoPushService : Service(), KoinComponent {
                         filter { isIn("order_id", orderIds) }
                     }
                     .decodeList<RemoteSubOrderDto>()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e.message?.contains("JWT", ignoreCase = true) == true || e.message?.contains("expired", ignoreCase = true) == true) {
+                    runCatching { auth.refreshCurrentSession() }
+                }
                 emptyList()
             }
         } else {
@@ -531,6 +570,9 @@ class ValleGoPushService : Service(), KoinComponent {
             }
         } catch (e: Exception) {
             Log.d(TAG, "Chequeo de mensajes de chat omitido: ${e.message}")
+            if (e.message?.contains("JWT", ignoreCase = true) == true || e.message?.contains("expired", ignoreCase = true) == true) {
+                runCatching { auth.refreshCurrentSession() }
+            }
         }
     }
 
@@ -552,35 +594,8 @@ class ValleGoPushService : Service(), KoinComponent {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "onTaskRemoved invocado. Reprogramando ValleGoPushService...")
-        try {
-            val restartIntent = Intent(applicationContext, ValleGoPushService::class.java).also {
-                it.setPackage(packageName)
-            }
-            val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                PendingIntent.getForegroundService(
-                    applicationContext,
-                    1001,
-                    restartIntent,
-                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-                )
-            } else {
-                PendingIntent.getService(
-                    applicationContext,
-                    1001,
-                    restartIntent,
-                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-                )
-            }
-            val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-            alarmManager?.set(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + 1000,
-                pendingIntent
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reprogramando servicio en onTaskRemoved", e)
-        }
+        Log.d(TAG, "onTaskRemoved invocado. Activando PushWatchdog para mantener servicio...")
+        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext, 1000L)
     }
 
     override fun onDestroy() {
@@ -589,7 +604,8 @@ class ValleGoPushService : Service(), KoinComponent {
         if (wakeLock?.isHeld == true) {
             try { wakeLock?.release() } catch (_: Exception) {}
         }
-        Log.d(TAG, "ValleGoPushService destruido.")
+        Log.d(TAG, "ValleGoPushService destruido. Reprogramando rescate mediante PushWatchdog...")
+        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext, 1000L)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
