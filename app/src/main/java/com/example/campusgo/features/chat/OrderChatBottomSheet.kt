@@ -123,18 +123,20 @@ fun OrderChatBottomSheet(
 
     val context = LocalContext.current
 
-    // Cancelar notificaciones de inmediato al montar la pantalla
+    // Cancelar notificaciones de inmediato al montar la pantalla si la app está en primer plano
     LaunchedEffect(Unit) {
-        CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
+        if (ActiveChatSessionManager.isAppInForeground) {
+            CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
+        }
     }
 
-    // Registrar en memoria la conversación activa para que CampusGoPushService
-    // suprima las notificaciones locales emergentes de ESTA misma conversación,
-    // y cancelar inmediatamente cualquier notificación pendiente en la barra de estado.
+    // Registrar en memoria la conversación activa para que no se dupliquen alertas locales si la app está abierta en pantalla
     DisposableEffect(uiState.subOrderId, uiState.otherUserId) {
         if (uiState.subOrderId.isNotBlank()) {
             ActiveChatSessionManager.activeSubOrderId = uiState.subOrderId
-            CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
+            if (ActiveChatSessionManager.isAppInForeground) {
+                CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
+            }
         }
         if (uiState.otherUserId.isNotBlank()) {
             ActiveChatSessionManager.activeOtherUserId = uiState.otherUserId
@@ -145,9 +147,9 @@ fun OrderChatBottomSheet(
         }
     }
 
-    // Auto-scroll al último mensaje y asegurar que no queden notificaciones en la barra
+    // Auto-scroll al último mensaje y asegurar que no queden notificaciones en la barra SOLO si la app está en primer plano
     LaunchedEffect(uiState.messages.size) {
-        if (uiState.subOrderId.isNotBlank()) {
+        if (ActiveChatSessionManager.isAppInForeground && uiState.subOrderId.isNotBlank()) {
             CampusGoNotificationHelper.cancelChatNotifications(context, uiState.subOrderId)
         }
         if (uiState.messages.isNotEmpty()) {

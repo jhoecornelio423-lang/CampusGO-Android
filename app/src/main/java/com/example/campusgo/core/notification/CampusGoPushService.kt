@@ -604,7 +604,7 @@ class CampusGoPushService : Service(), KoinComponent {
 
                 CampusGoNotificationHelper.showChatNotification(
                     context = this@CampusGoPushService,
-                    notificationId = msg.id.hashCode(),
+                    notificationId = Math.abs(msg.id.hashCode()),
                     senderName = senderName,
                     message = msg.content,
                     subOrderId = msg.subOrderId

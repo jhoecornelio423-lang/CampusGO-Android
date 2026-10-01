@@ -14,11 +14,20 @@ object ActiveChatSessionManager {
     @Volatile
     var activeOtherUserId: String? = null
 
+    @Volatile
+    var isAppInForeground: Boolean = true
+
     /**
-     * Retorna verdadero si el usuario actualmente tiene abierta la pantalla de chat
-     * para el subpedido o contraparte dada.
+     * Retorna verdadero si el usuario actualmente tiene abierta y visible en pantalla
+     * la conversación para el subpedido o interlocutor indicado.
+     * Si la aplicación está en segundo plano o el dispositivo está fuera de la app,
+     * SIEMPRE retorna false para que la notificación se muestre con sonido y vibración.
      */
     fun isChatActiveWith(subOrderId: String?, senderId: String?): Boolean {
+        if (!isAppInForeground) {
+            return false
+        }
+
         val curSub = activeSubOrderId
         val curOther = activeOtherUserId
 
@@ -31,5 +40,10 @@ object ActiveChatSessionManager {
         }
 
         return false
+    }
+
+    fun clear() {
+        activeSubOrderId = null
+        activeOtherUserId = null
     }
 }

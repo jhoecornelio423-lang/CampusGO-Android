@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,9 +27,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campusgo.core.util.FormValidators
 import androidx.compose.material.icons.filled.Dangerous
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.WarningAmber
@@ -68,6 +72,24 @@ fun BuyerProfileScreen(
     var isUploading by remember { mutableStateOf(false) }
     var selectedInfoType by remember { mutableStateOf(ProfileInfoType.NONE) }
     val context = LocalContext.current
+
+    var fullNameError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+    var campusError by remember { mutableStateOf<String?>(null) }
+    var showValidationErrors by remember { mutableStateOf(false) }
+
+    fun resetEditFields() {
+        fullName = profile.fullName
+        phone = profile.phone
+        studentCode = profile.studentCode.orEmpty()
+        campus = profile.campus
+        avatarUrl = profile.avatarUrl
+        fullNameError = null
+        phoneError = null
+        campusError = null
+        showValidationErrors = false
+        isEditMode = false
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -112,14 +134,7 @@ fun BuyerProfileScreen(
                     },
                     navigationIcon = {
                         if (isEditMode) {
-                            IconButton(onClick = {
-                                fullName = profile.fullName
-                                phone = profile.phone
-                                studentCode = profile.studentCode.orEmpty()
-                                campus = profile.campus
-                                avatarUrl = profile.avatarUrl
-                                isEditMode = false
-                            }) {
+                            IconButton(onClick = { resetEditFields() }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Atrás",
@@ -321,50 +336,69 @@ fun BuyerProfileScreen(
                     } else {
                         OutlinedTextField(
                             value = fullName,
-                            onValueChange = { fullName = it },
-                            label = { Text("Nombre Completo") },
+                            onValueChange = {
+                                fullName = it
+                                if (showValidationErrors) fullNameError = FormValidators.validateFullName(it)
+                            },
+                            label = { Text("Nombre Completo *") },
                             leadingIcon = {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_user_circle_custom),
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = if (fullNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                     modifier = Modifier.size(24.dp)
                                 )
                             },
+                            isError = fullNameError != null,
+                            supportingText = fullNameError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                             shape = RoundedCornerShape(12.dp)
                         )
                         OutlinedTextField(
                             value = phone,
-                            onValueChange = { phone = it },
-                            label = { Text("Teléfono") },
+                            onValueChange = { input ->
+                                val digits = input.filter { it.isDigit() }.take(9)
+                                phone = digits
+                                if (showValidationErrors) phoneError = FormValidators.validatePhone(digits)
+                            },
+                            label = { Text("Teléfono (9 dígitos) *") },
                             leadingIcon = {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_phone_custom),
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = if (phoneError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                     modifier = Modifier.size(24.dp)
                                 )
                             },
+                            isError = phoneError != null,
+                            supportingText = phoneError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                             shape = RoundedCornerShape(12.dp)
                         )
                         OutlinedTextField(
                             value = campus,
-                            onValueChange = { campus = it },
-                            label = { Text("Campus") },
+                            onValueChange = {
+                                campus = it
+                                if (showValidationErrors) campusError = FormValidators.validateCampus(it)
+                            },
+                            label = { Text("Campus Universitario *") },
                             leadingIcon = {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_location_custom),
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = if (campusError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                     modifier = Modifier.size(24.dp)
                                 )
                             },
+                            isError = campusError != null,
+                            supportingText = campusError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                             shape = RoundedCornerShape(12.dp)
                         )
                     }
@@ -470,11 +504,26 @@ fun BuyerProfileScreen(
             if (isEditMode) {
                 Button(
                     onClick = {
+                        showValidationErrors = true
+                        val fnErr = FormValidators.validateFullName(fullName)
+                        val phErr = FormValidators.validatePhone(phone)
+                        val cpErr = FormValidators.validateCampus(campus)
+
+                        fullNameError = fnErr
+                        phoneError = phErr
+                        campusError = cpErr
+
+                        if (fnErr != null || phErr != null || cpErr != null) {
+                            val firstErr = fnErr ?: phErr ?: cpErr ?: "Corrige los errores antes de guardar"
+                            Toast.makeText(context, firstErr, Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
                         val updated = profile.copy(
-                            fullName = fullName.trim().ifBlank { profile.fullName },
+                            fullName = fullName.trim(),
                             phone = phone.trim(),
                             studentCode = profile.studentCode,
-                            campus = campus.trim().ifBlank { profile.campus },
+                            campus = campus.trim(),
                             avatarUrl = avatarUrl?.trim()?.takeIf { it.isNotBlank() }
                         )
                         onSaveProfile(updated)
@@ -492,14 +541,7 @@ fun BuyerProfileScreen(
                 }
 
                 OutlinedButton(
-                    onClick = {
-                        fullName = profile.fullName
-                        phone = profile.phone
-                        studentCode = profile.studentCode.orEmpty()
-                        campus = profile.campus
-                        avatarUrl = profile.avatarUrl
-                        isEditMode = false
-                    },
+                    onClick = { resetEditFields() },
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()

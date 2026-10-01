@@ -1,6 +1,8 @@
 package com.example.campusgo.features.seller
 
 import android.net.Uri
+import android.widget.Toast
+import com.example.campusgo.core.util.FormValidators
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -160,6 +162,14 @@ fun SellerStoreProfileScreen(
         businessStatus = activeProfile.businessStatus.ifBlank { if (activeProfile.acceptingOrders) "ABIERTO" else "CERRADO" }
     }
 
+    var businessNameError by remember { mutableStateOf<String?>(null) }
+    var descriptionError by remember { mutableStateOf<String?>(null) }
+    var categoryError by remember { mutableStateOf<String?>(null) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+    var meetingPointsError by remember { mutableStateOf<String?>(null) }
+    var paymentMethodsError by remember { mutableStateOf<String?>(null) }
+    var showValidationErrors by remember { mutableStateOf(false) }
+
     fun resetFields() {
         businessName = activeProfile.businessName ?: activeProfile.fullName
         description = activeProfile.businessDescription.orEmpty()
@@ -173,6 +183,13 @@ fun SellerStoreProfileScreen(
         acceptingOrders = activeProfile.acceptingOrders
         selectedMeetingPoints = activeProfile.supportedMeetingPoints.toSet()
         selectedPaymentMethods = activeProfile.effectivePaymentMethods.toSet()
+        businessNameError = null
+        descriptionError = null
+        categoryError = null
+        locationError = null
+        meetingPointsError = null
+        paymentMethodsError = null
+        showValidationErrors = false
         isEditMode = false
     }
 
@@ -275,12 +292,33 @@ fun SellerStoreProfileScreen(
                         if (isEditMode) {
                             Button(
                                 onClick = {
+                                    showValidationErrors = true
+                                    val bnErr = FormValidators.validateStoreName(businessName)
+                                    val catErr = FormValidators.validateStoreCategory(category)
+                                    val descErr = FormValidators.validateStoreDescription(description)
+                                    val locErr = FormValidators.validateStoreLocation(location)
+                                    val mpErr = FormValidators.validateMeetingPoints(selectedMeetingPoints)
+                                    val pmErr = FormValidators.validatePaymentMethods(selectedPaymentMethods)
+
+                                    businessNameError = bnErr
+                                    categoryError = catErr
+                                    descriptionError = descErr
+                                    locationError = locErr
+                                    meetingPointsError = mpErr
+                                    paymentMethodsError = pmErr
+
+                                    if (bnErr != null || catErr != null || descErr != null || locErr != null || mpErr != null || pmErr != null) {
+                                        val firstError = bnErr ?: catErr ?: descErr ?: locErr ?: mpErr ?: pmErr ?: "Por favor corrige los errores del formulario"
+                                        Toast.makeText(context, firstError, Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+
                                     onSave(
-                                        businessName,
+                                        businessName.trim(),
                                         businessStatus,
-                                        description,
-                                        category,
-                                        location,
+                                        description.trim(),
+                                        category.trim(),
+                                        location.trim(),
                                         openTime,
                                         closeTime,
                                         bannerUrl,
@@ -1110,9 +1148,14 @@ fun SellerStoreProfileScreen(
 
                         OutlinedTextField(
                             value = businessName,
-                            onValueChange = { businessName = it },
+                            onValueChange = {
+                                businessName = it
+                                if (showValidationErrors) businessNameError = FormValidators.validateStoreName(it)
+                            },
                             label = { Text("Nombre Comercial del Puesto *") },
                             placeholder = { Text("Ej. El Rincón del Sabor Universitario") },
+                            isError = businessNameError != null,
+                            supportingText = businessNameError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
@@ -1120,9 +1163,14 @@ fun SellerStoreProfileScreen(
 
                         OutlinedTextField(
                             value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Descripción del Negocio") },
+                            onValueChange = {
+                                description = it
+                                if (showValidationErrors) descriptionError = FormValidators.validateStoreDescription(it)
+                            },
+                            label = { Text("Descripción del Negocio *") },
                             placeholder = { Text("Ej. Hamburguesas artesanales, triples y jugos") },
+                            isError = descriptionError != null,
+                            supportingText = descriptionError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                             modifier = Modifier.fillMaxWidth(),
                             maxLines = 3,
                             shape = RoundedCornerShape(12.dp)
@@ -1134,18 +1182,28 @@ fun SellerStoreProfileScreen(
                         ) {
                             OutlinedTextField(
                                 value = category,
-                                onValueChange = { category = it },
-                                label = { Text("Giro / Categoría") },
+                                onValueChange = {
+                                    category = it
+                                    if (showValidationErrors) categoryError = FormValidators.validateStoreCategory(it)
+                                },
+                                label = { Text("Giro / Categoría *") },
                                 placeholder = { Text("Comidas / Snacks") },
+                                isError = categoryError != null,
+                                supportingText = categoryError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             OutlinedTextField(
                                 value = location,
-                                onValueChange = { location = it },
-                                label = { Text("Ubicación") },
+                                onValueChange = {
+                                    location = it
+                                    if (showValidationErrors) locationError = FormValidators.validateStoreLocation(it)
+                                },
+                                label = { Text("Ubicación en Campus *") },
                                 placeholder = { Text("Pabellón A / Cafetería") },
+                                isError = locationError != null,
+                                supportingText = locationError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp)
@@ -1205,6 +1263,22 @@ fun SellerStoreProfileScreen(
                             color = Color(0xFF64748B)
                         )
 
+                        if (meetingPointsError != null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = meetingPointsError!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+
                         if (availableMeetingPoints.isEmpty()) {
                             Text(
                                 text = "Cargando puntos de encuentro...",
@@ -1229,10 +1303,14 @@ fun SellerStoreProfileScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                selectedMeetingPoints = if (isChecked) {
+                                                val updated = if (isChecked) {
                                                     selectedMeetingPoints - point.id
                                                 } else {
                                                     selectedMeetingPoints + point.id
+                                                }
+                                                selectedMeetingPoints = updated
+                                                if (showValidationErrors) {
+                                                    meetingPointsError = FormValidators.validateMeetingPoints(updated)
                                                 }
                                             }
                                     ) {
@@ -1243,10 +1321,14 @@ fun SellerStoreProfileScreen(
                                             Checkbox(
                                                 checked = isChecked,
                                                 onCheckedChange = { checked ->
-                                                    selectedMeetingPoints = if (checked) {
+                                                    val updated = if (checked) {
                                                         selectedMeetingPoints + point.id
                                                     } else {
                                                         selectedMeetingPoints - point.id
+                                                    }
+                                                    selectedMeetingPoints = updated
+                                                    if (showValidationErrors) {
+                                                        meetingPointsError = FormValidators.validateMeetingPoints(updated)
                                                     }
                                                 },
                                                 colors = CheckboxDefaults.colors(checkedColor = Color(0xFF003366))
@@ -1319,6 +1401,22 @@ fun SellerStoreProfileScreen(
                             color = Color(0xFF64748B)
                         )
 
+                        if (paymentMethodsError != null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = paymentMethodsError!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+
                         val paymentOptions = listOf(
                             Triple("EFECTIVO", "Efectivo", "Pago contra entrega al momento de recibir el pedido"),
                             Triple("YAPE", "Yape", "Transferencia móvil directa BCP"),
@@ -1347,10 +1445,14 @@ fun SellerStoreProfileScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            selectedPaymentMethods = if (isChecked) {
-                                                if (selectedPaymentMethods.size > 1) selectedPaymentMethods - code else selectedPaymentMethods
+                                            val updated = if (isChecked) {
+                                                selectedPaymentMethods - code
                                             } else {
                                                 selectedPaymentMethods + code
+                                            }
+                                            selectedPaymentMethods = updated
+                                            if (showValidationErrors) {
+                                                paymentMethodsError = FormValidators.validatePaymentMethods(updated)
                                             }
                                         }
                                 ) {
@@ -1361,10 +1463,14 @@ fun SellerStoreProfileScreen(
                                         Checkbox(
                                             checked = isChecked,
                                             onCheckedChange = { checked ->
-                                                selectedPaymentMethods = if (checked) {
+                                                val updated = if (checked) {
                                                     selectedPaymentMethods + code
                                                 } else {
-                                                    if (selectedPaymentMethods.size > 1) selectedPaymentMethods - code else selectedPaymentMethods
+                                                    selectedPaymentMethods - code
+                                                }
+                                                selectedPaymentMethods = updated
+                                                if (showValidationErrors) {
+                                                    paymentMethodsError = FormValidators.validatePaymentMethods(updated)
                                                 }
                                             },
                                             colors = CheckboxDefaults.colors(checkedColor = textTint)

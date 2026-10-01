@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.chat
+package com.example.campusgo.features.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -81,8 +81,8 @@ class OrderChatViewModel(
             )
         }
 
-        // Marcar mensajes como leídos de inmediato en base de datos para no dejar notificaciones pendientes
-        if (subOrderId.isNotBlank() && currentUserId.isNotBlank()) {
+        // Marcar mensajes como leídos de inmediato en base de datos solo si la app está en primer plano
+        if (ActiveChatSessionManager.isAppInForeground && subOrderId.isNotBlank() && currentUserId.isNotBlank()) {
             viewModelScope.launch {
                 chatRepository.markMessagesAsRead(subOrderId, currentUserId)
             }
@@ -127,9 +127,9 @@ class OrderChatViewModel(
         messageObservationJob?.cancel()
         messageObservationJob = viewModelScope.launch {
             chatRepository.observeMessages(subOrderId, currentUserId).collect { messageList ->
-                // Marcar localmente como leídos los mensajes recibidos para que la UI los muestre leídos de inmediato
+                // Marcar localmente como leídos los mensajes recibidos para que la UI los muestre leídos si la app está visible
                 val readMessages = messageList.map {
-                    if (!it.isFromMe) it.copy(isRead = true) else it
+                    if (!it.isFromMe && ActiveChatSessionManager.isAppInForeground) it.copy(isRead = true) else it
                 }
                 _uiState.update { state ->
                     // Preservar mensajes optimistas locales aún no confirmados remotamente
@@ -139,8 +139,10 @@ class OrderChatViewModel(
                         isLoading = false
                     )
                 }
-                // Persistir lectura en la base de datos
-                chatRepository.markMessagesAsRead(subOrderId, currentUserId)
+                // Persistir lectura en la base de datos ÚNICAMENTE si la app está en primer plano
+                if (ActiveChatSessionManager.isAppInForeground) {
+                    chatRepository.markMessagesAsRead(subOrderId, currentUserId)
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.example.campusgo.features.tracking
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
@@ -101,23 +102,57 @@ fun OrderTrackingScreen(
     var subOrderToReport by remember { mutableStateOf<SubOrder?>(null) }
     var isSubmittingReport by remember { mutableStateOf(false) }
 
-    // Auto prompt de calificación inDrive al completarse la compra
-    var promptedSubOrderIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    val context = LocalContext.current
+    val ratingPrefs = remember(context, buyerProfile.id) {
+        context.getSharedPreferences("campusgo_rating_prefs_${buyerProfile.id}", Context.MODE_PRIVATE)
+    }
+
+    // Monitoreo de transición de estados: solo notifica si un subpedido pasa a COMPLETADO en tiempo real
+    val previousSubOrderStatuses = remember { mutableMapOf<String, SubOrderStatus>() }
+    var isInitialOrdersLoad by remember { mutableStateOf(true) }
+
     LaunchedEffect(uiState.orders, uiState.reviewedOrders) {
-        if (uiState.subOrderToRate == null && !uiState.isLoading) {
-            val unratedCompletedSub = uiState.orders
-                .flatMap { it.subOrders }
-                .firstOrNull { sub ->
-                    (sub.status == SubOrderStatus.COMPLETADO || sub.status == SubOrderStatus.PAGO_CONFIRMADO) &&
-                    !promptedSubOrderIds.contains(sub.id) &&
-                    !uiState.reviewedOrders.containsKey("${sub.orderId}-${sub.sellerId}") &&
-                    !uiState.reviewedOrders.containsKey(sub.id) &&
-                    !uiState.reviewedOrders.containsKey(sub.orderId)
-                }
-            if (unratedCompletedSub != null) {
-                promptedSubOrderIds = promptedSubOrderIds + unratedCompletedSub.id
-                viewModel.openRateDialog(unratedCompletedSub)
+        if (uiState.isLoading) return@LaunchedEffect
+
+        val currentSubs = uiState.orders.flatMap { it.subOrders }
+
+        if (isInitialOrdersLoad) {
+            // En la primera carga de la pantalla, guardamos los estados de todos los subpedidos
+            // existentes para nunca abrir el popup automáticamente por pedidos antiguos o pasados.
+            currentSubs.forEach { sub ->
+                previousSubOrderStatuses[sub.id] = sub.status
             }
+            if (currentSubs.isNotEmpty()) {
+                isInitialOrdersLoad = false
+            }
+            return@LaunchedEffect
+        }
+
+        // Si ya pasó la carga inicial, verificar si algún pedido pasó a COMPLETADO durante esta sesión activa
+        if (uiState.subOrderToRate == null) {
+            for (sub in currentSubs) {
+                val prevStatus = previousSubOrderStatuses[sub.id]
+                val isNowCompleted = sub.status == SubOrderStatus.COMPLETADO || sub.status == SubOrderStatus.PAGO_CONFIRMADO
+                val wasActive = prevStatus != null &&
+                        prevStatus != SubOrderStatus.COMPLETADO &&
+                        prevStatus != SubOrderStatus.PAGO_CONFIRMADO &&
+                        prevStatus != SubOrderStatus.CANCELADO
+                val alreadyPrompted = ratingPrefs.getBoolean("prompted_${sub.id}", false)
+                val alreadyReviewed = uiState.reviewedOrders.containsKey("${sub.orderId}-${sub.sellerId}") ||
+                        uiState.reviewedOrders.containsKey(sub.id) ||
+                        uiState.reviewedOrders.containsKey(sub.orderId)
+
+                if (isNowCompleted && wasActive && !alreadyPrompted && !alreadyReviewed) {
+                    ratingPrefs.edit().putBoolean("prompted_${sub.id}", true).apply()
+                    viewModel.openRateDialog(sub)
+                    break
+                }
+            }
+        }
+
+        // Mantener actualizado el mapa de estados previos
+        currentSubs.forEach { sub ->
+            previousSubOrderStatuses[sub.id] = sub.status
         }
     }
 
@@ -257,8 +292,12 @@ fun OrderTrackingScreen(
             commentPlaceholder = "¿Qué tal estuvo la atención y la comida? (Opcional)",
             submitButtonText = "Cerrar Pedido y Calificar ⭐",
             isSubmitting = uiState.isSubmittingReview,
-            onDismiss = { viewModel.dismissRateDialog() },
+            onDismiss = {
+                ratingPrefs.edit().putBoolean("prompted_${subOrder.id}", true).apply()
+                viewModel.dismissRateDialog()
+            },
             onSubmit = { rating, comment ->
+                ratingPrefs.edit().putBoolean("prompted_${subOrder.id}", true).apply()
                 viewModel.submitReview(
                     buyerId = buyerProfile.id,
                     orderId = subOrder.orderId,

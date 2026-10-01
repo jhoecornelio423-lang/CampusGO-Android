@@ -2,6 +2,7 @@ package com.example.campusgo.features.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.campusgo.core.util.FormValidators
 import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.domain.repository.AdminRepository
@@ -91,7 +92,8 @@ class AuthViewModel(
     }
 
     fun onPhoneChange(phone: String) {
-        _uiState.update { it.copy(phone = phone, errorMessage = null) }
+        val digits = phone.filter { it.isDigit() }.take(9)
+        _uiState.update { it.copy(phone = digits, errorMessage = null) }
     }
 
     fun onRoleChange(role: UserRole) {
@@ -200,6 +202,33 @@ class AuthViewModel(
                         }
                     }
             } else {
+                val fnErr = FormValidators.validateFullName(current.fullName)
+                if (fnErr != null) {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = fnErr) }
+                    return@launch
+                }
+                val phErr = FormValidators.validatePhone(current.phone)
+                if (phErr != null) {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = phErr) }
+                    return@launch
+                }
+                if (current.selectedRole == UserRole.EMPRENDEDOR) {
+                    val snErr = FormValidators.validateStoreName(current.storeName)
+                    if (snErr != null) {
+                        _uiState.update { it.copy(isLoading = false, errorMessage = snErr) }
+                        return@launch
+                    }
+                    val sdErr = FormValidators.validateStoreDescription(current.storeDescription)
+                    if (sdErr != null) {
+                        _uiState.update { it.copy(isLoading = false, errorMessage = sdErr) }
+                        return@launch
+                    }
+                    if (current.selectedMeetingPoint.isBlank()) {
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Selecciona un punto de entrega para tu puesto") }
+                        return@launch
+                    }
+                }
+
                 authRepository.signUp(
                     email = current.email,
                     password = current.password,

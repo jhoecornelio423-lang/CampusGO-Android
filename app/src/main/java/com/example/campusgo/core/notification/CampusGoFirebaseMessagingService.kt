@@ -54,21 +54,29 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
 
         Log.d(TAG, "FCM Payload: type=$type, orderId=$orderId, subOrderId=$subOrderId, title=$title, body=$body")
 
-        if (type == "chat" || type == "chat_message") {
-            // Si el usuario ya está conversando activamente con el remitente, no duplicar alerta
+        if (type.equals("chat", ignoreCase = true) ||
+            type.equals("chat_message", ignoreCase = true) ||
+            type.equals("message", ignoreCase = true)) {
+            // Si el usuario ya está conversando activamente con el remitente en primer plano, no duplicar alerta
             val isChatOpen = ActiveChatSessionManager.isChatActiveWith(
                 subOrderId = subOrderId ?: "",
                 senderId = senderId ?: ""
             )
 
             if (isChatOpen) {
-                Log.d(TAG, "Chat activo en pantalla. Silenciando notificación FCM.")
+                Log.d(TAG, "Chat activo en pantalla en primer plano. Silenciando notificación FCM.")
                 return
+            }
+
+            val resolvedNotifId = if (!subOrderId.isNullOrBlank()) {
+                Math.abs(subOrderId.hashCode())
+            } else {
+                Math.abs((senderId ?: body).hashCode())
             }
 
             CampusGoNotificationHelper.showChatNotification(
                 context = applicationContext,
-                notificationId = (subOrderId ?: senderId ?: body).hashCode(),
+                notificationId = resolvedNotifId,
                 senderName = senderName,
                 message = body,
                 subOrderId = subOrderId

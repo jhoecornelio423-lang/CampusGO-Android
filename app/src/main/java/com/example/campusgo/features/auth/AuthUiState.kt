@@ -1,5 +1,6 @@
-﻿package com.example.campusgo.features.auth
+package com.example.campusgo.features.auth
 
+import com.example.campusgo.core.util.FormValidators
 import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.model.UserRole
@@ -38,19 +39,18 @@ data class AuthUiState(
     val profile: UserProfile? = null,
     val isSellerPendingApproval: Boolean = false
 ) {
-    val isEmailValid: Boolean get() {
-        val trimmed = email.trim()
-        return trimmed.isNotEmpty() && EMAIL_REGEX.matches(trimmed)
-    }
+    val isEmailValid: Boolean get() = FormValidators.validateEmail(email) == null
 
     val isInstitutionalEmailValid: Boolean get() = isEmailValid
 
     val canSubmit: Boolean get() {
-        if (!isEmailValid || password.length < 6 || isLoading) return false
+        if (!isEmailValid || FormValidators.validatePassword(password) != null || isLoading) return false
         if (isLoginMode) return true
-        if (fullName.isBlank() || phone.isBlank()) return false
+        if (FormValidators.validateFullName(fullName) != null || FormValidators.validatePhone(phone) != null) return false
         if (selectedRole == UserRole.EMPRENDEDOR) {
-            return storeName.isNotBlank() && storeDescription.isNotBlank() && selectedMeetingPoint.isNotBlank()
+            return FormValidators.validateStoreName(storeName) == null &&
+                    FormValidators.validateStoreDescription(storeDescription) == null &&
+                    selectedMeetingPoint.isNotBlank()
         }
         return true
     }

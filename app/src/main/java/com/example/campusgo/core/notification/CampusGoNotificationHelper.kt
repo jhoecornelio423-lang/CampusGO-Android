@@ -16,8 +16,8 @@ import com.example.campusgo.R
 
 object CampusGoNotificationHelper {
 
-    const val CHANNEL_ORDERS = "campusgo_orders_channel_v3"
-    const val CHANNEL_CHAT = "campusgo_chat_channel_v3"
+    const val CHANNEL_ORDERS = "campusgo_orders_channel_v4"
+    const val CHANNEL_CHAT = "campusgo_chat_channel_v4"
     const val CHANNEL_SERVICE = "campusgo_service_channel_v3"
     const val SERVICE_NOTIFICATION_ID = 9001
 
@@ -25,12 +25,15 @@ object CampusGoNotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Limpieza proactiva de canales antiguos y eliminación del canal del servicio foreground
+            // Limpieza proactiva de canales antiguos
             try {
                 notificationManager.deleteNotificationChannel(CHANNEL_SERVICE)
                 notificationManager.deleteNotificationChannel("campusgo_orders_channel_v2")
+                notificationManager.deleteNotificationChannel("campusgo_orders_channel_v3")
                 notificationManager.deleteNotificationChannel("campusgo_chat_channel_v2")
+                notificationManager.deleteNotificationChannel("campusgo_chat_channel_v3")
                 notificationManager.deleteNotificationChannel("campusgo_service_channel_v2")
+                notificationManager.deleteNotificationChannel("campusgo_service_channel_v3")
                 notificationManager.deleteNotificationChannel("vallego_orders_channel")
                 notificationManager.deleteNotificationChannel("vallego_chat_channel")
                 notificationManager.deleteNotificationChannel("vallego_service_channel")
@@ -38,9 +41,18 @@ object CampusGoNotificationHelper {
             } catch (_: Exception) {}
 
             val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val audioAttributes = AudioAttributes.Builder()
+                ?: android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+
+            val chatAudioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                .build()
+
+            val orderAudioAttributes = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
                 .build()
 
             // Canal para notificaciones inmediatas de pedidos (Máxima prioridad, sonido y vibración garantizados)
@@ -54,7 +66,7 @@ object CampusGoNotificationHelper {
                 vibrationPattern = longArrayOf(0, 300, 200, 300)
                 enableLights(true)
                 lightColor = android.graphics.Color.GREEN
-                setSound(defaultSoundUri, audioAttributes)
+                setSound(defaultSoundUri, orderAudioAttributes)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -67,10 +79,10 @@ object CampusGoNotificationHelper {
             ).apply {
                 description = "Mensajes de chat entre compradores y vendedores"
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 200, 100, 200)
+                vibrationPattern = longArrayOf(0, 250, 150, 250)
                 enableLights(true)
                 lightColor = android.graphics.Color.BLUE
-                setSound(defaultSoundUri, audioAttributes)
+                setSound(defaultSoundUri, chatAudioAttributes)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -86,7 +98,7 @@ object CampusGoNotificationHelper {
                 vibrationPattern = longArrayOf(0, 300, 200, 300)
                 enableLights(true)
                 lightColor = android.graphics.Color.GREEN
-                setSound(defaultSoundUri, audioAttributes)
+                setSound(defaultSoundUri, orderAudioAttributes)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -102,7 +114,7 @@ object CampusGoNotificationHelper {
                 vibrationPattern = longArrayOf(0, 200, 100, 200)
                 enableLights(true)
                 lightColor = android.graphics.Color.BLUE
-                setSound(defaultSoundUri, audioAttributes)
+                setSound(defaultSoundUri, chatAudioAttributes)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -136,6 +148,7 @@ object CampusGoNotificationHelper {
         )
 
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -145,7 +158,7 @@ object CampusGoNotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setSound(defaultSoundUri)
             .setVibrate(longArrayOf(0, 300, 200, 300))
-            .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
@@ -173,8 +186,8 @@ object CampusGoNotificationHelper {
             }
         }
 
-        val resolvedNotifId = if (!subOrderId.isNullOrBlank()) Math.abs(subOrderId.hashCode()) else Math.abs(notificationId)
-        val tag = if (!subOrderId.isNullOrBlank()) "chat_$subOrderId" else null
+        val resolvedNotifId = if (notificationId != 0) Math.abs(notificationId) else if (!subOrderId.isNullOrBlank()) Math.abs(subOrderId.hashCode()) else (1000..9999).random()
+        val tag = if (!subOrderId.isNullOrBlank()) "chat_${subOrderId}_$resolvedNotifId" else null
 
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -184,6 +197,7 @@ object CampusGoNotificationHelper {
         )
 
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
 
         val notification = NotificationCompat.Builder(context, CHANNEL_CHAT)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -192,8 +206,9 @@ object CampusGoNotificationHelper {
             .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText("Nuevo mensaje"))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setSound(defaultSoundUri)
-            .setVibrate(longArrayOf(0, 200, 100, 200))
-            .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
+            .setVibrate(longArrayOf(0, 250, 150, 250))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setOnlyAlertOnce(false)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -237,17 +252,25 @@ object CampusGoNotificationHelper {
                     val id = statusBarNotif.id
 
                     val isChatChannel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        statusBarNotif.notification.channelId == CHANNEL_CHAT
+                        statusBarNotif.notification.channelId == CHANNEL_CHAT || statusBarNotif.notification.channelId == "campusgo_chat_channel_v3"
                     } else false
 
                     val matchesSubOrder = !subOrderId.isNullOrBlank() && (
                         tag == "chat_$subOrderId" ||
+                        tag?.startsWith("chat_${subOrderId}_") == true ||
+                        tag?.contains(subOrderId) == true ||
                         id == Math.abs(subOrderId.hashCode()) ||
                         id == subOrderId.hashCode()
                     )
 
-                    // Al abrir el chat, descartar de la barra de estado cualquier notificación de chat activa
-                    if (isChatChannel || matchesSubOrder) {
+                    // Si se especifica subOrderId, cancelar solo ese chat; si es null, descartar canales de chat
+                    val shouldCancel = if (!subOrderId.isNullOrBlank()) {
+                        matchesSubOrder
+                    } else {
+                        isChatChannel
+                    }
+
+                    if (shouldCancel) {
                         notificationManager.cancel(tag, id)
                     }
                 }
