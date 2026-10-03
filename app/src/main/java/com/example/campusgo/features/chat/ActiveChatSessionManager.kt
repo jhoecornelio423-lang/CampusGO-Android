@@ -15,7 +15,7 @@ object ActiveChatSessionManager {
     var activeOtherUserId: String? = null
 
     @Volatile
-    var isAppInForeground: Boolean = true
+    var isAppInForeground: Boolean = false
 
     /**
      * Retorna verdadero si el usuario actualmente tiene abierta y visible en pantalla

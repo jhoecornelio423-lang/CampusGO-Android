@@ -95,7 +95,7 @@ class CampusGoPushService : Service(), KoinComponent {
         }
 
         PushWatchdogReceiver.scheduleNextWatchdog(applicationContext)
-        Log.d(TAG, "CampusGoPushService iniciado en primer plano.")
+        Log.i(TAG, "CampusGoPushService iniciado en primer plano.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -104,18 +104,60 @@ class CampusGoPushService : Service(), KoinComponent {
         return START_STICKY
     }
 
+    private suspend fun resolveCurrentUser(): String? {
+        var user = auth.currentUserOrNull()
+        if (user != null) {
+            saveUserBackup(user.id)
+            return user.id
+        }
+
+        try {
+            auth.loadFromStorage()
+            user = auth.currentUserOrNull()
+            if (user != null) {
+                Log.i(TAG, "resolveCurrentUser: Sesión restaurada desde storage para ${user.id}")
+                saveUserBackup(user.id)
+                return user.id
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "resolveCurrentUser: Error recargando desde storage: ${e.message}")
+        }
+
+        try {
+            auth.refreshCurrentSession()
+            user = auth.currentUserOrNull()
+            if (user != null) {
+                Log.i(TAG, "resolveCurrentUser: Sesión refrescada exitosamente para ${user.id}")
+                saveUserBackup(user.id)
+                return user.id
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "resolveCurrentUser: Error refrescando sesión: ${e.message}")
+        }
+
+        val prefs = getSharedPreferences("campusgo_session_backup", Context.MODE_PRIVATE)
+        return prefs.getString("last_logged_in_user_id", null)
+    }
+
+    private fun saveUserBackup(userId: String) {
+        try {
+            val prefs = getSharedPreferences("campusgo_session_backup", Context.MODE_PRIVATE)
+            prefs.edit().putString("last_logged_in_user_id", userId).apply()
+        } catch (_: Exception) {}
+    }
+
     private suspend fun ensureValidSession() {
         val now = System.currentTimeMillis()
-        // Supabase JWT expira a los 60 min. Refrescar proactivamente cada 40 minutos en segundo plano
-        if (now - lastSessionRefreshTime > 40 * 60 * 1000L) {
+        if (now - lastSessionRefreshTime > 30 * 60 * 1000L) {
             try {
-                if (auth.currentSessionOrNull() != null) {
-                    auth.refreshCurrentSession()
-                    lastSessionRefreshTime = now
-                    Log.d(TAG, "Sesión de Supabase refrescada automáticamente en segundo plano.")
-                }
+                auth.refreshCurrentSession()
+                lastSessionRefreshTime = now
+                Log.i(TAG, "Sesión de Supabase refrescada automáticamente en segundo plano.")
             } catch (e: Exception) {
                 Log.w(TAG, "Aviso al refrescar sesión preventivamente: ${e.message}")
+                try {
+                    auth.loadFromStorage()
+                } catch (_: Exception) {}
             }
         }
     }
@@ -210,18 +252,16 @@ class CampusGoPushService : Service(), KoinComponent {
 
     private fun startOrderMonitoringLoop() {
         if (monitoringJob?.isActive == true) {
-            Log.d(TAG, "Bucle de monitoreo ya activo. Se omite duplicación.")
+            Log.i(TAG, "Bucle de monitoreo ya activo. Se omite duplicación.")
             return
         }
         monitoringJob = serviceScope.launch {
-            Log.d(TAG, "Iniciando bucle de monitoreo de pedidos en segundo plano...")
+            Log.i(TAG, "Iniciando bucle de monitoreo de pedidos y chat en segundo plano...")
             while (isActive) {
                 try {
                     try { wakeLock?.acquire(3000L) } catch (_: Exception) {}
-                    val user = auth.currentUserOrNull()
-                    if (user != null) {
-                        val userId = user.id
-                        // Verificar y refrescar proactivamente la sesión para evitar JWT expired en segundo plano
+                    val userId = resolveCurrentUser()
+                    if (!userId.isNullOrBlank()) {
                         ensureValidSession()
 
                         // Determinar rol con cache TTL de 5 minutos para no saturar Supabase con 15 requests/min
@@ -247,20 +287,23 @@ class CampusGoPushService : Service(), KoinComponent {
                             monitorBuyerOrders(userId)
                         }
                         monitorChatMessages(userId)
+                    } else {
+                        Log.i(TAG, "Bucle de monitoreo: esperando autenticación o sesión activa...")
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Error durante chequeo de pedidos: ${e.message}")
+                    Log.w(TAG, "Error durante chequeo de pedidos/chat: ${e.message}")
                     if (e.message?.contains("JWT", ignoreCase = true) == true ||
                         e.message?.contains("expired", ignoreCase = true) == true ||
                         e.message?.contains("401") == true) {
                         runCatching { auth.refreshCurrentSession() }
+                        runCatching { auth.loadFromStorage() }
                     }
                 } finally {
                     if (wakeLock?.isHeld == true) {
                         try { wakeLock?.release() } catch (_: Exception) {}
                     }
                 }
-                delay(4000)
+                delay(2500)
             }
         }
     }
@@ -582,6 +625,8 @@ class CampusGoPushService : Service(), KoinComponent {
 
             if (unreadRemote.isEmpty()) return
 
+            Log.i(TAG, "monitorChatMessages: detectados ${unreadRemote.size} mensajes no leídos para $currentUserId")
+
             for (msg in unreadRemote) {
                 val eventKey = "chat_msg_${msg.id}"
                 if (isAlreadyNotified(eventKey)) continue
@@ -594,6 +639,7 @@ class CampusGoPushService : Service(), KoinComponent {
                 )
 
                 if (isChatOpenWithSender) {
+                    Log.i(TAG, "Chat activo en pantalla con ${msg.senderId}. Silenciando.")
                     markAsNotified(eventKey)
                     CampusGoNotificationHelper.cancelChatNotifications(this@CampusGoPushService, msg.subOrderId)
                     continue
@@ -602,6 +648,7 @@ class CampusGoPushService : Service(), KoinComponent {
                 val senderName = getSenderName(msg.senderId)
                 markAsNotified(eventKey)
 
+                Log.i(TAG, "DISPARANDO NOTIFICACION CHAT para msg ${msg.id}: ${msg.content} de $senderName")
                 CampusGoNotificationHelper.showChatNotification(
                     context = this@CampusGoPushService,
                     notificationId = Math.abs(msg.id.hashCode()),
@@ -611,9 +658,10 @@ class CampusGoPushService : Service(), KoinComponent {
                 )
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Chequeo de mensajes de chat omitido: ${e.message}")
+            Log.i(TAG, "Chequeo de mensajes de chat omitido/aviso: ${e.message}")
             if (e.message?.contains("JWT", ignoreCase = true) == true || e.message?.contains("expired", ignoreCase = true) == true) {
                 runCatching { auth.refreshCurrentSession() }
+                runCatching { auth.loadFromStorage() }
             }
         }
     }
@@ -636,8 +684,8 @@ class CampusGoPushService : Service(), KoinComponent {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "onTaskRemoved: Servicio finalizado limpiamente.")
-        stopSelf()
+        Log.i(TAG, "onTaskRemoved: Reprogramando servicio en segundo plano...")
+        PushWatchdogReceiver.scheduleNextWatchdog(applicationContext, 2000L)
     }
 
     override fun onDestroy() {
@@ -648,7 +696,7 @@ class CampusGoPushService : Service(), KoinComponent {
         }
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
         nm?.cancel(CampusGoNotificationHelper.SERVICE_NOTIFICATION_ID)
-        Log.d(TAG, "CampusGoPushService destruido y notificación fija removida.")
+        Log.i(TAG, "CampusGoPushService destruido y notificación fija removida.")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -657,9 +705,17 @@ class CampusGoPushService : Service(), KoinComponent {
         private const val TAG = "CampusGoPushService"
 
         fun start(context: Context) {
-            // Deprecado tras la activación de Firebase Cloud Messaging (FCM) nativo.
-            // No iniciar ForegroundService para no mostrar la notificación persistente.
-            stop(context)
+            try {
+                val intent = Intent(context, CampusGoPushService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+                Log.i(TAG, "CampusGoPushService iniciado en primer plano.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error iniciando CampusGoPushService: ${e.message}", e)
+            }
         }
 
         fun stop(context: Context) {

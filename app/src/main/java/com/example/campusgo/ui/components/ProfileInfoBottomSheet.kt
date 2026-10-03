@@ -147,11 +147,11 @@ fun ProfileInfoBottomSheet(
                 modifier = Modifier.padding(vertical = 14.dp)
             )
 
-            // Contenido con scroll
+            // Contenido con scroll (altura máxima acotada sin .weight para evitar vibración de layout)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false)
+                    .heightIn(max = sheetMaxHeight - 90.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -159,45 +159,61 @@ fun ProfileInfoBottomSheet(
                     ProfileInfoType.TERMS -> {
                         InfoCardItem(
                             title = "1. Uso Responsable en Campus",
-                            description = "CampusGO es una plataforma exclusiva para conectar a la comunidad universitaria con vendedores y puestos autorizados del campus. Al usar la app, aceptas convivir en un marco de respeto y honestidad."
+                            description = "CampusGO es una plataforma exclusiva para conectar a la comunidad universitaria con vendedores y puestos autorizados del campus. Al usar la app, aceptas convivir en un marco de respeto, puntualidad y honestidad mutua."
                         )
                         InfoCardItem(
                             title = "2. Compromiso de Pedidos",
-                            description = "Al confirmar un pedido, asumes el compromiso de retirarlo y abonarlo en el punto de encuentro y horario acordado. Los pedidos falsos o cancelaciones arbitrarias perjudican a los emprendedores universitarios."
+                            description = "Al confirmar un pedido, asumes el compromiso vinculante de retirarlo y abonarlo en el punto de encuentro y horario acordado. Los pedidos falsos o cancelaciones arbitrarias perjudican gravemente a los emprendedores universitarios."
                         )
                         InfoCardItem(
                             title = "3. Pagos Directos",
-                            description = "Los pagos se efectúan directamente al vendedor mediante Yape, Plin o Efectivo contra entrega. CampusGO no cobra comisiones a compradores ni custodia fondos financieros."
+                            description = "Los pagos se efectúan directamente al vendedor mediante Yape, Plin o Efectivo contra entrega. CampusGO no cobra comisiones a compradores ni custodia fondos financieros ni saldo bancario."
                         )
                         InfoCardItem(
                             title = "4. Normas de Convivencia y Calificación",
-                            description = "El acoso, lenguaje ofensivo en el chat o ausencias reiteradas conllevan advertencias en el perfil y la suspensión de la cuenta. Las calificaciones deben reflejar honestamente la experiencia de compra."
+                            description = "El acoso, lenguaje ofensivo en el chat o ausencias reiteradas conllevan advertencias en el perfil y la suspensión definitiva de la cuenta. Las calificaciones deben reflejar honestamente la experiencia de compra."
                         )
                         InfoCardItem(
-                            title = "5. Reclamos y Reportes",
-                            description = "Si un puesto no entrega a tiempo o existe un inconveniente con el producto, puedes reportar la incidencia con el botón de advertencia para mediación de moderación del campus."
+                            title = "5. Reclamos y Reportes de Incidencias",
+                            description = "Si un puesto no entrega a tiempo o existe un inconveniente con el producto, puedes reportar la incidencia con el botón de advertencia para la mediación del equipo de moderación del campus."
+                        )
+                        InfoCardItem(
+                            title = "6. Política de No-Show y Strikes",
+                            description = "Si un comprador no acude a recoger su pedido o un vendedor no entrega lo pactado, se registra una falta oficial. Acumular 5 advertencias (strikes) genera la suspensión automática de compras o ventas."
+                        )
+                        InfoCardItem(
+                            title = "7. Puntos de Encuentro Autorizados",
+                            description = "Todas las entregas y transacciones deben realizarse obligatoriamente dentro de las zonas y puntos de encuentro autorizados del campus para garantizar la seguridad de toda la comunidad."
+                        )
+                        InfoCardItem(
+                            title = "8. Calidad y Responsabilidad de Productos",
+                            description = "Los vendedores son responsables exclusivos de la frescura, salubridad y calidad de los alimentos y artículos que comercializan, debiendo cumplir con las normas sanitarias institucionales."
                         )
                     }
                     ProfileInfoType.PRIVACY -> {
                         InfoCardItem(
                             title = "1. Información que Recopilamos",
-                            description = "Recopilamos únicamente tu nombre completo, número de teléfono para coordinar pedidos, correo institucional, campus y foto de perfil si decides subirla."
+                            description = "Recopilamos únicamente tu nombre completo, número de teléfono para coordinar pedidos, correo electrónico institucional o regular, campus universitario y foto de perfil si decides subirla."
                         )
                         InfoCardItem(
                             title = "2. Finalidad del Uso de Datos",
-                            description = "Tus datos personales se utilizan exclusivamente para la gestión operativa de tus órdenes, coordinación en los puntos de entrega y validación de membresía universitaria."
+                            description = "Tus datos personales se utilizan exclusivamente para la gestión operativa de tus órdenes, coordinación en tiempo real en los puntos de entrega y validación de membresía de la comunidad universitaria."
                         )
                         InfoCardItem(
                             title = "3. Confidencialidad y Terceros",
-                            description = "No vendemos, alquilamos ni compartimos tus datos personales con agencias de publicidad comercial ni con entidades externas ajenas al funcionamiento de CampusGO."
+                            description = "No vendemos, alquilamos ni compartimos tus datos personales con empresas de telemarketing, agencias publicitarias ni entidades comerciales externas ajenas a la operación de CampusGO."
                         )
                         InfoCardItem(
-                            title = "4. Seguridad de tus Datos",
-                            description = "Tu información se almacena con altos estándares de seguridad y autenticación cifrada para protegerla contra accesos no autorizados."
+                            title = "4. Seguridad y Cifrado",
+                            description = "Tu información y contraseñas se almacenan con altos estándares de seguridad en la nube con cifrado criptográfico robusto y control de acceso por roles para protegerla de cualquier vulnerabilidad."
                         )
                         InfoCardItem(
                             title = "5. Gestión y Eliminación de tu Cuenta",
-                            description = "Puedes modificar tu información en cualquier momento desde Mi Perfil o solicitar la baja total de tu cuenta contactando a nuestro canal de soporte."
+                            description = "Puedes modificar tu información en cualquier momento desde tu Perfil o solicitar la baja y supresión total de tus datos personales contactando directamente a nuestro soporte: soporte@kodexti.com."
+                        )
+                        InfoCardItem(
+                            title = "6. Derechos ARCO",
+                            description = "Puedes ejercer en cualquier momento tus derechos de Acceso, Rectificación, Cancelación y Oposición sobre tus datos personales enviando una solicitud formal a soporte@kodexti.com."
                         )
                     }
                     ProfileInfoType.HELP -> {
@@ -266,7 +282,7 @@ fun ProfileInfoBottomSheet(
                                     OutlinedButton(
                                         onClick = {
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                            val clip = ClipData.newPlainText("Soporte CampusGO", "soporte@campusgo.app")
+                                            val clip = ClipData.newPlainText("Soporte CampusGO", "soporte@kodexti.com")
                                             clipboard.setPrimaryClip(clip)
                                             Toast.makeText(context, "Correo de soporte copiado", Toast.LENGTH_SHORT).show()
                                         },
@@ -289,12 +305,13 @@ fun ProfileInfoBottomSheet(
                                         onClick = {
                                             try {
                                                 val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                                    data = Uri.parse("mailto:soporte@campusgo.app")
+                                                    data = Uri.parse("mailto:soporte@kodexti.com")
                                                     putExtra(Intent.EXTRA_SUBJECT, "Consulta Soporte CampusGO")
                                                 }
                                                 context.startActivity(intent)
+                                                Toast.makeText(context, "Abriendo tu app de correo para enviar mensaje a soporte@kodexti.com", Toast.LENGTH_SHORT).show()
                                             } catch (e: Exception) {
-                                                Toast.makeText(context, "Escribe a soporte@campusgo.app", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, "Escribe a soporte@kodexti.com", Toast.LENGTH_LONG).show()
                                             }
                                         },
                                         shape = RoundedCornerShape(10.dp),

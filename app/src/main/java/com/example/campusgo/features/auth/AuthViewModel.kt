@@ -88,7 +88,20 @@ class AuthViewModel(
     }
 
     fun onFullNameChange(fullName: String) {
-        _uiState.update { it.copy(fullName = fullName, errorMessage = null) }
+        val parts = fullName.trim().split(" ", limit = 2)
+        _uiState.update { it.copy(firstName = parts.firstOrNull().orEmpty(), lastName = parts.getOrNull(1).orEmpty(), errorMessage = null) }
+    }
+
+    fun onFirstNameChange(firstName: String) {
+        _uiState.update { it.copy(firstName = firstName, errorMessage = null) }
+    }
+
+    fun onLastNameChange(lastName: String) {
+        _uiState.update { it.copy(lastName = lastName, errorMessage = null) }
+    }
+
+    fun onCustomCategoryChange(customCategory: String) {
+        _uiState.update { it.copy(customCategory = customCategory, errorMessage = null) }
     }
 
     fun onPhoneChange(phone: String) {
@@ -202,9 +215,14 @@ class AuthViewModel(
                         }
                     }
             } else {
-                val fnErr = FormValidators.validateFullName(current.fullName)
+                val fnErr = FormValidators.validateFirstName(current.firstName)
                 if (fnErr != null) {
                     _uiState.update { it.copy(isLoading = false, errorMessage = fnErr) }
+                    return@launch
+                }
+                val lnErr = FormValidators.validateLastName(current.lastName)
+                if (lnErr != null) {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = lnErr) }
                     return@launch
                 }
                 val phErr = FormValidators.validatePhone(current.phone)
@@ -217,6 +235,14 @@ class AuthViewModel(
                     if (snErr != null) {
                         _uiState.update { it.copy(isLoading = false, errorMessage = snErr) }
                         return@launch
+                    }
+                    val isCustomCategory = current.storeCategory.equals("Otros", ignoreCase = true) || current.storeCategory.equals("Otro", ignoreCase = true)
+                    if (isCustomCategory) {
+                        val catErr = FormValidators.validateCustomCategory(current.customCategory)
+                        if (catErr != null) {
+                            _uiState.update { it.copy(isLoading = false, errorMessage = catErr) }
+                            return@launch
+                        }
                     }
                     val sdErr = FormValidators.validateStoreDescription(current.storeDescription)
                     if (sdErr != null) {
@@ -237,7 +263,7 @@ class AuthViewModel(
                     role = current.selectedRole,
                     campus = current.campus,
                     storeName = current.storeName.takeIf { current.selectedRole == UserRole.EMPRENDEDOR },
-                    category = current.storeCategory.takeIf { current.selectedRole == UserRole.EMPRENDEDOR },
+                    category = current.effectiveCategory.takeIf { current.selectedRole == UserRole.EMPRENDEDOR },
                     description = current.storeDescription.takeIf { current.selectedRole == UserRole.EMPRENDEDOR },
                     meetingPoint = current.selectedMeetingPoint.takeIf { current.selectedRole == UserRole.EMPRENDEDOR }
                 )

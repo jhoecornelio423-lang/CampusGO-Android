@@ -22,6 +22,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import com.example.campusgo.core.util.ImageCompressor
+import kotlinx.coroutines.launch
+import androidx.compose.ui.draw.clip
 import com.example.campusgo.R
 
 enum class IncidentContextType {
@@ -45,6 +60,26 @@ fun ReportIncidentDialog(
     isSubmitting: Boolean = false,
     onDismiss: () -> Unit,
     onSubmit: (reasonKey: String, reasonLabel: String, details: String) -> Unit
+) {
+    ReportIncidentDialog(
+        title = title,
+        subtitle = subtitle,
+        contextType = contextType,
+        isSubmitting = isSubmitting,
+        onDismiss = onDismiss,
+        onSubmit = { key, label, details, _ -> onSubmit(key, label, details) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReportIncidentDialog(
+    title: String,
+    subtitle: String? = null,
+    contextType: IncidentContextType,
+    isSubmitting: Boolean = false,
+    onDismiss: () -> Unit,
+    onSubmit: (reasonKey: String, reasonLabel: String, details: String, evidenceBytes: ByteArray?) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val options = remember(contextType) {
@@ -143,9 +178,35 @@ fun ReportIncidentDialog(
         }
     }
 
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var selectedKey by remember { mutableStateOf(options.first().key) }
     var detailsText by remember { mutableStateOf("") }
+    var selectedImageBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var selectedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isCompressingImage by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isCompressingImage = true
+            coroutineScope.launch {
+                val result = ImageCompressor.compressImageFromUri(context, uri)
+                if (result.isSuccess) {
+                    val bytes = result.getOrThrow()
+                    selectedImageBytes = bytes
+                    selectedBitmap?.recycle()
+                    selectedBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                } else {
+                    validationError = "No se pudo optimizar la imagen seleccionada."
+                }
+                isCompressingImage = false
+            }
+        }
+    }
+
     val configuration = LocalConfiguration.current
     val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
 
@@ -422,6 +483,150 @@ fun ReportIncidentDialog(
                         )
                     }
                 }
+
+                // Sección de Evidencia Fotográfica (Opcional)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "EVIDENCIA FOTOGRÁFICA (OPCIONAL)",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.5.sp
+                    )
+
+                    if (selectedBitmap != null) {
+                        Surface(
+                            color = Color.White,
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Image(
+                                    bitmap = selectedBitmap!!.asImageBitmap(),
+                                    contentDescription = "Evidencia seleccionada",
+                                    modifier = Modifier
+                                        .size(68.dp)
+                                        .clip(RoundedCornerShape(10.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Fotografía adjunta",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Text(
+                                        text = "Optimizada para tu dispositivo",
+                                        fontSize = 11.5.sp,
+                                        color = Color(0xFF16A34A),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        selectedImageBytes = null
+                                        selectedBitmap?.recycle()
+                                        selectedBitmap = null
+                                    },
+                                    enabled = !isSubmitting,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color(0xFFFEE2E2), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Eliminar foto",
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else if (isCompressingImage) {
+                        Surface(
+                            color = Color.White,
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFF2563EB)
+                                )
+                                Text(
+                                    text = "Optimizando imagen de forma segura...",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            color = Color.White,
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.2.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isSubmitting) {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    color = Color(0xFFEFF6FF),
+                                    shape = CircleShape,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.AddPhotoAlternate,
+                                            contentDescription = null,
+                                            tint = Color(0xFF2563EB),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Adjuntar Foto o Captura de Prueba",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFF1E3A8A)
+                                    )
+                                    Text(
+                                        text = "Comprobante Yape/Plin, punto de entrega, chat, etc.",
+                                        fontSize = 11.5.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Barra inferior fija con botones de acción estilo Rappi
@@ -445,7 +650,7 @@ fun ReportIncidentDialog(
                                 return@Button
                             }
                             val selectedOption = options.firstOrNull { it.key == selectedKey } ?: options.first()
-                            onSubmit(selectedOption.key, selectedOption.label, trimmed)
+                            onSubmit(selectedOption.key, selectedOption.label, trimmed, selectedImageBytes)
                         },
                         enabled = !isSubmitting,
                         colors = ButtonDefaults.buttonColors(

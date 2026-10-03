@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.core.di
+package com.example.campusgo.core.di
 
 import com.example.campusgo.data.repository.AdminRepositoryImpl
 import com.example.campusgo.data.repository.AuthRepositoryImpl
@@ -34,7 +34,8 @@ val repositoryModule = module {
     single<OrderRepository> {
         OrderRepositoryImpl(
             postgrest = get(),
-            recalculateOrderUseCase = get()
+            recalculateOrderUseCase = get(),
+            storage = getOrNull()
         )
     }
 
@@ -57,6 +58,13 @@ val repositoryModule = module {
         com.example.campusgo.data.repository.ChatRepositoryImpl(
             postgrest = get(),
             realtime = getOrNull()
+        )
+    }
+
+    single<com.example.campusgo.domain.repository.SupportRepository> {
+        com.example.campusgo.data.repository.SupportRepositoryImpl(
+            postgrest = get(),
+            storage = get()
         )
     }
 }

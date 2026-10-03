@@ -46,3 +46,7 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.support_messages;
     END IF;
 END $$;
+
+-- 4. Agregar columna attachment_url a support_messages si no existe
+ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+

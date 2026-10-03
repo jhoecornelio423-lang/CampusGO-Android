@@ -13,28 +13,15 @@ import com.example.campusgo.core.di.networkModule
 import com.example.campusgo.core.di.repositoryModule
 import com.example.campusgo.core.di.uiModule
 import com.example.campusgo.core.notification.CampusGoNotificationHelper
+import com.example.campusgo.core.notification.CampusGoPushService
 import com.example.campusgo.core.notification.PushWatchdogReceiver
 import com.example.campusgo.data.repository.SellerPaymentMethodsStorage
 import com.example.campusgo.features.chat.ActiveChatSessionManager
-import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.postgrest.Postgrest
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import org.koin.core.context.startKoin
 
-class CampusGoApplication : Application(), ImageLoaderFactory, KoinComponent {
-
-    private val auth: Auth by inject()
-    private val postgrest: Postgrest by inject()
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+class CampusGoApplication : Application(), ImageLoaderFactory {
 
     override fun attachBaseContext(base: android.content.Context) {
         val configuration = android.content.res.Configuration(base.resources.configuration)
@@ -81,73 +68,10 @@ class CampusGoApplication : Application(), ImageLoaderFactory, KoinComponent {
         })
 
         try {
-            PushWatchdogReceiver.cancelWatchdog(this)
-        } catch (_: Exception) {}
-
-        // Iniciar escucha reactiva en segundo plano para mensajes de chat mientras el proceso de la app esté activo
-        startBackgroundChatObserver()
-    }
-
-    private fun startBackgroundChatObserver() {
-        appScope.launch {
-            android.util.Log.d("CampusGoChatObserver", "Observador de mensajes de chat iniciado.")
-            while (isActive) {
-                try {
-                    val user = auth.currentUserOrNull()
-                    if (user != null) {
-                        val unread = postgrest.from("order_messages")
-                            .select {
-                                filter {
-                                    eq("receiver_id", user.id)
-                                    eq("is_read", false)
-                                }
-                                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                                limit(10)
-                            }
-                            .decodeList<com.example.campusgo.data.repository.RemoteOrderMessageDto>()
-
-                        val prefs = getSharedPreferences("campusgo_notifs_cache", Context.MODE_PRIVATE)
-
-                        for (msg in unread) {
-                            val eventKey = "chat_msg_${msg.id}"
-                            if (prefs.getBoolean(eventKey, false)) continue
-
-                            val isChatActive = ActiveChatSessionManager.isChatActiveWith(
-                                subOrderId = msg.subOrderId,
-                                senderId = msg.senderId
-                            )
-
-                            if (isChatActive) {
-                                prefs.edit().putBoolean(eventKey, true).apply()
-                                CampusGoNotificationHelper.cancelChatNotifications(this@CampusGoApplication, msg.subOrderId)
-                                continue
-                            }
-
-                            // Obtener nombre del remitente
-                            val senderName = runCatching {
-                                val prof = postgrest.from("profiles")
-                                    .select { filter { eq("id", msg.senderId) } }
-                                    .decodeSingleOrNull<com.example.campusgo.data.repository.ProfileBasicDto>()
-                                prof?.fullName?.takeIf { it.isNotBlank() }
-                            }.getOrNull() ?: "Mensaje de CampusGO"
-
-                            prefs.edit().putBoolean(eventKey, true).apply()
-
-                            android.util.Log.d("CampusGoChatObserver", "Mostrando notificación sonora para mensaje ${msg.id} de $senderName")
-                            CampusGoNotificationHelper.showChatNotification(
-                                context = this@CampusGoApplication,
-                                notificationId = Math.abs(msg.id.hashCode()),
-                                senderName = senderName,
-                                message = msg.content,
-                                subOrderId = msg.subOrderId
-                            )
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.d("CampusGoChatObserver", "Aviso en polling de chat: ${e.message}")
-                }
-                delay(2000L)
-            }
+            CampusGoPushService.start(this)
+            PushWatchdogReceiver.scheduleNextWatchdog(this)
+        } catch (e: Exception) {
+            android.util.Log.e("CampusGoApp", "Error iniciando CampusGoPushService en Application", e)
         }
     }
 

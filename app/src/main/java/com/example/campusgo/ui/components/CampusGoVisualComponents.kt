@@ -573,25 +573,72 @@ fun compressImageUri(
     quality: Int = 80
 ): ByteArray? {
     return try {
+        // 1. Detectar orientación EXIF para corregir fotos tomadas de lado o invertidas
+        var rotationDegrees = 0f
+        try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val exif = android.media.ExifInterface(stream)
+                val orientation = exif.getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION,
+                    android.media.ExifInterface.ORIENTATION_NORMAL
+                )
+                rotationDegrees = when (orientation) {
+                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("CampusGoVisual", "No se pudo leer EXIF de imagen: ${e.message}")
+        }
+
+        // 2. Decodificar el Bitmap original
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
         val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
         inputStream.close()
         if (originalBitmap == null) return null
 
-        val width = originalBitmap.width
-        val height = originalBitmap.height
-        val scale = minOf(1f, maxDimension.toFloat() / maxOf(width, height))
-        val scaledBitmap = if (scale < 1f) {
-            android.graphics.Bitmap.createScaledBitmap(
+        // 3. Rotar el Bitmap si la metadata EXIF indica rotación
+        val orientedBitmap = if (rotationDegrees != 0f) {
+            val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees) }
+            val rotated = android.graphics.Bitmap.createBitmap(
                 originalBitmap,
-                (width * scale).toInt(),
-                (height * scale).toInt(),
+                0,
+                0,
+                originalBitmap.width,
+                originalBitmap.height,
+                matrix,
                 true
             )
+            if (rotated != originalBitmap) {
+                originalBitmap.recycle()
+            }
+            rotated
         } else {
             originalBitmap
         }
 
+        // 4. Escalar dimensiones si supera el tamaño máximo
+        val width = orientedBitmap.width
+        val height = orientedBitmap.height
+        val scale = minOf(1f, maxDimension.toFloat() / maxOf(width, height))
+        val scaledBitmap = if (scale < 1f) {
+            val scaled = android.graphics.Bitmap.createScaledBitmap(
+                orientedBitmap,
+                (width * scale).toInt(),
+                (height * scale).toInt(),
+                true
+            )
+            if (scaled != orientedBitmap) {
+                orientedBitmap.recycle()
+            }
+            scaled
+        } else {
+            orientedBitmap
+        }
+
+        // 5. Comprimir a formato JPEG
         val outputStream = java.io.ByteArrayOutputStream()
         scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, outputStream)
         outputStream.toByteArray()

@@ -22,7 +22,7 @@ class OrderTrackingViewModel(
 
     fun initialize(buyerId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, selectedTab = TrackingTab.EN_CURSO) }
             orderRepository.observeOrdersForBuyer(buyerId).collect { buyerOrders ->
                 _uiState.update {
                     it.copy(
@@ -38,6 +38,10 @@ class OrderTrackingViewModel(
                 _uiState.update { it.copy(reviewedOrders = reviewsMap) }
             }
         }
+    }
+
+    fun resetToActiveTab() {
+        _uiState.update { it.copy(selectedTab = TrackingTab.EN_CURSO) }
     }
 
     fun setSelectedTab(tab: TrackingTab) {

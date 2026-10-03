@@ -123,6 +123,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import androidx.compose.material.icons.automirrored.filled.Chat
+import com.example.campusgo.domain.model.SupportTicket
+import com.example.campusgo.domain.repository.SupportRepository
+import com.example.campusgo.features.chat.SupportChatBottomSheet
+import com.example.campusgo.ui.components.ActiveSupportTicketBanner
 import com.example.campusgo.features.chat.ActiveChatSummary
 import com.example.campusgo.features.chat.ActiveChatsSheet
 import com.example.campusgo.features.chat.OrderChatBottomSheet
@@ -153,17 +157,30 @@ data class StoreCatalogGroup(
 fun BuyerHomeScreen(
     profile: UserProfile,
     onSignOut: () -> Unit,
+    pendingSubOrderId: String? = null,
+    onClearPendingSubOrder: () -> Unit = {},
     modifier: Modifier = Modifier,
     cartRepository: CartRepository = koinInject(),
     productRepository: ProductRepository = koinInject(),
     adminRepository: AdminRepository = koinInject(),
     orderRepository: OrderRepository = koinInject(),
-    chatRepository: ChatRepository = koinInject()
+    chatRepository: ChatRepository = koinInject(),
+    supportRepository: SupportRepository = koinInject()
 ) {
     var currentProfile by remember { mutableStateOf(profile) }
     val unreadChatCount by remember(profile.id) {
         chatRepository.observeUnreadCount(profile.id)
     }.collectAsState(initial = 0)
+    var buyerActiveTicket by remember { mutableStateOf<SupportTicket?>(null) }
+    var activeSupportTicket by remember { mutableStateOf<SupportTicket?>(null) }
+
+    LaunchedEffect(currentProfile.id) {
+        while (true) {
+            val res = supportRepository.getActiveTicketForUser(currentProfile.id)
+            buyerActiveTicket = res.getOrNull()
+            kotlinx.coroutines.delay(20000)
+        }
+    }
     var currentTab by rememberSaveable { mutableStateOf(BuyerBottomNavTab.INICIO) }
     var favoriteProductIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
@@ -368,6 +385,9 @@ fun BuyerHomeScreen(
     }
 
     // Manejo nativo del botón / gesto Atrás de Android
+    BackHandler(enabled = activeSupportTicket != null) {
+        activeSupportTicket = null
+    }
     BackHandler(enabled = activeChatSummary != null) {
         activeChatSummary = null
         chatViewModel.clearChat()
@@ -454,8 +474,79 @@ fun BuyerHomeScreen(
         adminRepository.refreshMeetingPoints()
         loadCatalog(isSilent = false)
         while (isActive) {
-            delay(30000L)
+            delay(4000L)
             loadCatalog(isSilent = true)
+        }
+    }
+
+    LaunchedEffect(pendingSubOrderId, buyerOrders, realStoresWithProducts) {
+        if (!pendingSubOrderId.isNullOrBlank()) {
+            val subId = pendingSubOrderId
+            val existing = buyerOrders.flatMap { it.subOrders }.find { it.id == subId }
+            if (existing != null) {
+                val store = realStoresWithProducts.find { it.sellerId == existing.sellerId }
+                val sellerAvatar = store?.avatarUrl
+                val meetingPt = existing.meetingPointName ?: "Punto por convenir"
+                val sellerName = existing.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" }
+                val chatSummary = ActiveChatSummary(
+                    subOrderId = existing.id,
+                    otherUserId = existing.sellerId,
+                    otherUserName = sellerName,
+                    meetingPoint = meetingPt,
+                    status = existing.status,
+                    subtotal = existing.subtotalAmount,
+                    itemsSummary = existing.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                    deliveryCode = existing.verificationCode,
+                    isBuyerPerspective = true,
+                    otherUserAvatarUrl = sellerAvatar
+                )
+                activeChatSummary = chatSummary
+                chatViewModel.initChat(
+                    subOrderId = existing.id,
+                    currentUserId = currentProfile.id,
+                    otherUserId = existing.sellerId,
+                    otherUserName = sellerName,
+                    meetingPoint = meetingPt,
+                    subOrderStatus = existing.status,
+                    otherUserAvatarUrl = sellerAvatar,
+                    deliveryCode = existing.verificationCode
+                )
+                onClearPendingSubOrder()
+            } else {
+                coroutineScope.launch {
+                    val fetched = orderRepository.getSubOrderById(subId).getOrNull()
+                    if (fetched != null) {
+                        val store = realStoresWithProducts.find { it.sellerId == fetched.sellerId }
+                        val sellerAvatar = store?.avatarUrl
+                        val meetingPt = fetched.meetingPointName ?: "Punto por convenir"
+                        val sellerName = fetched.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" }
+                        val chatSummary = ActiveChatSummary(
+                            subOrderId = fetched.id,
+                            otherUserId = fetched.sellerId,
+                            otherUserName = sellerName,
+                            meetingPoint = meetingPt,
+                            status = fetched.status,
+                            subtotal = fetched.subtotalAmount,
+                            itemsSummary = fetched.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                            deliveryCode = fetched.verificationCode,
+                            isBuyerPerspective = true,
+                            otherUserAvatarUrl = sellerAvatar
+                        )
+                        activeChatSummary = chatSummary
+                        chatViewModel.initChat(
+                            subOrderId = fetched.id,
+                            currentUserId = currentProfile.id,
+                            otherUserId = fetched.sellerId,
+                            otherUserName = sellerName,
+                            meetingPoint = meetingPt,
+                            subOrderStatus = fetched.status,
+                            otherUserAvatarUrl = sellerAvatar,
+                            deliveryCode = fetched.verificationCode
+                        )
+                        onClearPendingSubOrder()
+                    }
+                }
+            }
         }
     }
 
@@ -836,6 +927,47 @@ fun BuyerHomeScreen(
                                         }
                                     }
 
+                                    // 0.5. Botón de Chat de Soporte Institucional (Mesa de Diálogo Oficial)
+                                    if (buyerActiveTicket != null) {
+                                        Box(
+                                            modifier = Modifier.size(40.dp)
+                                        ) {
+                                            Surface(
+                                                onClick = { activeSupportTicket = buyerActiveTicket },
+                                                shape = CircleShape,
+                                                color = Color(0xFFEFF6FF),
+                                                border = BorderStroke(1.dp, Color(0xFF93C5FD)),
+                                                shadowElevation = 1.dp,
+                                                modifier = Modifier.fillMaxSize()
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_chat_custom),
+                                                        contentDescription = "Chat de Soporte Institucional",
+                                                        tint = Color(0xFF003366),
+                                                        modifier = Modifier.size(19.dp)
+                                                    )
+                                                }
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .offset(x = 2.dp, y = (-2).dp)
+                                            ) {
+                                                Badge(
+                                                    containerColor = Color(0xFF2563EB),
+                                                    contentColor = Color.White
+                                                ) {
+                                                    Text(
+                                                        text = "1",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     // 1. Notificaciones (Lado Izquierdo) con punto rojo perfectamente posicionado
                                     // hasPendingNotifications derivado arriba de forma reactiva con IDs leídos
                                     Box(
@@ -1026,6 +1158,22 @@ fun BuyerHomeScreen(
                                     showStrikesBottomSheet = true
                                 }
                             )
+                        }
+                    }
+
+                    // Banner de Mesa de Diálogo Oficial (Chat de Soporte con Admin)
+                    AnimatedVisibility(
+                        visible = buyerActiveTicket != null,
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit = fadeOut(tween(400)) + shrinkVertically(tween(400))
+                    ) {
+                        buyerActiveTicket?.let { ticket ->
+                            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                ActiveSupportTicketBanner(
+                                    ticket = ticket,
+                                    onClick = { activeSupportTicket = ticket }
+                                )
+                            }
                         }
                     }
 
@@ -1694,6 +1842,35 @@ fun BuyerHomeScreen(
                 onNavigateBack = null,
                 onNavigateToCart = {
                     showCartScreen = true
+                },
+                onOpenChat = { order, subOrder ->
+                    val store = realStoresWithProducts.find { it.sellerId == subOrder.sellerId }
+                    val sellerAvatar = store?.avatarUrl
+                    val meetingPt = subOrder.meetingPointName ?: order.meetingPointName.ifBlank { "Punto por convenir" }
+                    val sellerName = subOrder.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" }
+                    val chatSummary = ActiveChatSummary(
+                        subOrderId = subOrder.id,
+                        otherUserId = subOrder.sellerId,
+                        otherUserName = sellerName,
+                        meetingPoint = meetingPt,
+                        status = subOrder.status,
+                        subtotal = subOrder.subtotalAmount,
+                        itemsSummary = subOrder.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                        deliveryCode = subOrder.verificationCode,
+                        isBuyerPerspective = true,
+                        otherUserAvatarUrl = sellerAvatar
+                    )
+                    activeChatSummary = chatSummary
+                    chatViewModel.initChat(
+                        subOrderId = subOrder.id,
+                        currentUserId = currentProfile.id,
+                        otherUserId = subOrder.sellerId,
+                        otherUserName = sellerName,
+                        meetingPoint = meetingPt,
+                        subOrderStatus = subOrder.status,
+                        otherUserAvatarUrl = sellerAvatar,
+                        deliveryCode = subOrder.verificationCode
+                    )
                 }
             )
         }
@@ -1779,6 +1956,21 @@ fun BuyerHomeScreen(
                 warnings = buyerWarnings,
                 onDismiss = { showStrikesBottomSheet = false },
                 isSeller = false
+            )
+        }
+
+        activeSupportTicket?.let { ticket ->
+            SupportChatBottomSheet(
+                ticket = ticket,
+                currentUserId = currentProfile.id,
+                isAdmin = false,
+                onDismiss = {
+                    activeSupportTicket = null
+                    coroutineScope.launch {
+                        val res = supportRepository.getActiveTicketForUser(currentProfile.id)
+                        buyerActiveTicket = res.getOrNull()
+                    }
+                }
             )
         }
 

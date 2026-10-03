@@ -481,7 +481,7 @@ fun OrderSummaryReceiptScreen(
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },
-            onSubmit = { reasonKey, reasonLabel, details ->
+            onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
                 coroutineScope.launch {
                     isSubmittingReport = true
                     val result = orderRepository.reportIncident(
@@ -489,7 +489,8 @@ fun OrderSummaryReceiptScreen(
                         reporterId = order.buyerId,
                         reportedUserId = targetSeller?.sellerId,
                         incidentType = reasonKey,
-                        details = details.ifBlank { reasonLabel }
+                        details = details.ifBlank { reasonLabel },
+                        evidenceBytes = evidenceBytes
                     )
                     isSubmittingReport = false
                     showReportDialog = false

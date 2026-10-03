@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -90,12 +92,36 @@ fun OrderTrackingScreen(
     buyerProfile: UserProfile,
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToCart: (() -> Unit)? = null,
+    onOpenChat: ((Order, SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: OrderTrackingViewModel = koinViewModel(),
     orderRepository: OrderRepository = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+
+    // Bug 9: Siempre mantener "En curso" al abrir o resetear la pantalla de seguimiento
+    LaunchedEffect(Unit) {
+        viewModel.resetToActiveTab()
+        pagerState.scrollToPage(0)
+    }
+
+    // Bug 17: Sincronizar el swipe del Pager con el ViewModel
+    LaunchedEffect(pagerState.currentPage) {
+        val targetTab = if (pagerState.currentPage == 0) TrackingTab.EN_CURSO else TrackingTab.HISTORIAL
+        if (uiState.selectedTab != targetTab) {
+            viewModel.setSelectedTab(targetTab)
+        }
+    }
+
+    LaunchedEffect(uiState.selectedTab) {
+        val targetPage = if (uiState.selectedTab == TrackingTab.EN_CURSO) 0 else 1
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedOrderForDetail by remember { mutableStateOf<Order?>(null) }
     var isChatPickerOpen by remember { mutableStateOf(false) }
@@ -335,16 +361,20 @@ fun OrderTrackingScreen(
             },
             onOpenChat = { subOrder ->
                 selectedOrderForDetail = null
-                activeChatSubOrder = Pair(detailOrder, subOrder)
-                chatViewModel.initChat(
-                    subOrderId = subOrder.id,
-                    currentUserId = buyerProfile.id,
-                    otherUserId = subOrder.sellerId,
-                    otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
-                    meetingPoint = subOrder.meetingPointName ?: detailOrder.meetingPointName,
-                    subOrderStatus = subOrder.status,
-                    deliveryCode = subOrder.verificationCode
-                )
+                if (onOpenChat != null) {
+                    onOpenChat(detailOrder, subOrder)
+                } else {
+                    activeChatSubOrder = Pair(detailOrder, subOrder)
+                    chatViewModel.initChat(
+                        subOrderId = subOrder.id,
+                        currentUserId = buyerProfile.id,
+                        otherUserId = subOrder.sellerId,
+                        otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
+                        meetingPoint = subOrder.meetingPointName ?: detailOrder.meetingPointName,
+                        subOrderStatus = subOrder.status,
+                        deliveryCode = subOrder.verificationCode
+                    )
+                }
             },
             onDismiss = { selectedOrderForDetail = null }
         )
@@ -358,7 +388,7 @@ fun OrderTrackingScreen(
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { subOrderToReport = null },
-            onSubmit = { reasonKey, reasonLabel, details ->
+            onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
                 isSubmittingReport = true
                 coroutineScope.launch {
                     val result = orderRepository.reportIncident(
@@ -366,7 +396,8 @@ fun OrderTrackingScreen(
                         reporterId = buyerProfile.id,
                         reportedUserId = subOrder.sellerId,
                         incidentType = reasonKey,
-                        details = details.ifBlank { reasonLabel }
+                        details = details.ifBlank { reasonLabel },
+                        evidenceBytes = evidenceBytes
                     )
                     isSubmittingReport = false
                     subOrderToReport = null
@@ -422,34 +453,42 @@ fun OrderTrackingScreen(
                             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                         )
                         PrimaryTabRow(
-                            selectedTabIndex = if (uiState.selectedTab == TrackingTab.EN_CURSO) 0 else 1,
+                            selectedTabIndex = pagerState.currentPage,
                             containerColor = Color.Transparent,
                             contentColor = Color(0xFF003366)
                         ) {
-                        Tab(
-                            selected = uiState.selectedTab == TrackingTab.EN_CURSO,
-                            onClick = { viewModel.setSelectedTab(TrackingTab.EN_CURSO) },
-                            text = {
-                                Text(
-                                    text = "En Curso (${uiState.activeOrders.size})",
-                                    fontWeight = if (uiState.selectedTab == TrackingTab.EN_CURSO) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        )
-                        Tab(
-                            selected = uiState.selectedTab == TrackingTab.HISTORIAL,
-                            onClick = { viewModel.setSelectedTab(TrackingTab.HISTORIAL) },
-                            text = {
-                                Text(
-                                    text = "Historial (${uiState.pastOrders.size})",
-                                    fontWeight = if (uiState.selectedTab == TrackingTab.HISTORIAL) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        )
+                            Tab(
+                                selected = pagerState.currentPage == 0,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(0)
+                                    }
+                                },
+                                text = {
+                                    Text(
+                                        text = "En Curso (${uiState.activeOrders.size})",
+                                        fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            )
+                            Tab(
+                                selected = pagerState.currentPage == 1,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(1)
+                                    }
+                                },
+                                text = {
+                                    Text(
+                                        text = "Historial (${uiState.pastOrders.size})",
+                                        fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
-            }
-        },
+            },
             modifier = if (backgroundBlurRadius > 0.dp) Modifier.fillMaxSize().blur(backgroundBlurRadius) else Modifier.fillMaxSize()
         ) { innerPadding ->
             Box(
@@ -463,172 +502,178 @@ fun OrderTrackingScreen(
                         color = Color(0xFF003366)
                     )
                 } else {
-                    val currentOrders = if (uiState.selectedTab == TrackingTab.EN_CURSO) {
-                        uiState.activeOrders
-                    } else {
-                        uiState.paginatedPastOrders
-                    }
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        val isEnCursoPage = (page == 0)
+                        val ordersForPage = if (isEnCursoPage) uiState.activeOrders else uiState.paginatedPastOrders
 
-                    if (currentOrders.isEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp)
-                                .padding(bottom = 60.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            if (uiState.selectedTab == TrackingTab.EN_CURSO) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_store_custom),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        if (ordersForPage.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(32.dp)
+                                    .padding(bottom = 60.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                if (isEnCursoPage) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_store_custom),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = if (isEnCursoPage) {
+                                        "No tienes pedidos en curso"
+                                    } else {
+                                        "Sin historial de compras"
+                                    },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.History,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (isEnCursoPage) {
+                                        "Tus pedidos activos aparecerán aquí para que hagas seguimiento a la entrega."
+                                    } else {
+                                        "Tus pedidos completados o cancelados se guardarán aquí."
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    textAlign = TextAlign.Center
                                 )
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = if (uiState.selectedTab == TrackingTab.EN_CURSO) {
-                                    "No tienes pedidos en curso"
-                                } else {
-                                    "Sin historial de compras"
-                                },
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = if (uiState.selectedTab == TrackingTab.EN_CURSO) {
-                                    "Tus pedidos activos aparecerán aquí para que hagas seguimiento a la entrega."
-                                } else {
-                                    "Tus pedidos completados o cancelados se guardarán aquí."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 16.dp,
-                                bottom = 96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(currentOrders, key = { it.id }) { order ->
-                                BuyerOrderCard(
-                                    order = order,
-                                    isHistoryTab = uiState.selectedTab == TrackingTab.HISTORIAL,
-                                    reviewedOrders = uiState.reviewedOrders,
-                                    onCancelOrder = { viewModel.openCancelDialog(order) },
-                                    onRepeatOrder = {
-                                        viewModel.repeatOrder(order) {
-                                            onNavigateToCart?.invoke()
-                                        }
-                                    },
-                                    onExpiredSubOrder = { viewModel.expirePendingOrders() },
-                                    onOpenDetail = { selectedOrderForDetail = order },
-                                    onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) },
-                                    onOpenChat = { subOrder ->
-                                        activeChatSubOrder = Pair(order, subOrder)
-                                        chatViewModel.initChat(
-                                            subOrderId = subOrder.id,
-                                            currentUserId = buyerProfile.id,
-                                            otherUserId = subOrder.sellerId,
-                                            otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
-                                            meetingPoint = subOrder.meetingPointName ?: order.meetingPointName,
-                                            subOrderStatus = subOrder.status,
-                                            deliveryCode = subOrder.verificationCode
-                                        )
-                                    },
-                                    onChatPickerVisibilityChanged = { isChatPickerOpen = it }
-                                )
-                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 16.dp,
+                                    bottom = 96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(ordersForPage, key = { it.id }) { order ->
+                                    BuyerOrderCard(
+                                        order = order,
+                                        isHistoryTab = !isEnCursoPage,
+                                        reviewedOrders = uiState.reviewedOrders,
+                                        onCancelOrder = { viewModel.openCancelDialog(order) },
+                                        onRepeatOrder = {
+                                            viewModel.repeatOrder(order) {
+                                                onNavigateToCart?.invoke()
+                                            }
+                                        },
+                                        onExpiredSubOrder = { viewModel.expirePendingOrders() },
+                                        onOpenDetail = { selectedOrderForDetail = order },
+                                        onRateSeller = { subOrder -> viewModel.openRateDialog(subOrder) },
+                                        onOpenChat = { subOrder ->
+                                            if (onOpenChat != null) {
+                                                onOpenChat(order, subOrder)
+                                            } else {
+                                                activeChatSubOrder = Pair(order, subOrder)
+                                                chatViewModel.initChat(
+                                                    subOrderId = subOrder.id,
+                                                    currentUserId = buyerProfile.id,
+                                                    otherUserId = subOrder.sellerId,
+                                                    otherUserName = subOrder.sellerName.ifBlank { "Vendedor" },
+                                                    meetingPoint = subOrder.meetingPointName ?: order.meetingPointName,
+                                                    subOrderStatus = subOrder.status,
+                                                    deliveryCode = subOrder.verificationCode
+                                                )
+                                            }
+                                        },
+                                        onChatPickerVisibilityChanged = { isChatPickerOpen = it }
+                                    )
+                                }
 
-                            if (uiState.selectedTab == TrackingTab.HISTORIAL) {
-                                if (uiState.hasMorePastOrders) {
-                                    item(key = "load_more_history_button") {
-                                        Card(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 4.dp),
-                                            shape = RoundedCornerShape(14.dp),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                                        ) {
-                                            Column(
+                                if (!isEnCursoPage) {
+                                    if (uiState.hasMorePastOrders) {
+                                        item(key = "load_more_history_button") {
+                                            Card(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(14.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                    .padding(top = 4.dp),
+                                                shape = RoundedCornerShape(14.dp),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                             ) {
-                                                Text(
-                                                    text = "Mostrando ${uiState.paginatedPastOrders.size} de ${uiState.pastOrders.size} pedidos",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = Color(0xFF64748B),
-                                                    fontWeight = FontWeight.Medium
-                                                )
-
-                                                Button(
-                                                    onClick = { viewModel.loadMoreHistory() },
+                                                Column(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .height(46.dp),
-                                                    shape = RoundedCornerShape(10.dp),
-                                                    colors = ButtonDefaults.buttonColors(
-                                                        containerColor = Color(0xFF003366),
-                                                        contentColor = Color.White
-                                                    )
+                                                        .padding(14.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.Center
+                                                    Text(
+                                                        text = "Mostrando ${uiState.paginatedPastOrders.size} de ${uiState.pastOrders.size} pedidos",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = Color(0xFF64748B),
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+
+                                                    Button(
+                                                        onClick = { viewModel.loadMoreHistory() },
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(46.dp),
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        colors = ButtonDefaults.buttonColors(
+                                                            containerColor = Color(0xFF003366),
+                                                            contentColor = Color.White
+                                                        )
                                                     ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.ExpandMore,
-                                                            contentDescription = null,
-                                                            tint = Color.White,
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Text(
-                                                            text = "Cargar más",
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 14.sp
-                                                        )
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.ExpandMore,
+                                                                contentDescription = null,
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text(
+                                                                text = "Cargar más",
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 14.sp
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                } else if (uiState.pastOrders.size > 20) {
-                                    item(key = "all_history_loaded") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 12.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = "Mostrando todos los pedidos del historial (${uiState.pastOrders.size})",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = Color(0xFF64748B),
-                                                fontWeight = FontWeight.Medium
-                                            )
+                                    } else if (uiState.pastOrders.size > 20) {
+                                        item(key = "all_history_loaded") {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 12.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "Mostrando todos los pedidos del historial (${uiState.pastOrders.size})",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color(0xFF64748B),
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
                                         }
                                     }
                                 }

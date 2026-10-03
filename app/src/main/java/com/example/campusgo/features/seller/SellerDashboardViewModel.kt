@@ -117,6 +117,7 @@ class SellerDashboardViewModel(
                         isLoading = false
                     )
                 }
+                refreshBuyerStrikes(orders.mapNotNull { it.buyerId })
             }
         }
     }
@@ -687,8 +688,44 @@ class SellerDashboardViewModel(
         _uiState.update { it.copy(selectedDate = date) }
     }
 
+    fun refreshBuyerStrikes(buyerIds: List<String>) {
+        val uniqueIds = buyerIds.filter { it.isNotBlank() }.distinct()
+        if (uniqueIds.isEmpty()) return
+        viewModelScope.launch {
+            val currentMap = _uiState.value.buyerStrikes.toMutableMap()
+            var changed = false
+            for (buyerId in uniqueIds) {
+                if (!currentMap.containsKey(buyerId)) {
+                    orderRepository.getUserWarnings(buyerId).onSuccess { warnings ->
+                        currentMap[buyerId] = warnings.size
+                        changed = true
+                    }
+                }
+            }
+            if (changed) {
+                _uiState.update { it.copy(buyerStrikes = currentMap) }
+            }
+        }
+    }
+
     fun resetToToday() {
         _uiState.update { it.copy(selectedDate = LocalDate.now(limaZone)) }
+    }
+
+    fun reportIncident(reasonKey: String, reasonLabel: String, details: String, reportedUserId: String? = null) {
+        viewModelScope.launch {
+            val result = orderRepository.reportIncident(
+                reporterId = currentSellerId,
+                reportedUserId = reportedUserId,
+                incidentType = reasonKey,
+                details = "[$reasonLabel] $details"
+            )
+            if (result.isSuccess) {
+                _uiState.update { it.copy(successMessage = "Reporte enviado con éxito al Administrador del Campus.") }
+            } else {
+                _uiState.update { it.copy(errorMessage = "Error al enviar reporte: ${result.exceptionOrNull()?.message}") }
+            }
+        }
     }
 
     private val limaZone: ZoneId = ZoneId.of("America/Lima")

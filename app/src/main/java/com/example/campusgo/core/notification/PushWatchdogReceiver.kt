@@ -33,9 +33,9 @@ class PushWatchdogReceiver : BroadcastReceiver() {
             return
         }
 
-        // Con Firebase Cloud Messaging nativo, el ForegroundService y su notificación persistente ya no son necesarios
-        cancelWatchdog(context)
-        CampusGoPushService.stop(context)
+        // Asegurar que el servicio de segundo plano permanezca activo
+        CampusGoPushService.start(context)
+        scheduleNextWatchdog(context)
     }
 
     companion object {
@@ -62,7 +62,26 @@ class PushWatchdogReceiver : BroadcastReceiver() {
         }
 
         fun scheduleNextWatchdog(context: Context, delayMillis: Long = WATCHDOG_INTERVAL_MS) {
-            // Con FCM nativo no se reprograman alarmas de polling local
+            try {
+                val intent = Intent(context, PushWatchdogReceiver::class.java).apply {
+                    action = ACTION_WATCHDOG_TICK
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    9002,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delayMillis, pendingIntent)
+                } else {
+                    alarmManager?.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delayMillis, pendingIntent)
+                }
+                Log.i(TAG, "Watchdog programado para dentro de ${delayMillis / 1000}s")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error programando watchdog: ${e.message}")
+            }
         }
     }
 }

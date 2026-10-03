@@ -1,10 +1,11 @@
-﻿package com.example.campusgo.features.cart
+package com.example.campusgo.features.cart
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.PaymentMethod
 import com.example.campusgo.domain.model.UserProfile
+import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.domain.repository.CartRepository
 import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.domain.usecase.CreateOrderWithSubordersUseCase
@@ -262,6 +263,15 @@ class CartViewModel(
 
     fun confirmOrder(buyerProfile: UserProfile) {
         val state = _uiState.value
+        if (buyerProfile.role == UserRole.SUSPENDED_BUYER || buyerProfile.role == UserRole.SUSPENDED) {
+            _uiState.update {
+                it.copy(
+                    errorMessage = "Tu cuenta se encuentra suspendida por la administración de CampusGO. No puedes realizar pedidos.",
+                    isSubmitting = false
+                )
+            }
+            return
+        }
         if (!state.canCheckout || state.isSubmitting) return
         val point = state.selectedMeetingPoint ?: state.selectedMeetingPointsBySeller.values.firstOrNull() ?: return
 

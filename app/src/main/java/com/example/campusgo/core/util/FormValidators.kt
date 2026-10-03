@@ -31,6 +31,72 @@ object FormValidators {
     }
 
     /**
+     * Valida nombres (admite uno o dos nombres compuestos como 'Juan Carlos'):
+     * - Obligatorio
+     * - Mínimo 2 caracteres, máximo 40
+     * - Solo letras, espacios y tildes
+     */
+    fun validateFirstName(name: String): String? {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) {
+            return "El nombre es obligatorio"
+        }
+        if (trimmed.length < 2) {
+            return "Debe tener al menos 2 caracteres"
+        }
+        if (trimmed.length > 40) {
+            return "No puede exceder 40 caracteres"
+        }
+        val nameRegex = Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s.'-]+$")
+        if (!nameRegex.matches(trimmed)) {
+            return "Solo debe contener letras y espacios"
+        }
+        return null
+    }
+
+    /**
+     * Valida apellidos (admite apellidos compuestos como 'De la Cruz'):
+     * - Obligatorio
+     * - Mínimo 2 caracteres, máximo 40
+     * - Solo letras, espacios y tildes
+     */
+    fun validateLastName(lastName: String): String? {
+        val trimmed = lastName.trim()
+        if (trimmed.isBlank()) {
+            return "Los apellidos son obligatorios"
+        }
+        if (trimmed.length < 2) {
+            return "Debe tener al menos 2 caracteres"
+        }
+        if (trimmed.length > 40) {
+            return "No puede exceder 40 caracteres"
+        }
+        val nameRegex = Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s.'-]+$")
+        if (!nameRegex.matches(trimmed)) {
+            return "Solo debe contener letras y espacios"
+        }
+        return null
+    }
+
+    /**
+     * Valida categoría personalizada cuando se selecciona 'Otros':
+     * - Mínimo 3 caracteres, máximo 30
+     */
+    fun validateCustomCategory(category: String?): String? {
+        val trimmed = category?.trim().orEmpty()
+        if (trimmed.isBlank()) {
+            return "Especifica la categoría de tu puesto"
+        }
+        if (trimmed.length < 3) {
+            return "Debe tener al menos 3 caracteres"
+        }
+        if (trimmed.length > 30) {
+            return "No puede exceder 30 caracteres"
+        }
+        return null
+    }
+
+    /**
      * Valida número telefónico:
      * - Obligatorio
      * - Estándar peruano: 9 dígitos numéricos iniciando con 9

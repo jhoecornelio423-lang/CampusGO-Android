@@ -1,6 +1,7 @@
 package com.example.campusgo
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -27,10 +29,15 @@ class MainActivity : ComponentActivity() {
 
     private val auth: Auth by inject()
     private val postgrest: Postgrest by inject()
+    private val pendingSubOrderIdState = mutableStateOf<String?>(null)
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ -> }
+    ) { isGranted ->
+        if (isGranted) {
+            CampusGoPushService.start(this)
+        }
+    }
 
     override fun attachBaseContext(newBase: android.content.Context) {
         val configuration = android.content.res.Configuration(newBase.resources.configuration)
@@ -84,11 +91,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-        // Detener servicio en primer plano previo para no mostrar la notificación persistente
+        // Iniciar servicio en segundo plano para garantizar alertas sonoras de mensajes de chat y pedidos
         try {
-            CampusGoPushService.stop(this)
-            com.example.campusgo.core.notification.PushWatchdogReceiver.cancelWatchdog(this)
-        } catch (_: Exception) {}
+            CampusGoPushService.start(this)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error iniciando CampusGoPushService", e)
+        }
+
+        val initialSubOrderId = intent?.getStringExtra("sub_order_id")
+        if (!initialSubOrderId.isNullOrBlank()) {
+            pendingSubOrderIdState.value = initialSubOrderId
+        }
 
         setContent {
             CampusGOTheme {
@@ -96,9 +109,21 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = androidx.compose.ui.graphics.Color.White
                 ) {
-                    MainNavigation()
+                    MainNavigation(
+                        pendingSubOrderId = pendingSubOrderIdState.value,
+                        onClearPendingSubOrder = { pendingSubOrderIdState.value = null }
+                    )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val subOrderId = intent.getStringExtra("sub_order_id")
+        if (!subOrderId.isNullOrBlank()) {
+            pendingSubOrderIdState.value = subOrderId
         }
     }
 

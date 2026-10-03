@@ -111,6 +111,9 @@ import com.example.campusgo.ui.components.CampusGoDialogContainerColor
 import com.example.campusgo.ui.components.CampusGoDialogShape
 import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
 import com.example.campusgo.ui.components.campusGoDialogStyle
+import com.example.campusgo.core.util.FormValidators
+import com.example.campusgo.ui.components.ProfileInfoBottomSheet
+import com.example.campusgo.ui.components.ProfileInfoType
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -222,11 +225,14 @@ fun AuthRoute(
                     onEmailChange = viewModel::onEmailChange,
                     onPasswordChange = viewModel::onPasswordChange,
                     onFullNameChange = viewModel::onFullNameChange,
+                    onFirstNameChange = viewModel::onFirstNameChange,
+                    onLastNameChange = viewModel::onLastNameChange,
                     onPhoneChange = viewModel::onPhoneChange,
                     onRoleChange = viewModel::onRoleChange,
                     onCampusChange = viewModel::onCampusChange,
                     onStoreNameChange = viewModel::onStoreNameChange,
                     onStoreCategoryChange = viewModel::onStoreCategoryChange,
+                    onCustomCategoryChange = viewModel::onCustomCategoryChange,
                     onStoreDescriptionChange = viewModel::onStoreDescriptionChange,
                     onMeetingPointChange = viewModel::onMeetingPointChange,
                     onForgotPasswordClick = viewModel::openForgotPassword,
@@ -248,11 +254,14 @@ fun AuthScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onFullNameChange: (String) -> Unit,
+    onFirstNameChange: (String) -> Unit = {},
+    onLastNameChange: (String) -> Unit = {},
     onPhoneChange: (String) -> Unit,
     onRoleChange: (UserRole) -> Unit,
     onCampusChange: (String) -> Unit,
     onStoreNameChange: (String) -> Unit,
     onStoreCategoryChange: (String) -> Unit,
+    onCustomCategoryChange: (String) -> Unit = {},
     onStoreDescriptionChange: (String) -> Unit,
     onMeetingPointChange: (String) -> Unit,
     onForgotPasswordClick: () -> Unit,
@@ -268,24 +277,17 @@ fun AuthScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
     var showSupportDialog by remember { mutableStateOf(false) }
+    var showTermsSheet by remember { mutableStateOf(false) }
+    var showFieldErrors by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(uiState.isLoginMode) {
+        showFieldErrors = false
         scrollState.scrollTo(0)
     }
 
     var passwordVisible by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(true) }
-
-    // Separación de Nombre y Apellidos para la vista de registro
-    var firstName by remember(uiState.fullName) {
-        val parts = uiState.fullName.split(" ", limit = 2)
-        mutableStateOf(parts.firstOrNull().orEmpty())
-    }
-    var lastName by remember(uiState.fullName) {
-        val parts = uiState.fullName.split(" ", limit = 2)
-        mutableStateOf(parts.getOrNull(1).orEmpty())
-    }
 
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
     var meetingPointDropdownExpanded by remember { mutableStateOf(false) }
@@ -294,7 +296,7 @@ fun AuthScreen(
     var headerHeightDp by remember { mutableStateOf(240.dp) }
 
     val backgroundBlurRadius by animateDpAsState(
-        targetValue = if (showSupportDialog) 20.dp else 0.dp,
+        targetValue = if (showSupportDialog || showTermsSheet) 20.dp else 0.dp,
         animationSpec = tween(280),
         label = "auth_dialog_blur"
     )
@@ -543,30 +545,33 @@ fun AuthScreen(
                         }
 
                         // Nombres & Apellidos en 2 columnas
+                        val firstNameError = if (showFieldErrors) FormValidators.validateFirstName(uiState.firstName) else null
+                        val lastNameError = if (showFieldErrors) FormValidators.validateLastName(uiState.lastName) else null
+                        val phoneError = if (showFieldErrors) FormValidators.validatePhone(uiState.phone) else null
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Nombres titular" else "Nombres",
+                                    text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Nombres titular *" else "Nombres *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 OutlinedTextField(
-                                    value = firstName,
-                                    onValueChange = {
-                                        firstName = it
-                                        onFullNameChange("$firstName $lastName".trim())
-                                    },
+                                    value = uiState.firstName,
+                                    onValueChange = onFirstNameChange,
                                     placeholder = { Text("Tus nombres", fontSize = 13.sp) },
+                                    isError = firstNameError != null,
+                                    supportingText = firstNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Person,
                                             contentDescription = null,
-                                            tint = Color(0xFF00A884),
+                                            tint = if (firstNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -585,24 +590,23 @@ fun AuthScreen(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Apellidos titular" else "Apellidos",
+                                    text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Apellidos titular *" else "Apellidos *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 OutlinedTextField(
-                                    value = lastName,
-                                    onValueChange = {
-                                        lastName = it
-                                        onFullNameChange("$firstName $lastName".trim())
-                                    },
+                                    value = uiState.lastName,
+                                    onValueChange = onLastNameChange,
                                     placeholder = { Text("Tus apellidos", fontSize = 13.sp) },
+                                    isError = lastNameError != null,
+                                    supportingText = lastNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Person,
                                             contentDescription = null,
-                                            tint = Color(0xFF00A884),
+                                            tint = if (lastNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -623,7 +627,7 @@ fun AuthScreen(
                         // Teléfono WhatsApp
                         Column {
                             Text(
-                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "WhatsApp de contacto" else "Número de teléfono",
+                                text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "WhatsApp de contacto *" else "Número de teléfono *",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF16324F),
@@ -632,12 +636,14 @@ fun AuthScreen(
                             OutlinedTextField(
                                 value = uiState.phone,
                                 onValueChange = onPhoneChange,
-                                placeholder = { Text("+51 987 654 321", fontSize = 13.sp) },
+                                placeholder = { Text("987654321", fontSize = 13.sp) },
+                                isError = phoneError != null,
+                                supportingText = phoneError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Outlined.Phone,
                                         contentDescription = null,
-                                        tint = Color(0xFF00A884),
+                                        tint = if (phoneError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 },
@@ -659,10 +665,16 @@ fun AuthScreen(
 
                         // CAMPOS EXCLUSIVOS DE VENDEDOR
                         if (uiState.selectedRole == UserRole.EMPRENDEDOR) {
+                            val storeNameError = if (showFieldErrors) FormValidators.validateStoreName(uiState.storeName) else null
+                            val isOtherCategory = uiState.storeCategory.equals("Otros", ignoreCase = true) || uiState.storeCategory.equals("Otro", ignoreCase = true)
+                            val customCategoryError = if (showFieldErrors && isOtherCategory) FormValidators.validateCustomCategory(uiState.customCategory) else null
+                            val storeDescError = if (showFieldErrors) FormValidators.validateStoreDescription(uiState.storeDescription) else null
+                            val meetingPointError = if (showFieldErrors && uiState.selectedMeetingPoint.isBlank()) "Selecciona un punto de entrega oficial" else null
+
                             // Nombre de la Tienda
                             Column {
                                 Text(
-                                    text = "Nombre de la Tienda / Negocio",
+                                    text = "Nombre de la Tienda / Negocio *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
@@ -672,11 +684,13 @@ fun AuthScreen(
                                     value = uiState.storeName,
                                     onValueChange = onStoreNameChange,
                                     placeholder = { Text("Ej. Jugos y Snacks Doña Luz", fontSize = 13.sp) },
+                                    isError = storeNameError != null,
+                                    supportingText = storeNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Storefront,
                                             contentDescription = null,
-                                            tint = Color(0xFF00A884),
+                                            tint = if (storeNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -696,7 +710,7 @@ fun AuthScreen(
                             // Categoría de la Tienda (Dropdown)
                             Column {
                                 Text(
-                                    text = "Categoría del Emprendimiento",
+                                    text = "Categoría del Emprendimiento *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
@@ -755,10 +769,40 @@ fun AuthScreen(
                                 }
                             }
 
+                            // Apartado dinámico para texto libre si se selecciona "Otros" (Bug 20)
+                            if (isOtherCategory) {
+                                Column {
+                                    Text(
+                                        text = "¿Qué categoría es tu emprendimiento? *",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF16324F),
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                    OutlinedTextField(
+                                        value = uiState.customCategory,
+                                        onValueChange = onCustomCategoryChange,
+                                        placeholder = { Text("Ej. Artesanías, Ropa, Papelería...", fontSize = 13.sp) },
+                                        isError = customCategoryError != null,
+                                        supportingText = customCategoryError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(14.dp),
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFFF8FAFC),
+                                            unfocusedContainerColor = Color(0xFFF4F6F8),
+                                            focusedBorderColor = Color(0xFF00A884),
+                                            unfocusedBorderColor = Color(0xFFE2E8F0)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+
                             // Descripción del Negocio
                             Column {
                                 Text(
-                                    text = "Descripción de tus productos",
+                                    text = "Descripción de tus productos *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
@@ -768,11 +812,13 @@ fun AuthScreen(
                                     value = uiState.storeDescription,
                                     onValueChange = onStoreDescriptionChange,
                                     placeholder = { Text("Ej. Venta de jugos naturales, sánguches frescos y postres caseros...", fontSize = 13.sp) },
+                                    isError = storeDescError != null,
+                                    supportingText = storeDescError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Description,
                                             contentDescription = null,
-                                            tint = Color(0xFF00A884),
+                                            tint = if (storeDescError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -793,7 +839,7 @@ fun AuthScreen(
                             // Punto de Entrega Preferido (Puntos Oficiales Aprobados)
                             Column {
                                 Text(
-                                    text = "Punto de entrega preferido (Oficial)",
+                                    text = "Punto de entrega preferido (Oficial) *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF16324F),
@@ -813,11 +859,13 @@ fun AuthScreen(
                                         value = uiState.selectedMeetingPoint.ifBlank { "Selecciona un punto oficial..." },
                                         onValueChange = {},
                                         readOnly = true,
+                                        isError = meetingPointError != null,
+                                        supportingText = meetingPointError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                         leadingIcon = {
                                             Icon(
                                                 imageVector = Icons.Outlined.Place,
                                                 contentDescription = null,
-                                                tint = Color(0xFF00A884),
+                                                tint = if (meetingPointError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         },
@@ -871,9 +919,10 @@ fun AuthScreen(
                     }
 
                     // Campo Correo Electrónico (Cualquier dominio válido)
+                    val emailError = if (showFieldErrors) FormValidators.validateEmail(uiState.email) else null
                     Column {
                         Text(
-                            text = "Correo Electrónico",
+                            text = "Correo Electrónico *",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF16324F),
@@ -883,11 +932,13 @@ fun AuthScreen(
                             value = uiState.email,
                             onValueChange = onEmailChange,
                             placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
+                            isError = emailError != null,
+                            supportingText = emailError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Email,
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = if (emailError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -910,9 +961,10 @@ fun AuthScreen(
                     }
 
                     // Campo Contraseña
+                    val passwordError = if (showFieldErrors) FormValidators.validatePassword(uiState.password) else null
                     Column {
                         Text(
-                            text = "Contraseña",
+                            text = "Contraseña *",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF16324F),
@@ -928,11 +980,13 @@ fun AuthScreen(
                                     color = Color(0xFF94A3B8)
                                 )
                             },
+                            isError = passwordError != null,
+                            supportingText = passwordError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Lock,
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = if (passwordError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -955,7 +1009,11 @@ fun AuthScreen(
                             keyboardActions = KeyboardActions(
                                 onDone = {
                                     focusManager.clearFocus()
-                                    if (uiState.canSubmit && (uiState.isLoginMode || termsAccepted)) onSubmit()
+                                    if (uiState.canSubmit && (uiState.isLoginMode || termsAccepted)) {
+                                        onSubmit()
+                                    } else {
+                                        showFieldErrors = true
+                                    }
                                 }
                             ),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -990,36 +1048,67 @@ fun AuthScreen(
 
                     // MODO REGISTRO: Checkbox Términos
                     if (!uiState.isLoginMode) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { termsAccepted = !termsAccepted }
-                        ) {
-                            Checkbox(
-                                checked = termsAccepted,
-                                onCheckedChange = { termsAccepted = it },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = Color(0xFF00A884),
-                                    uncheckedColor = Color(0xFFCBD5E1)
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Checkbox(
+                                    checked = termsAccepted,
+                                    onCheckedChange = { termsAccepted = it },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = Color(0xFF00A884),
+                                        uncheckedColor = Color(0xFFCBD5E1)
+                                    )
                                 )
-                            )
-                            Text(
-                                text = "Acepto los términos y condiciones",
-                                fontSize = 12.5.sp,
-                                color = Color(0xFF64748B)
-                            )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Acepto los ",
+                                        fontSize = 12.5.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    Text(
+                                        text = "términos y condiciones",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF00A884),
+                                        modifier = Modifier.clickable { showTermsSheet = true }
+                                    )
+                                }
+                            }
+                            if (showFieldErrors && !termsAccepted) {
+                                Text(
+                                    text = "Debes aceptar los términos y condiciones para continuar",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 11.5.sp,
+                                    modifier = Modifier.padding(start = 12.dp)
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))
 
                     // Botón Principal
-                    val isButtonEnabled = uiState.canSubmit && (uiState.isLoginMode || termsAccepted)
+                    val isButtonEnabled = !uiState.isLoading
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            onSubmit()
+                            if (uiState.isLoginMode) {
+                                if (uiState.canSubmit) {
+                                    onSubmit()
+                                } else {
+                                    showFieldErrors = true
+                                }
+                            } else {
+                                if (uiState.canSubmit && termsAccepted) {
+                                    onSubmit()
+                                } else {
+                                    showFieldErrors = true
+                                }
+                            }
                         },
                         enabled = isButtonEnabled,
                         shape = RoundedCornerShape(16.dp),
@@ -1257,6 +1346,13 @@ fun AuthScreen(
                     Text("Cerrar", color = Color(0xFF64748B))
                 }
             }
+        )
+    }
+
+    if (showTermsSheet) {
+        ProfileInfoBottomSheet(
+            type = ProfileInfoType.TERMS,
+            onDismiss = { showTermsSheet = false }
         )
     }
 }

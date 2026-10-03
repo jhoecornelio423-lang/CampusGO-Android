@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.model
+package com.example.campusgo.domain.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -16,7 +16,8 @@ data class OrderIncident(
     @SerialName("resolved_at") val resolvedAt: String? = null,
     @SerialName("resolved_by") val resolvedBy: String? = null,
     @SerialName("resolution_action") val resolutionAction: String? = null,
-    @SerialName("admin_notes") val adminNotes: String? = null
+    @SerialName("admin_notes") val adminNotes: String? = null,
+    @SerialName("evidence_url") val evidenceUrl: String? = null
 ) {
     val isPending: Boolean
         get() = status.equals("PENDIENTE", ignoreCase = true)

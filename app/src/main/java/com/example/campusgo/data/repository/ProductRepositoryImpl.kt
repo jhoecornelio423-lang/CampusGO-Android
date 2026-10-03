@@ -9,6 +9,12 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.upload
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
 @kotlinx.serialization.Serializable
@@ -130,6 +136,8 @@ class ProductRepositoryImpl(
         }
     }
 
+    private val _activeProductsFlow = MutableStateFlow<List<Product>>(emptyList())
+
     override suspend fun getActiveProducts(): Result<List<Product>> = withContext(Dispatchers.IO) {
         try {
             val products = postgrest.from("products")
@@ -140,11 +148,25 @@ class ProductRepositoryImpl(
                     }
                 }
                 .decodeList<Product>()
+            _activeProductsFlow.value = products
             Result.success(products)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    override fun observeActiveProducts(): Flow<List<Product>> = flow {
+        if (_activeProductsFlow.value.isNotEmpty()) {
+            emit(_activeProductsFlow.value)
+        }
+        while (true) {
+            val result = getActiveProducts()
+            result.getOrNull()?.let { prods ->
+                emit(prods)
+            }
+            delay(4000L)
+        }
+    }.flowOn(Dispatchers.IO)
 
     private var cachedCategories: List<Category>? = null
 

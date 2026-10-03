@@ -3,6 +3,7 @@ package com.example.campusgo.features.buyer
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -92,7 +93,7 @@ fun BuyerProfileScreen(
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             val bytes = compressImageUri(context, uri)
@@ -225,7 +226,11 @@ fun BuyerProfileScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .clickable { imagePickerLauncher.launch("image/*") }
+                                    .clickable {
+                                        imagePickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     if (isUploading) {

@@ -5,7 +5,12 @@ import android.widget.Toast
 import com.example.campusgo.core.util.FormValidators
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import com.example.campusgo.features.auth.AuthUiState
+import com.example.campusgo.ui.components.ReportIncidentDialog
+import com.example.campusgo.ui.components.IncidentContextType
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -90,6 +95,7 @@ fun SellerStoreProfileScreen(
     ) -> Unit,
     onToggleAcceptingOrders: ((Boolean) -> Unit)? = null,
     onSignOut: () -> Unit = {},
+    onReportIncident: ((reasonKey: String, reasonLabel: String, details: String) -> Unit)? = null,
     showHeader: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -104,15 +110,20 @@ fun SellerStoreProfileScreen(
 
     var selectedInfoType by remember { mutableStateOf(ProfileInfoType.NONE) }
     var showNotificationsSheet by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
 
     // Manejo de retroceso nativo de Android en el perfil del vendedor
-    BackHandler(enabled = showEnlargedPhoto) {
+    BackHandler(enabled = showReportDialog) {
+        showReportDialog = false
+    }
+    BackHandler(enabled = !showReportDialog && showEnlargedPhoto) {
         showEnlargedPhoto = false
     }
-    BackHandler(enabled = !showEnlargedPhoto && isEditMode) {
+    BackHandler(enabled = !showReportDialog && !showEnlargedPhoto && isEditMode) {
         isEditMode = false
     }
-    BackHandler(enabled = !showEnlargedPhoto && !isEditMode && showHeader) {
+    BackHandler(enabled = !showReportDialog && !showEnlargedPhoto && !isEditMode && showHeader) {
         onNavigateBack()
     }
 
@@ -129,9 +140,20 @@ fun SellerStoreProfileScreen(
     var description by remember(activeProfile.id, activeProfile.businessDescription) {
         mutableStateOf(activeProfile.businessDescription.orEmpty())
     }
-    var category by remember(activeProfile.id, activeProfile.businessCategory) {
-        mutableStateOf(activeProfile.businessCategory.orEmpty())
+    val initialCategory = activeProfile.businessCategory.orEmpty()
+    val isCategoryPredefined = AuthUiState.STORE_CATEGORIES.any { it.equals(initialCategory, ignoreCase = true) && !it.equals("Otros", ignoreCase = true) }
+    var selectedCategoryOption by remember(activeProfile.id, activeProfile.businessCategory) {
+        mutableStateOf(if (isCategoryPredefined) initialCategory else if (initialCategory.isNotBlank()) "Otros" else "Comidas y Menús")
     }
+    var customCategoryText by remember(activeProfile.id, activeProfile.businessCategory) {
+        mutableStateOf(if (!isCategoryPredefined) initialCategory else "")
+    }
+    val effectiveCategory = if (selectedCategoryOption.equals("Otros", ignoreCase = true)) {
+        customCategoryText.trim()
+    } else {
+        selectedCategoryOption.trim()
+    }
+
     var location by remember(activeProfile.id, activeProfile.businessLocation) {
         mutableStateOf(activeProfile.businessLocation ?: activeProfile.campus)
     }
@@ -173,7 +195,9 @@ fun SellerStoreProfileScreen(
     fun resetFields() {
         businessName = activeProfile.businessName ?: activeProfile.fullName
         description = activeProfile.businessDescription.orEmpty()
-        category = activeProfile.businessCategory.orEmpty()
+        val resetPredefined = AuthUiState.STORE_CATEGORIES.any { it.equals(activeProfile.businessCategory.orEmpty(), ignoreCase = true) && !it.equals("Otros", ignoreCase = true) }
+        selectedCategoryOption = if (resetPredefined) activeProfile.businessCategory.orEmpty() else if (!activeProfile.businessCategory.isNullOrBlank()) "Otros" else "Comidas y Menús"
+        customCategoryText = if (!resetPredefined) activeProfile.businessCategory.orEmpty() else ""
         location = activeProfile.businessLocation ?: activeProfile.campus
         openTime = activeProfile.openTime ?: "08:00"
         closeTime = activeProfile.closeTime ?: "18:00"
@@ -194,7 +218,7 @@ fun SellerStoreProfileScreen(
     }
 
     val bannerPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { selectedUri ->
             val bytes = compressImageUri(context, selectedUri, maxDimension = 1200, quality = 82)
@@ -210,7 +234,7 @@ fun SellerStoreProfileScreen(
     }
 
     val avatarPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { selectedUri ->
             val bytes = compressImageUri(context, selectedUri, maxDimension = 512, quality = 85)
@@ -294,7 +318,12 @@ fun SellerStoreProfileScreen(
                                 onClick = {
                                     showValidationErrors = true
                                     val bnErr = FormValidators.validateStoreName(businessName)
-                                    val catErr = FormValidators.validateStoreCategory(category)
+                                    val isCustomCat = selectedCategoryOption.equals("Otros", ignoreCase = true) || selectedCategoryOption.equals("Otro", ignoreCase = true)
+                                    val catErr = if (isCustomCat) {
+                                        FormValidators.validateCustomCategory(customCategoryText)
+                                    } else {
+                                        FormValidators.validateStoreCategory(selectedCategoryOption)
+                                    }
                                     val descErr = FormValidators.validateStoreDescription(description)
                                     val locErr = FormValidators.validateStoreLocation(location)
                                     val mpErr = FormValidators.validateMeetingPoints(selectedMeetingPoints)
@@ -317,7 +346,7 @@ fun SellerStoreProfileScreen(
                                         businessName.trim(),
                                         businessStatus,
                                         description.trim(),
-                                        category.trim(),
+                                        effectiveCategory,
                                         location.trim(),
                                         openTime,
                                         closeTime,
@@ -401,7 +430,7 @@ fun SellerStoreProfileScreen(
                     .height(205.dp)
                     .clip(bannerShape)
                     .then(
-                        if (isEditMode) Modifier.clickable { bannerPickerLauncher.launch("image/*") }
+                        if (isEditMode) Modifier.clickable { bannerPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                         else Modifier.clickable {
                             enlargedPhotoUrl = bannerUrl.takeIf { it.isNotBlank() }
                             enlargedPhotoTitle = businessName.ifBlank { activeProfile.fullName }
@@ -490,7 +519,7 @@ fun SellerStoreProfileScreen(
                         }
                     } else {
                         Surface(
-                            onClick = { bannerPickerLauncher.launch("image/*") },
+                            onClick = { bannerPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                             shape = RoundedCornerShape(20.dp),
                             color = Color.Black.copy(alpha = 0.7f),
                             shadowElevation = 2.dp
@@ -655,7 +684,7 @@ fun SellerStoreProfileScreen(
                                                 modifier = Modifier.size(12.dp)
                                             )
                                             Text(
-                                                text = category.ifBlank { "Comidas / Varios" },
+                                                text = effectiveCategory.ifBlank { activeProfile.businessCategory?.takeIf { it.isNotBlank() } ?: "Comidas y Menús" },
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color(0xFF334155)
@@ -704,7 +733,7 @@ fun SellerStoreProfileScreen(
                             .padding(start = 16.dp)
                             .size(92.dp)
                             .then(
-                                if (isEditMode) Modifier.clickable { avatarPickerLauncher.launch("image/*") }
+                                if (isEditMode) Modifier.clickable { avatarPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                                 else Modifier.clip(CircleShape).clickable {
                                     enlargedPhotoUrl = avatarUrl.takeIf { it.isNotBlank() }
                                     enlargedPhotoTitle = businessName.ifBlank { activeProfile.fullName }
@@ -959,38 +988,76 @@ fun SellerStoreProfileScreen(
                                     )
                                 }
                             } else {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     selectedMeetingPoints.forEach { pointId ->
                                         val pt = availableMeetingPoints.find { it.id == pointId }
                                         val label = pt?.name ?: pointId
-                                        val isExt = pt?.zoneType == "EXTERIOR"
+                                        val isExt = pt?.zoneType.equals("EXTERIOR", ignoreCase = true)
+                                        val details = listOfNotNull(pt?.pavilion, pt?.description).filter { it.isNotBlank() }.joinToString(" • ")
+
                                         Surface(
-                                            color = if (isExt) Color(0xFFE8F5E9) else Color(0xFFEDE7F6),
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, if (isExt) Color(0xFF81C784) else Color(0xFFB39DDB))
+                                            color = Color(0xFFF8FAFC),
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.ic_location_custom),
-                                                    contentDescription = null,
-                                                    tint = if (isExt) Color(0xFF2E7D32) else Color(0xFF512DA8),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(
-                                                    text = label,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = if (isExt) Color(0xFF1B5E20) else Color(0xFF311B92)
-                                                )
+                                                Row(
+                                                    modifier = Modifier.weight(1f),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = if (isExt) Color(0xFFE8F5E9) else Color(0xFFEDE7F6),
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.ic_location_custom),
+                                                                contentDescription = null,
+                                                                tint = if (isExt) Color(0xFF2E7D32) else Color(0xFF512DA8),
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    Column {
+                                                        Text(
+                                                            text = label,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFF1E293B)
+                                                        )
+                                                        if (details.isNotBlank()) {
+                                                            Text(
+                                                                text = details,
+                                                                fontSize = 11.5.sp,
+                                                                color = Color(0xFF64748B)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Surface(
+                                                    color = if (isExt) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = if (isExt) "Exterior" else "Interior",
+                                                        fontSize = 10.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isExt) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1074,6 +1141,18 @@ fun SellerStoreProfileScreen(
                                     StrikeBadge(strikes = strikeCount)
                                 },
                                 onClick = { showNotificationsSheet = true }
+                            )
+
+                            HorizontalDivider(color = Color(0xFFF1F5F9))
+
+                            // 5. Botón de Reportar Incidencia / Soporte
+                            ProfileInfoNavigationRow(
+                                iconPainter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                iconTint = Color(0xFFDC2626),
+                                iconBg = Color(0xFFFEE2E2),
+                                title = "Reportar incidencia",
+                                subtitle = "Notificar problemas con compradores, pedidos o soporte técnico",
+                                onClick = { showReportDialog = true }
                             )
                         }
                     }
@@ -1176,39 +1255,95 @@ fun SellerStoreProfileScreen(
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = category,
-                                onValueChange = {
-                                    category = it
-                                    if (showValidationErrors) categoryError = FormValidators.validateStoreCategory(it)
-                                },
-                                label = { Text("Giro / Categoría *") },
-                                placeholder = { Text("Comidas / Snacks") },
-                                isError = categoryError != null,
-                                supportingText = categoryError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
+                        // Selector de Categoría (Coherente con Registro)
+                        var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
+                        val isCustomCategory = selectedCategoryOption.equals("Otros", ignoreCase = true) || selectedCategoryOption.equals("Otro", ignoreCase = true)
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "Giro / Categoría Comercial *",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF475569),
+                                modifier = Modifier.padding(bottom = 4.dp)
                             )
-                            OutlinedTextField(
-                                value = location,
-                                onValueChange = {
-                                    location = it
-                                    if (showValidationErrors) locationError = FormValidators.validateStoreLocation(it)
-                                },
-                                label = { Text("Ubicación en Campus *") },
-                                placeholder = { Text("Pabellón A / Cafetería") },
-                                isError = locationError != null,
-                                supportingText = locationError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
-                            )
+                            ExposedDropdownMenuBox(
+                                expanded = isCategoryDropdownExpanded,
+                                onExpandedChange = { isCategoryDropdownExpanded = it },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedCategoryOption,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Categoría") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryDropdownExpanded) },
+                                    modifier = Modifier
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                        .fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    isError = categoryError != null,
+                                    supportingText = if (!isCustomCategory && categoryError != null) {
+                                        { Text(text = categoryError!!, color = MaterialTheme.colorScheme.error) }
+                                    } else null
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = isCategoryDropdownExpanded,
+                                    onDismissRequest = { isCategoryDropdownExpanded = false }
+                                ) {
+                                    AuthUiState.STORE_CATEGORIES.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                selectedCategoryOption = option
+                                                isCategoryDropdownExpanded = false
+                                                if (showValidationErrors) {
+                                                    categoryError = if (option.equals("Otros", ignoreCase = true)) {
+                                                        FormValidators.validateCustomCategory(customCategoryText)
+                                                    } else {
+                                                        FormValidators.validateStoreCategory(option)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (isCustomCategory) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = customCategoryText,
+                                    onValueChange = {
+                                        customCategoryText = it
+                                        if (showValidationErrors) categoryError = FormValidators.validateCustomCategory(it)
+                                    },
+                                    label = { Text("Especifica tu rubro / categoría *") },
+                                    placeholder = { Text("Ej. Artesanías, Accesorios, etc.") },
+                                    isError = categoryError != null,
+                                    supportingText = categoryError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                            }
                         }
+
+                        // Ubicación en Campus
+                        OutlinedTextField(
+                            value = location,
+                            onValueChange = {
+                                location = it
+                                if (showValidationErrors) locationError = FormValidators.validateStoreLocation(it)
+                            },
+                            label = { Text("Ubicación en Campus *") },
+                            placeholder = { Text("Pabellón A / Cafetería Central") },
+                            isError = locationError != null,
+                            supportingText = locationError?.let { msg -> { Text(text = msg, color = MaterialTheme.colorScheme.error) } },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1576,6 +1711,26 @@ fun SellerStoreProfileScreen(
         SellerNotificationsBottomSheet(
             warnings = warnings,
             onDismiss = { showNotificationsSheet = false }
+        )
+    }
+
+    if (showReportDialog) {
+        ReportIncidentDialog(
+            title = "Reportar Incidencia o Problema",
+            subtitle = "CampusGO enviará este reporte a la administración del campus para su revisión y seguimiento.",
+            contextType = IncidentContextType.BUYER,
+            isSubmitting = isSubmittingReport,
+            onDismiss = { showReportDialog = false },
+            onSubmit = { key, label, details ->
+                if (onReportIncident != null) {
+                    onReportIncident(key, label, details)
+                    showReportDialog = false
+                    Toast.makeText(context, "Reporte enviado con éxito al Administrador.", Toast.LENGTH_SHORT).show()
+                } else {
+                    showReportDialog = false
+                    Toast.makeText(context, "Reporte registrado para moderación del campus.", Toast.LENGTH_SHORT).show()
+                }
+            }
         )
     }
 }

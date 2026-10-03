@@ -27,7 +27,7 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "Nuevo FCM Token recibido: $token")
+        Log.i(TAG, "Nuevo FCM Token recibido: $token")
 
         // Persistir localmente en preferencias para sincronizar con Supabase
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -41,7 +41,7 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
-        Log.d(TAG, "Notificación FCM recibida de: ${remoteMessage.from}")
+        Log.i(TAG, "Notificación FCM recibida de: ${remoteMessage.from}")
 
         val data = remoteMessage.data
         val title = data["title"] ?: remoteMessage.notification?.title ?: "CampusGO"
@@ -52,7 +52,7 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
         val senderId = data["sender_id"]
         val senderName = data["sender_name"] ?: title
 
-        Log.d(TAG, "FCM Payload: type=$type, orderId=$orderId, subOrderId=$subOrderId, title=$title, body=$body")
+        Log.i(TAG, "FCM Payload: type=$type, orderId=$orderId, subOrderId=$subOrderId, title=$title, body=$body")
 
         if (type.equals("chat", ignoreCase = true) ||
             type.equals("chat_message", ignoreCase = true) ||
@@ -64,7 +64,7 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
             )
 
             if (isChatOpen) {
-                Log.d(TAG, "Chat activo en pantalla en primer plano. Silenciando notificación FCM.")
+                Log.i(TAG, "Chat activo en pantalla en primer plano. Silenciando notificación FCM.")
                 return
             }
 
@@ -127,7 +127,7 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
                     )
                 )
             }
-            Log.d(TAG, "FCM Token sincronizado exitosamente con profiles y push_tokens para usuario ${user.id}")
+            Log.i(TAG, "FCM Token sincronizado exitosamente con profiles y push_tokens para usuario ${user.id}")
         } catch (e: Exception) {
             Log.w(TAG, "Aviso sincronizando FCM Token con Supabase: ${e.message}")
         }
@@ -176,7 +176,7 @@ class CampusGoFirebaseMessagingService : FirebaseMessagingService(), KoinCompone
                         )
                     )
                 }
-                Log.d(TAG, "FCM Token actualizado en profiles y push_tokens tras login para ${user.id}")
+                Log.i(TAG, "FCM Token actualizado en profiles y push_tokens tras login para ${user.id}")
             } catch (e: Exception) {
                 Log.w(TAG, "Error actualizando FCM Token en Supabase: ${e.message}")
             }

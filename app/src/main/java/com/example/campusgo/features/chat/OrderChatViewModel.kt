@@ -139,8 +139,9 @@ class OrderChatViewModel(
                         isLoading = false
                     )
                 }
-                // Persistir lectura en la base de datos ÚNICAMENTE si la app está en primer plano
-                if (ActiveChatSessionManager.isAppInForeground) {
+                // Persistir lectura en la base de datos ÚNICAMENTE si la app está en primer plano y hay mensajes del interlocutor sin leer
+                val hasUnreadIncoming = messageList.any { !it.isFromMe && !it.isRead }
+                if (ActiveChatSessionManager.isAppInForeground && hasUnreadIncoming) {
                     chatRepository.markMessagesAsRead(subOrderId, currentUserId)
                 }
             }

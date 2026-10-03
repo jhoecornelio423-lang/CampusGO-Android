@@ -19,12 +19,14 @@ data class AuthUiState(
     val isLoginMode: Boolean = true,
     val email: String = "",
     val password: String = "",
-    val fullName: String = "",
+    val firstName: String = "",
+    val lastName: String = "",
     val phone: String = "",
     val selectedRole: UserRole = UserRole.COMPRADOR,
     val campus: String = "UCV - Lima Norte",
     val storeName: String = "",
-    val storeCategory: String = "Comidas y Bebidas",
+    val storeCategory: String = "Comidas y Menús",
+    val customCategory: String = "",
     val storeDescription: String = "",
     val selectedMeetingPoint: String = "",
     val availableMeetingPoints: List<CampusMeetingPoint> = emptyList(),
@@ -39,16 +41,34 @@ data class AuthUiState(
     val profile: UserProfile? = null,
     val isSellerPendingApproval: Boolean = false
 ) {
+    val fullName: String get() = "$firstName $lastName".trim()
+
     val isEmailValid: Boolean get() = FormValidators.validateEmail(email) == null
 
     val isInstitutionalEmailValid: Boolean get() = isEmailValid
 
+    val effectiveCategory: String
+        get() = if (storeCategory.equals("Otros", ignoreCase = true) || storeCategory.equals("Otro", ignoreCase = true)) {
+            customCategory.trim()
+        } else {
+            storeCategory.trim()
+        }
+
     val canSubmit: Boolean get() {
         if (!isEmailValid || FormValidators.validatePassword(password) != null || isLoading) return false
         if (isLoginMode) return true
-        if (FormValidators.validateFullName(fullName) != null || FormValidators.validatePhone(phone) != null) return false
+        if (FormValidators.validateFirstName(firstName) != null ||
+            FormValidators.validateLastName(lastName) != null ||
+            FormValidators.validatePhone(phone) != null) return false
         if (selectedRole == UserRole.EMPRENDEDOR) {
+            val isCustomCategory = storeCategory.equals("Otros", ignoreCase = true) || storeCategory.equals("Otro", ignoreCase = true)
+            val categoryValid = if (isCustomCategory) {
+                FormValidators.validateCustomCategory(customCategory) == null
+            } else {
+                storeCategory.isNotBlank()
+            }
             return FormValidators.validateStoreName(storeName) == null &&
+                    categoryValid &&
                     FormValidators.validateStoreDescription(storeDescription) == null &&
                     selectedMeetingPoint.isNotBlank()
         }

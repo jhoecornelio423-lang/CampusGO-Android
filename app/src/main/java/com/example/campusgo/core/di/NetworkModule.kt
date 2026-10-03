@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.core.di
+package com.example.campusgo.core.di
 
 import com.example.campusgo.BuildConfig
 import io.github.jan.supabase.SupabaseClient
@@ -28,7 +28,12 @@ val networkModule = module {
                 }
             }
             requestTimeout = kotlin.time.Duration.parse("30s")
-            install(Auth)
+            install(Auth) {
+                alwaysAutoRefresh = true
+                autoLoadFromStorage = true
+                autoSaveToStorage = true
+                enableLifecycleCallbacks = false
+            }
             install(Postgrest)
             install(Realtime)
             install(Storage)

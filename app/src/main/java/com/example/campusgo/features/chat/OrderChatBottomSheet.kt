@@ -201,7 +201,7 @@ fun OrderChatBottomSheet(
                 contextType = if (isReportingSeller) IncidentContextType.SELLER else IncidentContextType.BUYER,
                 isSubmitting = isSubmittingReport,
                 onDismiss = { showReportDialog = false },
-                onSubmit = { reasonKey, reasonLabel, details ->
+                onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
                     coroutineScope.launch {
                         isSubmittingReport = true
                         val result = orderRepository.reportIncident(
@@ -209,7 +209,8 @@ fun OrderChatBottomSheet(
                             reporterId = uiState.currentUserId.takeIf { it.isNotBlank() },
                             reportedUserId = uiState.otherUserId.takeIf { it.isNotBlank() },
                             incidentType = reasonKey,
-                            details = details.ifBlank { reasonLabel }
+                            details = details.ifBlank { reasonLabel },
+                            evidenceBytes = evidenceBytes
                         )
                         isSubmittingReport = false
                         showReportDialog = false
@@ -346,7 +347,7 @@ fun OrderChatBottomSheet(
                 contextType = if (isReportingSeller) IncidentContextType.SELLER else IncidentContextType.BUYER,
                 isSubmitting = isSubmittingReport,
                 onDismiss = { showReportDialog = false },
-                onSubmit = { reasonKey, reasonLabel, details ->
+                onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
                     coroutineScope.launch {
                         isSubmittingReport = true
                         val result = orderRepository.reportIncident(
@@ -354,7 +355,8 @@ fun OrderChatBottomSheet(
                             reporterId = uiState.currentUserId.takeIf { it.isNotBlank() },
                             reportedUserId = uiState.otherUserId.takeIf { it.isNotBlank() },
                             incidentType = reasonKey,
-                            details = details.ifBlank { reasonLabel }
+                            details = details.ifBlank { reasonLabel },
+                            evidenceBytes = evidenceBytes
                         )
                         isSubmittingReport = false
                         showReportDialog = false

@@ -4,8 +4,11 @@ import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.domain.model.UserProfile
 
+import kotlinx.coroutines.flow.Flow
+
 interface ProductRepository {
     suspend fun getActiveProducts(): Result<List<Product>>
+    fun observeActiveProducts(): Flow<List<Product>>
     suspend fun getCategories(): Result<List<Category>>
     suspend fun getProductsBySeller(sellerId: String): Result<List<Product>>
     suspend fun createProduct(product: Product): Result<Product>

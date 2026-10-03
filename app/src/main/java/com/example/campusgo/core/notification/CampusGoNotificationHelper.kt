@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.campusgo.MainActivity
@@ -17,7 +18,7 @@ import com.example.campusgo.R
 object CampusGoNotificationHelper {
 
     const val CHANNEL_ORDERS = "campusgo_orders_channel_v4"
-    const val CHANNEL_CHAT = "campusgo_chat_channel_v4"
+    const val CHANNEL_CHAT = "campusgo_chat_channel_v6"
     const val CHANNEL_SERVICE = "campusgo_service_channel_v3"
     const val SERVICE_NOTIFICATION_ID = 9001
 
@@ -27,17 +28,16 @@ object CampusGoNotificationHelper {
 
             // Limpieza proactiva de canales antiguos
             try {
-                notificationManager.deleteNotificationChannel(CHANNEL_SERVICE)
                 notificationManager.deleteNotificationChannel("campusgo_orders_channel_v2")
                 notificationManager.deleteNotificationChannel("campusgo_orders_channel_v3")
                 notificationManager.deleteNotificationChannel("campusgo_chat_channel_v2")
                 notificationManager.deleteNotificationChannel("campusgo_chat_channel_v3")
+                notificationManager.deleteNotificationChannel("campusgo_chat_channel_v4")
+                notificationManager.deleteNotificationChannel("campusgo_chat_channel_v5")
                 notificationManager.deleteNotificationChannel("campusgo_service_channel_v2")
-                notificationManager.deleteNotificationChannel("campusgo_service_channel_v3")
                 notificationManager.deleteNotificationChannel("vallego_orders_channel")
                 notificationManager.deleteNotificationChannel("vallego_chat_channel")
                 notificationManager.deleteNotificationChannel("vallego_service_channel")
-                notificationManager.cancel(SERVICE_NOTIFICATION_ID)
             } catch (_: Exception) {}
 
             val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -87,6 +87,17 @@ object CampusGoNotificationHelper {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
+            // Canal para Foreground Service (Silencioso y discreto para mantener la conectividad viva)
+            val serviceChannel = NotificationChannel(
+                CHANNEL_SERVICE,
+                "Servicio de Conectividad CampusGO",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Mantiene activa la sincronización de mensajes y pedidos en segundo plano"
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
+            }
+
             // Canal pedidos (usado por Edge Function send-push de Supabase)
             val pedidosChannel = NotificationChannel(
                 "pedidos",
@@ -121,6 +132,7 @@ object CampusGoNotificationHelper {
 
             notificationManager.createNotificationChannel(orderChannel)
             notificationManager.createNotificationChannel(chatChannel)
+            notificationManager.createNotificationChannel(serviceChannel)
             notificationManager.createNotificationChannel(pedidosChannel)
             notificationManager.createNotificationChannel(soporteChannel)
         }
@@ -216,13 +228,49 @@ object CampusGoNotificationHelper {
             .build()
 
         try {
+            // WakeLock breve para asegurar que CPU procese la alerta sonora en reposo
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val wl = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:ChatNotificationWakeLock")
+            wl?.acquire(3000L)
+
             if (tag != null) {
                 NotificationManagerCompat.from(context).notify(tag, resolvedNotifId, notification)
             } else {
                 NotificationManagerCompat.from(context).notify(resolvedNotifId, notification)
             }
+            android.util.Log.i("CampusGoNotification", "showChatNotification NOTIFY EXITOSO: id=$resolvedNotifId, sender=$senderName, msg=$message")
+
+            // Garantizar reproducción de audio en dispositivos con políticas agresivas de batería o Doze
+            try {
+                val ringtone = RingtoneManager.getRingtone(context.applicationContext, defaultSoundUri)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    ringtone?.audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                        .build()
+                }
+                ringtone?.play()
+                android.util.Log.i("CampusGoNotification", "showChatNotification RINGTONE PLAY EXITOSO")
+            } catch (re: Exception) {
+                android.util.Log.w("CampusGoNotification", "Aviso reproduciendo ringtone directo: ${re.message}")
+            }
+
+            // Fallback de vibración directa
+            try {
+                @Suppress("DEPRECATION")
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 250, 150, 250), -1))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(longArrayOf(0, 250, 150, 250), -1)
+                }
+            } catch (_: Exception) {}
         } catch (e: SecurityException) {
             android.util.Log.e("CampusGoNotification", "Permiso de notificaciones denegado", e)
+        } catch (e: Exception) {
+            android.util.Log.e("CampusGoNotification", "Error general en showChatNotification: ${e.message}", e)
         }
     }
 
@@ -252,7 +300,8 @@ object CampusGoNotificationHelper {
                     val id = statusBarNotif.id
 
                     val isChatChannel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        statusBarNotif.notification.channelId == CHANNEL_CHAT || statusBarNotif.notification.channelId == "campusgo_chat_channel_v3"
+                        val chId = statusBarNotif.notification.channelId ?: ""
+                        chId == CHANNEL_CHAT || chId.contains("chat", ignoreCase = true)
                     } else false
 
                     val matchesSubOrder = !subOrderId.isNullOrBlank() && (

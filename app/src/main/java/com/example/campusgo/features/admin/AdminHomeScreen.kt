@@ -85,6 +85,15 @@ import com.example.campusgo.ui.components.StrikeBadge
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 import java.util.UUID
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import com.example.campusgo.domain.model.SupportTicket
+import com.example.campusgo.domain.repository.SupportRepository
+import com.example.campusgo.features.chat.SupportChatBottomSheet
+import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
+import androidx.compose.material.icons.filled.Visibility
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +105,10 @@ fun AdminHomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val supportRepository: SupportRepository = koinInject()
+    val coroutineScope = rememberCoroutineScope()
+    var activeSupportTicket by remember { mutableStateOf<SupportTicket?>(null) }
+    var enlargedPhotoUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -116,7 +129,42 @@ fun AdminHomeScreen(
             uiState.selectedSellerForSuspension != null ||
             uiState.selectedBuyerForSuspension != null ||
             uiState.selectedUserForWarning != null ||
-            uiState.pointToDelete != null
+            uiState.pointToDelete != null ||
+            activeSupportTicket != null ||
+            enlargedPhotoUrl != null
+
+    activeSupportTicket?.let { ticket ->
+        SupportChatBottomSheet(
+            ticket = ticket,
+            currentUserId = profile.id,
+            isAdmin = true,
+            onDismiss = { activeSupportTicket = null },
+            onResolveTicket = {
+                coroutineScope.launch {
+                    supportRepository.resolveTicket(ticket.id, "Resuelto a través de mediación en chat.")
+                    ticket.incidentId?.let { incId ->
+                        viewModel.resolveIncident(
+                            incidentId = incId,
+                            status = "RESUELTO",
+                            action = "CHAT_MEDIATION",
+                            adminNotes = "Resuelto por el administrador del campus mediante chat de soporte."
+                        )
+                    }
+                    activeSupportTicket = null
+                }
+            }
+        )
+    }
+
+    enlargedPhotoUrl?.let { url ->
+        EnlargedPhotoViewerDialog(
+            photoUrl = url,
+            name = "Evidencia Fotográfica",
+            roleDescription = "Reporte de Incidencia",
+            title = "Evidencia Fotográfica",
+            onDismiss = { enlargedPhotoUrl = null }
+        )
+    }
 
     val backgroundBlurRadius by animateDpAsState(
         targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
@@ -629,7 +677,28 @@ fun AdminHomeScreen(
                                     onSelectBuyer = { buyer -> viewModel.onSelectBuyer(buyer) },
                                     onIssueWarningForIncident = { inc, user -> viewModel.openWarningDialogForIncident(inc, user) },
                                     onSuspendForIncident = { inc, user -> viewModel.openSuspensionDialogForIncident(inc, user) },
-                                    onResolveIncident = { inc -> viewModel.resolveIncident(inc.id, "RESUELTO", "RESOLUCION_DIRECTA", "Resuelto por el administrador del campus.") }
+                                    onResolveIncident = { inc -> viewModel.resolveIncident(inc.id, "RESUELTO", "RESOLUCION_DIRECTA", "Resuelto por el administrador del campus.") },
+                                    onOpenSupportChat = { incident ->
+                                        coroutineScope.launch {
+                                            val ticketResult = supportRepository.getTicketForIncident(incident.id)
+                                            var ticket = ticketResult.getOrNull()
+                                            if (ticket == null) {
+                                                val reporterId = incident.reporterId ?: incident.reportedUserId ?: profile.id
+                                                val created = supportRepository.getOrCreateTicketForIncident(
+                                                    userId = reporterId,
+                                                    incidentId = incident.id,
+                                                    subject = "Reclamo: ${incident.displayIncidentTitle}"
+                                                )
+                                                ticket = created.getOrNull()
+                                            }
+                                            if (ticket != null) {
+                                                activeSupportTicket = ticket
+                                            } else {
+                                                snackbarHostState.showSnackbar("No se pudo iniciar el chat de soporte")
+                                            }
+                                        }
+                                    },
+                                    onOpenPhoto = { url -> enlargedPhotoUrl = url }
                                 )
                             }
                             AdminTab.SELLERS_DIRECTORY -> {
@@ -888,7 +957,9 @@ fun SellerApplicationsTabContent(
     onSelectBuyer: (UserProfile) -> Unit = {},
     onIssueWarningForIncident: (OrderIncident, UserProfile) -> Unit = { _, _ -> },
     onSuspendForIncident: (OrderIncident, UserProfile) -> Unit = { _, _ -> },
-    onResolveIncident: (OrderIncident) -> Unit = {}
+    onResolveIncident: (OrderIncident) -> Unit = {},
+    onOpenSupportChat: (OrderIncident) -> Unit = {},
+    onOpenPhoto: (String) -> Unit = {}
 ) {
     var activeSubSection by rememberSaveable { mutableStateOf(0) } // 0 = Solicitudes, 1 = Reportes e Incidencias
     val pendingIncidentsCount = remember(allIncidents) { allIncidents.count { it.isPending } }
@@ -1125,7 +1196,9 @@ fun SellerApplicationsTabContent(
                             onSelectBuyer = onSelectBuyer,
                             onIssueWarning = { user -> onIssueWarningForIncident(incident, user) },
                             onSuspend = { user -> onSuspendForIncident(incident, user) },
-                            onResolve = { onResolveIncident(incident) }
+                            onResolve = { onResolveIncident(incident) },
+                            onOpenSupportChat = { onOpenSupportChat(incident) },
+                            onOpenPhoto = onOpenPhoto
                         )
                     }
                 }
@@ -1143,7 +1216,9 @@ fun AdminIncidentCard(
     onSelectBuyer: (UserProfile) -> Unit,
     onIssueWarning: (UserProfile) -> Unit,
     onSuspend: (UserProfile) -> Unit,
-    onResolve: () -> Unit
+    onResolve: () -> Unit,
+    onOpenSupportChat: () -> Unit = {},
+    onOpenPhoto: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1304,6 +1379,78 @@ fun AdminIncidentCard(
                         )
                     }
                 }
+            }
+
+            // Evidencia fotográfica adjunta
+            if (!incident.evidenceUrl.isNullOrBlank()) {
+                Surface(
+                    color = Color(0xFFF8FAFC),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenPhoto(incident.evidenceUrl) }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        AsyncImage(
+                            model = incident.evidenceUrl,
+                            contentDescription = "Evidencia Fotográfica",
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Evidencia Fotográfica Adjunta",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF003366)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Toca para ver en tamaño completo",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Visibility,
+                            contentDescription = "Ver foto",
+                            tint = Color(0xFF003366),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // Botón de Chat de Soporte y Mediación Institucional
+            OutlinedButton(
+                onClick = onOpenSupportChat,
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, Color(0xFF003366)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF003366)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_chat_custom),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color(0xFF003366)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Abrir Chat con el Usuario",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
             }
 
             // Si ya está resuelto o sancionado, mostrar resolución del administrador

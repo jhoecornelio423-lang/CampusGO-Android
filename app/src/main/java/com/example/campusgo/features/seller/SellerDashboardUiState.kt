@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller
+package com.example.campusgo.features.seller
 
 import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.PaymentMethod
@@ -104,6 +104,7 @@ data class SellerDashboardUiState(
     val isLoadingStats: Boolean = false,
     val statsTimeRange: String = "all",
     val warnings: List<com.example.campusgo.domain.model.ProfileWarning> = emptyList(),
+    val buyerStrikes: Map<String, Int> = emptyMap(),
     val selectedDate: LocalDate = LocalDate.now(ZoneId.of("America/Lima"))
 ) {
     val isViewingToday: Boolean

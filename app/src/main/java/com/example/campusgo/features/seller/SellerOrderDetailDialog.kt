@@ -801,7 +801,7 @@ fun SellerOrderDetailDialog(
             contextType = IncidentContextType.BUYER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportBuyerDialog = false },
-            onSubmit = { reasonKey, reasonLabel, details ->
+            onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
                 coroutineScope.launch {
                     isSubmittingReport = true
                     val result = orderRepository.reportIncident(
@@ -809,7 +809,8 @@ fun SellerOrderDetailDialog(
                         reporterId = subOrder.sellerId,
                         reportedUserId = subOrder.buyerId,
                         incidentType = reasonKey,
-                        details = details.ifBlank { reasonLabel }
+                        details = details.ifBlank { reasonLabel },
+                        evidenceBytes = evidenceBytes
                     )
                     isSubmittingReport = false
                     showReportBuyerDialog = false

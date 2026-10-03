@@ -1,5 +1,7 @@
 package com.example.campusgo.features.seller
 
+import androidx.activity.result.PickVisualMediaRequest
+import com.example.campusgo.ui.components.StrikeBadge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
@@ -124,17 +126,28 @@ import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
 import com.example.campusgo.ui.components.campusGoDialogStyle
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import com.example.campusgo.domain.repository.OrderRepository
+import com.example.campusgo.domain.repository.SupportRepository
+import com.example.campusgo.domain.model.SupportTicket
+import com.example.campusgo.features.chat.SupportChatBottomSheet
+import com.example.campusgo.ui.components.ActiveSupportTicketBanner
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerDashboardScreen(
     profile: UserProfile,
     onSignOut: () -> Unit,
+    pendingSubOrderId: String? = null,
+    onClearPendingSubOrder: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: SellerDashboardViewModel = koinViewModel()
+    viewModel: SellerDashboardViewModel = koinViewModel(),
+    orderRepository: OrderRepository = koinInject(),
+    supportRepository: SupportRepository = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val curProf = uiState.sellerProfile ?: profile
     val prefs = remember(context) { context.getSharedPreferences("campusgo_seller_prefs", Context.MODE_PRIVATE) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -150,6 +163,55 @@ fun SellerDashboardScreen(
     }.collectAsState(initial = 0)
     val chatViewModel: OrderChatViewModel = koinViewModel()
     var activeChatSubOrder by remember { mutableStateOf<SubOrder?>(null) }
+    var sellerActiveTicket by remember { mutableStateOf<SupportTicket?>(null) }
+    var activeSupportTicket by remember { mutableStateOf<SupportTicket?>(null) }
+
+    LaunchedEffect(curProf.id) {
+        while (true) {
+            val res = supportRepository.getActiveTicketForUser(curProf.id)
+            sellerActiveTicket = res.getOrNull()
+            kotlinx.coroutines.delay(20000)
+        }
+    }
+
+    LaunchedEffect(pendingSubOrderId, uiState.subOrders) {
+        if (!pendingSubOrderId.isNullOrBlank()) {
+            val subId = pendingSubOrderId
+            val matching = uiState.subOrders.find { it.id == subId }
+            if (matching != null) {
+                activeChatSubOrder = matching
+                chatViewModel.initChat(
+                    subOrderId = matching.id,
+                    currentUserId = profile.id,
+                    otherUserId = matching.buyerId ?: "",
+                    otherUserName = matching.buyerName?.ifBlank { "Comprador Campus Go" } ?: "Comprador Campus Go",
+                    meetingPoint = matching.meetingPointName ?: "Punto por convenir",
+                    subOrderStatus = matching.status,
+                    otherUserAvatarUrl = matching.buyerAvatarUrl,
+                    deliveryCode = matching.verificationCode
+                )
+                onClearPendingSubOrder()
+            } else {
+                coroutineScope.launch {
+                    val fetched = orderRepository.getSubOrderById(subId).getOrNull()
+                    if (fetched != null) {
+                        activeChatSubOrder = fetched
+                        chatViewModel.initChat(
+                            subOrderId = fetched.id,
+                            currentUserId = profile.id,
+                            otherUserId = fetched.buyerId ?: "",
+                            otherUserName = fetched.buyerName?.ifBlank { "Comprador Campus Go" } ?: "Comprador Campus Go",
+                            meetingPoint = fetched.meetingPointName ?: "Punto por convenir",
+                            subOrderStatus = fetched.status,
+                            otherUserAvatarUrl = fetched.buyerAvatarUrl,
+                            deliveryCode = fetched.verificationCode
+                        )
+                        onClearPendingSubOrder()
+                    }
+                }
+            }
+        }
+    }
 
     if (activeChatSubOrder != null) {
         OrderChatBottomSheet(
@@ -173,6 +235,10 @@ fun SellerDashboardScreen(
         viewModel.setSelectedTab(SellerTab.PEDIDOS)
     }
 
+    BackHandler(enabled = activeSupportTicket != null) {
+        activeSupportTicket = null
+    }
+
     val isAnyModalOpen = uiState.selectedSubOrderForRejection != null ||
             uiState.selectedSubOrderForDelivery != null ||
             uiState.showAddProductDialog ||
@@ -183,7 +249,23 @@ fun SellerDashboardScreen(
             uiState.subOrderToRate != null ||
             showNotificationsSheet ||
             showDatePickerDialog ||
-            activeChatSubOrder != null
+            activeChatSubOrder != null ||
+            activeSupportTicket != null
+
+    activeSupportTicket?.let { ticket ->
+        SupportChatBottomSheet(
+            ticket = ticket,
+            currentUserId = curProf.id,
+            isAdmin = false,
+            onDismiss = {
+                activeSupportTicket = null
+                coroutineScope.launch {
+                    val res = supportRepository.getActiveTicketForUser(curProf.id)
+                    sellerActiveTicket = res.getOrNull()
+                }
+            }
+        )
+    }
 
     val backgroundBlurRadius by animateDpAsState(
         targetValue = if (isAnyModalOpen) 20.dp else 0.dp,
@@ -506,7 +588,7 @@ fun SellerDashboardScreen(
         val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
 
         val productPhotoPicker = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
+            contract = ActivityResultContracts.PickVisualMedia()
         ) { uri: Uri? ->
             uri?.let { selectedUri ->
                 val bytes = compressImageUri(context, selectedUri, maxDimension = 800, quality = 80)
@@ -624,7 +706,7 @@ fun SellerDashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { productPhotoPicker.launch("image/*") },
+                            .clickable { productPhotoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -651,7 +733,7 @@ fun SellerDashboardScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         ElevatedFilterChip(
                             selected = false,
-                            onClick = { productPhotoPicker.launch("image/*") },
+                            onClick = { productPhotoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                             leadingIcon = {
                                 Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
                             },
@@ -830,7 +912,7 @@ fun SellerDashboardScreen(
         val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
 
         val editProductPhotoPicker = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
+            contract = ActivityResultContracts.PickVisualMedia()
         ) { uri: Uri? ->
             uri?.let { selectedUri ->
                 val bytes = compressImageUri(context, selectedUri, maxDimension = 800, quality = 80)
@@ -950,7 +1032,7 @@ fun SellerDashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { editProductPhotoPicker.launch("image/*") },
+                            .clickable { editProductPhotoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -977,7 +1059,7 @@ fun SellerDashboardScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         ElevatedFilterChip(
                             selected = false,
-                            onClick = { editProductPhotoPicker.launch("image/*") },
+                            onClick = { editProductPhotoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                             leadingIcon = {
                                 Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
                             },
@@ -1985,6 +2067,36 @@ fun SellerDashboardScreen(
                                     )
                                 }
                             }
+
+                            // Botón de Chat de Soporte Institucional Activo
+                            if (sellerActiveTicket != null) {
+                                IconButton(
+                                    onClick = { activeSupportTicket = sellerActiveTicket },
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge(
+                                                containerColor = Color(0xFF2563EB),
+                                                contentColor = Color.White
+                                            ) {
+                                                Text(
+                                                    text = "1",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_chat_custom),
+                                            contentDescription = "Chat con Administración",
+                                            tint = Color(0xFF003366),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -2032,6 +2144,20 @@ fun SellerDashboardScreen(
                                         showNotificationsSheet = true
                                     }
                                 )
+                            }
+
+                            // Banner de Mesa de Diálogo Oficial (Chat de Soporte con Admin)
+                            AnimatedVisibility(
+                                visible = sellerActiveTicket != null,
+                                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                                exit = fadeOut(tween(400)) + shrinkVertically(tween(400))
+                            ) {
+                                sellerActiveTicket?.let { ticket ->
+                                    ActiveSupportTicketBanner(
+                                        ticket = ticket,
+                                        onClick = { activeSupportTicket = ticket }
+                                    )
+                                }
                             }
                     val formattedSelectedDate = remember(uiState.selectedDate) {
                         val dayName = uiState.selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"))
@@ -2305,6 +2431,7 @@ fun SellerDashboardScreen(
                                         onOpenDetail = { viewModel.openSubOrderDetail(subOrder) },
                                         ratingGiven = sellerRating,
                                         onRateBuyer = { viewModel.openRateBuyerDialog(subOrder) },
+                                        buyerStrikes = subOrder.buyerId?.let { uiState.buyerStrikes[it] } ?: 0,
                                         onOpenChat = {
                                             activeChatSubOrder = subOrder
                                             chatViewModel.initChat(
@@ -2608,6 +2735,9 @@ fun SellerDashboardScreen(
                         },
                         onToggleAcceptingOrders = { viewModel.toggleAcceptingOrders(it) },
                         onSignOut = onSignOut,
+                        onReportIncident = { key, label, details ->
+                            viewModel.reportIncident(key, label, details)
+                        },
                         showHeader = false
                     )
                 }
@@ -2782,6 +2912,7 @@ fun SellerSubOrderCard(
     onOpenChat: (() -> Unit)? = null,
     ratingGiven: Int? = null,
     onRateBuyer: (() -> Unit)? = null,
+    buyerStrikes: Int = 0,
     modifier: Modifier = Modifier
 ) {
     var isExpiredState by remember(subOrder.id, subOrder.createdAt) {
@@ -2916,6 +3047,9 @@ fun SellerSubOrderCard(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                if (buyerStrikes > 0) {
+                                    StrikeBadge(strikes = buyerStrikes)
+                                }
                             }
                         }
                     }

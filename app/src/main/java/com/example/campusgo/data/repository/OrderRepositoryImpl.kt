@@ -10,6 +10,7 @@ import com.example.campusgo.domain.model.ProfileWarning
 import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.domain.usecase.RecalculateOrderUseCase
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.storage.Storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -148,9 +149,16 @@ data class RemoteReviewDto(
     @SerialName("created_at") val createdAt: String? = null
 )
 
+@Serializable
+data class BuyerProfileCheckDto(
+    val id: String,
+    val role: String = ""
+)
+
 class OrderRepositoryImpl(
     private val postgrest: Postgrest? = null,
-    private val recalculateOrderUseCase: RecalculateOrderUseCase = RecalculateOrderUseCase()
+    private val recalculateOrderUseCase: RecalculateOrderUseCase = RecalculateOrderUseCase(),
+    private val storage: Storage? = null
 ) : OrderRepository {
 
     private val _ordersFlow = MutableStateFlow<List<Order>>(emptyList())
@@ -199,6 +207,19 @@ class OrderRepositoryImpl(
             }
 
             if (postgrest != null) {
+                // Validación estricta de suspensión antes de confirmar pedido
+                try {
+                    val buyerRow = postgrest.from("profiles")
+                        .select {
+                            filter { eq("id", order.buyerId) }
+                        }
+                        .decodeSingleOrNull<BuyerProfileCheckDto>()
+                    if (buyerRow != null && (buyerRow.role.equals("suspended_buyer", ignoreCase = true) || buyerRow.role.equals("suspended", ignoreCase = true))) {
+                        return@withContext Result.failure(IllegalStateException("Tu cuenta se encuentra suspendida por la administración de CampusGO. No tienes autorización para realizar pedidos."))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("OrderRepo", "Error al comprobar suspensión de comprador: ${e.message}")
+                }
 
                 val subordersArray = buildJsonArray {
                     for (sub in enrichedSubOrders) {
@@ -324,6 +345,133 @@ class OrderRepositoryImpl(
             }
             val subOrders = _ordersFlow.value.flatMap { it.subOrders }.filter { it.sellerId == sellerId }
             Result.success(subOrders)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getSubOrderById(subOrderId: String): Result<SubOrder?> = withContext(Dispatchers.IO) {
+        try {
+            val cached = _ordersFlow.value.flatMap { it.subOrders }.find { it.id == subOrderId }
+                ?: sellerSubOrdersCache.values.flatten().find { it.id == subOrderId }
+            if (cached != null) {
+                return@withContext Result.success(cached)
+            }
+
+            if (postgrest == null || !isValidUUID(subOrderId)) {
+                return@withContext Result.success(null)
+            }
+
+            val rso = postgrest.from("sub_orders")
+                .select {
+                    filter {
+                        eq("id", subOrderId)
+                    }
+                }
+                .decodeSingleOrNull<RemoteSubOrderDto>() ?: return@withContext Result.success(null)
+
+            val remoteItems = try {
+                postgrest.from("order_items")
+                    .select {
+                        filter {
+                            eq("sub_order_id", subOrderId)
+                        }
+                    }
+                    .decodeList<RemoteOrderItemDto>()
+            } catch (_: Exception) {
+                emptyList<RemoteOrderItemDto>()
+            }
+
+            val parentOrder = try {
+                postgrest.from("orders")
+                    .select {
+                        filter {
+                            eq("id", rso.orderId)
+                        }
+                    }
+                    .decodeSingleOrNull<RemoteOrderDto>()
+            } catch (_: Exception) {
+                null
+            }
+
+            val missingProdIds = remoteItems.map { it.productId }.filter { isValidUUID(it) && !productNameCache.containsKey(it) }
+            if (missingProdIds.isNotEmpty()) {
+                try {
+                    val prods = postgrest.from("products")
+                        .select { filter { isIn("id", missingProdIds) } }
+                        .decodeList<ProductBasicDto>()
+                    for (p in prods) {
+                        productNameCache[p.id] = p.name
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val items = remoteItems.map { oi ->
+                SubOrderItem(
+                    id = oi.id,
+                    subOrderId = rso.id,
+                    productId = oi.productId,
+                    productName = productNameCache[oi.productId] ?: "Producto",
+                    quantity = oi.quantity,
+                    unitPrice = oi.priceAtSale,
+                    subtotal = oi.priceAtSale * oi.quantity
+                )
+            }
+
+            if (!profileNameCache.containsKey(rso.sellerId)) {
+                try {
+                    val pr = postgrest.from("profiles")
+                        .select { filter { eq("id", rso.sellerId) } }
+                        .decodeSingleOrNull<ProfileBasicDto>()
+                    if (pr != null) {
+                        profileNameCache[rso.sellerId] = pr.fullName ?: "Vendedor CampusGO"
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val buyerId = parentOrder?.buyerId
+            if (buyerId != null && isValidUUID(buyerId) && (!profileNameCache.containsKey(buyerId) || !profileAvatarCache.containsKey(buyerId))) {
+                try {
+                    val bPr = postgrest.from("profiles")
+                        .select { filter { eq("id", buyerId) } }
+                        .decodeSingleOrNull<ProfileBasicDto>()
+                    if (bPr != null) {
+                        bPr.fullName?.let { profileNameCache[buyerId] = it }
+                        bPr.phone?.let { profilePhoneCache[buyerId] = it }
+                        bPr.avatarUrl?.let { profileAvatarCache[buyerId] = it }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val subStatus = mapRemoteStatusToSubOrderStatus(rso.status)
+            val meetingPlace = parentOrder?.meetingPointName?.takeIf { it.isNotBlank() } ?: parentOrder?.deliveryPlace ?: "Punto de encuentro"
+            val scheduledTime = parentOrder?.scheduledTime ?: extractScheduleFromDeliveryPlace(parentOrder?.deliveryPlace)
+
+            val subOrder = SubOrder(
+                id = rso.id,
+                orderId = rso.orderId,
+                sellerId = rso.sellerId,
+                sellerName = profileNameCache[rso.sellerId] ?: "Vendedor CampusGO",
+                items = items,
+                subtotalAmount = rso.subtotalAmount,
+                status = subStatus,
+                rejectionReason = rso.rejectionReason,
+                paymentMethod = parsePaymentMethod(rso.paymentMethod),
+                meetingPointId = rso.meetingPointId ?: parentOrder?.meetingPointId,
+                meetingPointName = rso.meetingPointName ?: meetingPlace,
+                scheduledTime = rso.scheduledTime ?: scheduledTime,
+                buyerId = buyerId,
+                buyerName = buyerId?.let { profileNameCache[it] } ?: "",
+                buyerPhone = buyerId?.let { profilePhoneCache[it] } ?: "",
+                buyerAvatarUrl = buyerId?.let { profileAvatarCache[it] },
+                notes = parentOrder?.notes,
+                isPaymentConfirmed = rso.isPaymentConfirmed,
+                isDeliveryConfirmed = rso.isDeliveryConfirmed,
+                deliveryCode = rso.deliveryCode,
+                createdAt = rso.createdAt,
+                updatedAt = rso.updatedAt
+            )
+            Result.success(subOrder)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -1397,21 +1545,70 @@ class OrderRepositoryImpl(
         reporterId: String?,
         reportedUserId: String?,
         incidentType: String,
-        details: String
+        details: String,
+        evidenceUrl: String?,
+        evidenceBytes: ByteArray?
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            var finalEvidenceUrl = evidenceUrl
+            if (evidenceBytes != null && storage != null) {
+                try {
+                    val fileName = "evidence_${UUID.randomUUID().toString().take(8)}_${System.currentTimeMillis()}.jpg"
+                    val bucket = storage.from("support-evidences")
+                    bucket.upload(path = fileName, data = evidenceBytes) {
+                        upsert = true
+                    }
+                    finalEvidenceUrl = bucket.publicUrl(path = fileName)
+                } catch (uploadEx: Exception) {
+                    android.util.Log.e("OrderRepo", "Error al subir imagen de evidencia: ${uploadEx.message}", uploadEx)
+                }
+            }
+
             if (postgrest != null) {
+                val incidentId = UUID.randomUUID().toString()
                 postgrest.from("order_incidents").insert(
                     buildJsonObject {
-                        put("id", UUID.randomUUID().toString())
+                        put("id", incidentId)
                         subOrderId?.let { put("sub_order_id", it) }
                         reporterId?.let { put("reporter_id", it) }
                         reportedUserId?.let { put("reported_user_id", it) }
                         put("incident_type", incidentType)
                         put("details", details.trim())
                         put("status", "PENDIENTE")
+                        finalEvidenceUrl?.let { put("evidence_url", it) }
                     }
                 )
+
+                if (!reporterId.isNullOrBlank()) {
+                    try {
+                        val ticketId = UUID.randomUUID().toString()
+                        postgrest.from("support_tickets").insert(
+                            buildJsonObject {
+                                put("id", ticketId)
+                                put("user_id", reporterId)
+                                put("incident_id", incidentId)
+                                put("subject", "Incidencia: $incidentType")
+                                put("status", "ABIERTO")
+                                put("admin_notes", details.trim())
+                            }
+                        )
+
+                        // Si hay detalle o evidencia, registrar el primer mensaje en support_messages
+                        postgrest.from("support_messages").insert(
+                            buildJsonObject {
+                                put("id", UUID.randomUUID().toString())
+                                put("ticket_id", ticketId)
+                                put("sender_id", reporterId)
+                                put("message", details.trim().ifBlank { "Reporte inicial registrado." })
+                                put("is_admin", false)
+                                finalEvidenceUrl?.let { put("attachment_url", it) }
+                            }
+                        )
+                    } catch (ticketEx: Exception) {
+                        android.util.Log.w("OrderRepo", "No se pudo auto-crear support_ticket o mensaje: ${ticketEx.message}")
+                    }
+                }
+
                 return@withContext Result.success(Unit)
             }
             Result.success(Unit)

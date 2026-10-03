@@ -1,4 +1,4 @@
-﻿package com.example.campusgo
+package com.example.campusgo
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -65,6 +65,8 @@ import com.example.campusgo.ui.components.VideoSplashScreen
 
 @Composable
 fun MainNavigation(
+    pendingSubOrderId: String? = null,
+    onClearPendingSubOrder: () -> Unit = {},
     authRepository: AuthRepository = koinInject(),
     cartRepository: com.example.campusgo.domain.repository.CartRepository = koinInject(),
     orderRepository: com.example.campusgo.domain.repository.OrderRepository = koinInject()
@@ -73,7 +75,9 @@ fun MainNavigation(
     val currentProfile by authRepository.currentProfile.collectAsState()
     val isSessionChecking by authRepository.isSessionChecking.collectAsState()
     val scope = rememberCoroutineScope()
-    var isSplashActive by rememberSaveable { mutableStateOf(true) }
+    var isSplashActive by rememberSaveable(pendingSubOrderId) {
+        mutableStateOf(pendingSubOrderId.isNullOrBlank())
+    }
 
     Crossfade(
         targetState = isSplashActive,
@@ -137,6 +141,8 @@ fun MainNavigation(
                         BuyerHomeScreen(
                             profile = profile,
                             onSignOut = onSignOut,
+                            pendingSubOrderId = pendingSubOrderId,
+                            onClearPendingSubOrder = onClearPendingSubOrder,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -144,6 +150,8 @@ fun MainNavigation(
                         SellerDashboardScreen(
                             profile = profile,
                             onSignOut = onSignOut,
+                            pendingSubOrderId = pendingSubOrderId,
+                            onClearPendingSubOrder = onClearPendingSubOrder,
                             modifier = Modifier.fillMaxSize()
                         )
                     }

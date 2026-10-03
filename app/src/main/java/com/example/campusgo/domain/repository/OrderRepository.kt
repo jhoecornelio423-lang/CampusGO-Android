@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.repository
+package com.example.campusgo.domain.repository
 
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.SubOrder
@@ -10,6 +10,7 @@ interface OrderRepository {
     suspend fun placeOrder(order: Order): Result<Order>
     suspend fun getOrdersForBuyer(buyerId: String): Result<List<Order>>
     suspend fun getSubOrdersForSeller(sellerId: String): Result<List<SubOrder>>
+    suspend fun getSubOrderById(subOrderId: String): Result<SubOrder?>
     fun observeOrdersForBuyer(buyerId: String): Flow<List<Order>>
     fun observeSubOrdersForSeller(sellerId: String): Flow<List<SubOrder>>
     suspend fun updateSubOrderStatus(subOrderId: String, newStatus: SubOrderStatus, rejectionReason: String? = null): Result<SubOrder>
@@ -24,7 +25,9 @@ interface OrderRepository {
         reporterId: String? = null,
         reportedUserId: String? = null,
         incidentType: String,
-        details: String
+        details: String,
+        evidenceUrl: String? = null,
+        evidenceBytes: ByteArray? = null
     ): Result<Unit>
     suspend fun getUserWarnings(userId: String): Result<List<com.example.campusgo.domain.model.ProfileWarning>>
     fun observeUserWarnings(userId: String): Flow<List<com.example.campusgo.domain.model.ProfileWarning>>

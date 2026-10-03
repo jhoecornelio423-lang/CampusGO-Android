@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.data.repository
+package com.example.campusgo.data.repository
 
 import android.util.Log
 import com.example.campusgo.domain.model.ChatMessage
@@ -175,14 +175,15 @@ class ChatRepositoryImpl(
                 }
             }
 
-            // 2. Persistencia en Supabase
-            if (isValidUUID(subOrderId)) {
+            // 2. Persistencia en Supabase: ÚNICAMENTE marcar leídos aquellos mensajes recibidos por el usuario actual
+            if (isValidUUID(subOrderId) && isValidUUID(currentUserId)) {
                 try {
                     postgrest.from("order_messages").update(
                         mapOf("is_read" to true)
                     ) {
                         filter {
                             eq("sub_order_id", subOrderId)
+                            eq("receiver_id", currentUserId)
                             eq("is_read", false)
                         }
                     }
@@ -194,6 +195,7 @@ class ChatRepositoryImpl(
                         ) {
                             filter {
                                 eq("sub_order_id", subOrderId)
+                                eq("receiver_id", currentUserId)
                                 eq("is_read", false)
                             }
                         }

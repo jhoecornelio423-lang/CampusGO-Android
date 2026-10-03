@@ -782,6 +782,71 @@ fun BuyerSellerProfileScreen(
                         }
                     }
 
+                    // 5. Sección Estática: Seguridad del Campus y Reportes
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFFEE2E2))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFFFEE2E2),
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                            contentDescription = null,
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = "¿Tuviste algún problema?",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        text = "Reporta precios engañosos, mala conducta o faltas",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { showReportDialog = true },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color(0xFFDC2626)
+                                ),
+                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "Reportar",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
                 }
             }
@@ -851,7 +916,7 @@ fun BuyerSellerProfileScreen(
             contextType = IncidentContextType.SELLER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },
-            onSubmit = { reasonKey, reasonLabel, details ->
+            onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
                 coroutineScope.launch {
                     isSubmittingReport = true
                     val reporterId = currentBuyerProfile?.id
@@ -860,7 +925,8 @@ fun BuyerSellerProfileScreen(
                         reporterId = reporterId,
                         reportedUserId = store.sellerId,
                         incidentType = reasonKey,
-                        details = details.ifBlank { reasonLabel }
+                        details = details.ifBlank { reasonLabel },
+                        evidenceBytes = evidenceBytes
                     )
                     isSubmittingReport = false
                     showReportDialog = false
