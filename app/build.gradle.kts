@@ -15,10 +15,10 @@ if (localPropertiesFile.exists()) {
 }
 val supabaseUrl: String = (localProperties.getProperty("SUPABASE_URL")
     ?: System.getenv("SUPABASE_URL")
-    ?: "https://dqjuifzsowwrrfppczsj.supabase.co")
+    ?: "https://api.kodexti.com")
 val supabaseKey: String = (localProperties.getProperty("SUPABASE_KEY")
     ?: System.getenv("SUPABASE_KEY")
-    ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxanVpZnpzb3d3cnJmcHBjenNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NTE3OTMsImV4cCI6MjEwMTQyNzc5M30.GqhJMgsqchqTE6-XG00efPO9GyKA0ov4BFx2zXsbrUQ")
+    ?: "sb_publishable_zstYiRQi8ysTq5WXUL2SNP_c1EKvmOE")
 
 android {
     namespace = "com.example.campusgo"
