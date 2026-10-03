@@ -127,7 +127,7 @@ BEGIN
     INTO v_top_points
     FROM (
         SELECT 
-            COALESCE(s.meeting_point_name, o.meeting_point_name, o.delivery_place, 'Campus General') AS point_name,
+            COALESCE(o.meeting_point_name, o.delivery_place, 'Campus General') AS point_name,
             COUNT(*) AS count,
             CASE 
                 WHEN v_total_orders > 0 THEN ROUND((COUNT(*)::NUMERIC * 100.0) / v_total_orders::NUMERIC, 1)
@@ -136,7 +136,7 @@ BEGIN
         FROM public.sub_orders s
         LEFT JOIN public.orders o ON o.id = s.order_id
         WHERE s.created_at >= v_start_time
-        GROUP BY COALESCE(s.meeting_point_name, o.meeting_point_name, o.delivery_place, 'Campus General')
+        GROUP BY COALESCE(o.meeting_point_name, o.delivery_place, 'Campus General')
         ORDER BY count DESC
         LIMIT 6
     ) pt;
