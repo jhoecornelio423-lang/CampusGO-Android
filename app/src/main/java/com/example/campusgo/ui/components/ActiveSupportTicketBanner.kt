@@ -64,7 +64,7 @@ fun ActiveSupportTicketBanner(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Mesa de Diálogo Oficial",
+                        text = "Mesa de Mediación",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall,
                         color = Color(0xFF003366)
@@ -74,17 +74,17 @@ fun ActiveSupportTicketBanner(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            text = "CASO #${ticket.ticketNumber.takeIf { it > 0 } ?: ticket.id.take(4).uppercase()}",
+                            text = "EN ATENCIÓN",
                             color = Color(0xFF1E40AF),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = ticket.subject.ifBlank { "Revisión con Administración del Campus" },
+                    text = com.example.campusgo.domain.model.formatIncidentType(ticket.subject),
                     fontSize = 12.sp,
                     color = Color(0xFF334155),
                     maxLines = 1,

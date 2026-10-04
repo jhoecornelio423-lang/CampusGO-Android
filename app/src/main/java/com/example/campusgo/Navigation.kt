@@ -65,6 +65,8 @@ import com.example.campusgo.ui.components.VideoSplashScreen
 
 @Composable
 fun MainNavigation(
+    pendingRoute: com.example.campusgo.core.notification.AppNotificationPayload? = null,
+    onClearPendingRoute: () -> Unit = {},
     pendingSubOrderId: String? = null,
     onClearPendingSubOrder: () -> Unit = {},
     authRepository: AuthRepository = koinInject(),
@@ -75,8 +77,8 @@ fun MainNavigation(
     val currentProfile by authRepository.currentProfile.collectAsState()
     val isSessionChecking by authRepository.isSessionChecking.collectAsState()
     val scope = rememberCoroutineScope()
-    var isSplashActive by rememberSaveable(pendingSubOrderId) {
-        mutableStateOf(pendingSubOrderId.isNullOrBlank())
+    var isSplashActive by rememberSaveable {
+        mutableStateOf(true)
     }
 
     Crossfade(
@@ -143,6 +145,8 @@ fun MainNavigation(
                             onSignOut = onSignOut,
                             pendingSubOrderId = pendingSubOrderId,
                             onClearPendingSubOrder = onClearPendingSubOrder,
+                            pendingRoute = pendingRoute,
+                            onClearPendingRoute = onClearPendingRoute,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -152,6 +156,8 @@ fun MainNavigation(
                             onSignOut = onSignOut,
                             pendingSubOrderId = pendingSubOrderId,
                             onClearPendingSubOrder = onClearPendingSubOrder,
+                            pendingRoute = pendingRoute,
+                            onClearPendingRoute = onClearPendingRoute,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -159,7 +165,9 @@ fun MainNavigation(
                         AdminHomeScreen(
                             profile = profile,
                             onSignOut = onSignOut,
-                            modifier = Modifier.safeDrawingPadding()
+                            pendingRoute = pendingRoute,
+                            onClearPendingRoute = onClearPendingRoute,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                     UserRole.SUSPENDED, UserRole.SUSPENDED_BUYER -> {

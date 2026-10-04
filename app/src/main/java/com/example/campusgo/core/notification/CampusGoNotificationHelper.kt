@@ -14,11 +14,14 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.campusgo.MainActivity
 import com.example.campusgo.R
+import com.example.campusgo.domain.model.formatIncidentType
+import com.example.campusgo.features.chat.ActiveChatSessionManager
 
 object CampusGoNotificationHelper {
 
     const val CHANNEL_ORDERS = "campusgo_orders_channel_v4"
     const val CHANNEL_CHAT = "campusgo_chat_channel_v6"
+    const val CHANNEL_SUPPORT = "campusgo_support_channel_v2"
     const val CHANNEL_SERVICE = "campusgo_service_channel_v3"
     const val SERVICE_NOTIFICATION_ID = 9001
 
@@ -114,15 +117,15 @@ object CampusGoNotificationHelper {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
-            // Canal soporte
+            // Canal soporte institucional y mediación con admin
             val soporteChannel = NotificationChannel(
-                "soporte",
-                "Mensajes y Soporte",
+                CHANNEL_SUPPORT,
+                "Soporte y Mediación CampusGO",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notificaciones de soporte y reportes"
+                description = "Notificaciones de soporte institucional y mediación con el administrador"
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 200, 100, 200)
+                vibrationPattern = longArrayOf(0, 300, 150, 300)
                 enableLights(true)
                 lightColor = android.graphics.Color.BLUE
                 setSound(defaultSoundUri, chatAudioAttributes)
@@ -239,38 +242,194 @@ object CampusGoNotificationHelper {
                 NotificationManagerCompat.from(context).notify(resolvedNotifId, notification)
             }
             android.util.Log.i("CampusGoNotification", "showChatNotification NOTIFY EXITOSO: id=$resolvedNotifId, sender=$senderName, msg=$message")
-
-            // Garantizar reproducción de audio en dispositivos con políticas agresivas de batería o Doze
-            try {
-                val ringtone = RingtoneManager.getRingtone(context.applicationContext, defaultSoundUri)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    ringtone?.audioAttributes = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-                        .build()
-                }
-                ringtone?.play()
-                android.util.Log.i("CampusGoNotification", "showChatNotification RINGTONE PLAY EXITOSO")
-            } catch (re: Exception) {
-                android.util.Log.w("CampusGoNotification", "Aviso reproduciendo ringtone directo: ${re.message}")
-            }
-
-            // Fallback de vibración directa
-            try {
-                @Suppress("DEPRECATION")
-                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 250, 150, 250), -1))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator?.vibrate(longArrayOf(0, 250, 150, 250), -1)
-                }
-            } catch (_: Exception) {}
         } catch (e: SecurityException) {
             android.util.Log.e("CampusGoNotification", "Permiso de notificaciones denegado", e)
         } catch (e: Exception) {
             android.util.Log.e("CampusGoNotification", "Error general en showChatNotification: ${e.message}", e)
+        }
+    }
+
+    fun showSupportNotification(
+        context: Context,
+        ticketId: String,
+        senderName: String,
+        message: String,
+        isForAdmin: Boolean = false
+    ) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("support_ticket_id", ticketId)
+            putExtra("is_support_notification", true)
+        }
+
+        val resolvedNotifId = Math.abs(ticketId.hashCode())
+        val tag = "support_ticket_$ticketId"
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            resolvedNotifId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+
+        val title = if (isForAdmin) "Soporte: $senderName" else "Administración CampusGO"
+        val summaryText = if (isForAdmin) "Nuevo mensaje en caso de soporte" else "Respuesta de la administración"
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_SUPPORT)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText(summaryText))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSound(defaultSoundUri)
+            .setVibrate(longArrayOf(0, 300, 150, 300))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setOnlyAlertOnce(false)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val wl = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:SupportNotificationWakeLock")
+            wl?.acquire(3000L)
+
+            NotificationManagerCompat.from(context).notify(tag, resolvedNotifId, notification)
+
+            // Si la aplicación está en primer plano en otra pantalla, reproducir tono para alertar al usuario
+            if (ActiveChatSessionManager.isAppInForeground) {
+                try {
+                    val ringtone = RingtoneManager.getRingtone(context.applicationContext, defaultSoundUri)
+                    ringtone?.let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            it.audioAttributes = AudioAttributes.Builder()
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                                .build()
+                        }
+                        it.play()
+                    }
+                } catch (_: Exception) {}
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CampusGoNotification", "Error en showSupportNotification: ${e.message}", e)
+        }
+    }
+
+    fun showAdminIncidentNotification(
+        context: Context,
+        incidentId: String,
+        incidentType: String,
+        details: String
+    ) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("incident_id", incidentId)
+            putExtra("is_incident_notification", true)
+        }
+
+        val resolvedNotifId = Math.abs(incidentId.hashCode())
+        val tag = "incident_$incidentId"
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            resolvedNotifId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+
+        val formattedType = formatIncidentType(incidentType)
+        val title = "⚠️ Reporte: $formattedType"
+        val message = if (details.isNotBlank() && !details.equals(incidentType, true)) details else "Nueva incidencia pendiente de revisión institucional."
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText("Panel de Administración"))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSound(defaultSoundUri)
+            .setVibrate(longArrayOf(0, 400, 200, 400))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setOnlyAlertOnce(false)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val wl = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:IncidentNotificationWakeLock")
+            wl?.acquire(3000L)
+
+            NotificationManagerCompat.from(context).notify(tag, resolvedNotifId, notification)
+        } catch (e: Exception) {
+            android.util.Log.e("CampusGoNotification", "Error en showAdminIncidentNotification: ${e.message}", e)
+        }
+    }
+
+    fun showWarningNotification(
+        context: Context,
+        profileId: String,
+        reason: String,
+        strikeNumber: Int = 1
+    ) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("show_warnings", true)
+            putExtra("profile_id", profileId)
+            putExtra("is_warning", true)
+        }
+
+        val resolvedNotifId = (profileId.hashCode() + 7777).let { Math.abs(it) }
+        val tag = "warning_${profileId}_$resolvedNotifId"
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            resolvedNotifId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+
+        val title = "⚠️ Llamada de Atención Administrativa"
+        val message = "Has recibido un aviso (Aviso #$strikeNumber): $reason"
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText("Avisos y Conducta"))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSound(defaultSoundUri)
+            .setVibrate(longArrayOf(0, 350, 150, 350))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val wl = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CampusGo:WarningNotificationWakeLock")
+            wl?.acquire(3000L)
+
+            NotificationManagerCompat.from(context).notify(tag, resolvedNotifId, notification)
+            android.util.Log.i("CampusGoNotification", "showWarningNotification NOTIFY EXITOSO: profileId=$profileId, reason=$reason")
+        } catch (e: Exception) {
+            android.util.Log.e("CampusGoNotification", "Error en showWarningNotification: ${e.message}", e)
         }
     }
 

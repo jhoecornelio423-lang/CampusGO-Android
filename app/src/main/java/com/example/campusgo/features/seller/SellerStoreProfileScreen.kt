@@ -95,7 +95,7 @@ fun SellerStoreProfileScreen(
     ) -> Unit,
     onToggleAcceptingOrders: ((Boolean) -> Unit)? = null,
     onSignOut: () -> Unit = {},
-    onReportIncident: ((reasonKey: String, reasonLabel: String, details: String) -> Unit)? = null,
+    onReportIncident: ((reasonKey: String, reasonLabel: String, details: String, evidenceBytes: ByteArray?) -> Unit)? = null,
     showHeader: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -1721,9 +1721,9 @@ fun SellerStoreProfileScreen(
             contextType = IncidentContextType.BUYER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },
-            onSubmit = { key, label, details ->
+            onSubmit = { key, label, details, evidenceBytes ->
                 if (onReportIncident != null) {
-                    onReportIncident(key, label, details)
+                    onReportIncident(key, label, details, evidenceBytes)
                     showReportDialog = false
                     Toast.makeText(context, "Reporte enviado con éxito al Administrador.", Toast.LENGTH_SHORT).show()
                 } else {

@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.data.repository
+package com.example.campusgo.data.repository
 
 import com.example.campusgo.domain.model.ApplicationStatus
 import com.example.campusgo.domain.model.CampusMeetingPoint
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
@@ -165,6 +166,14 @@ class AdminRepositoryImpl(
     init {
         scope.launch {
             refreshAll()
+            // Bucle reactivo continuo en tiempo real para el Administrador (detecta incidencias y postulaciones al instante)
+            while (isActive) {
+                kotlinx.coroutines.delay(2000L)
+                try {
+                    refreshIncidents()
+                    refreshSellerApplications()
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -582,10 +591,29 @@ class AdminRepositoryImpl(
             }
 
             if (postgrest != null) {
+                try {
+                    postgrest.rpc(
+                        "toggle_buyer_suspension_rpc",
+                        buildJsonObject {
+                            put("target_buyer_id", buyerId)
+                            put("set_suspended", isSuspended)
+                            if (isSuspended && !reason.isNullOrBlank()) {
+                                put("suspension_reason_text", reason)
+                            }
+                        }
+                    )
+                    refreshBuyers()
+                    refreshUserStrikes()
+                    return@withContext Result.success(Unit)
+                } catch (e: Exception) {
+                    android.util.Log.e("AdminRepo", "toggle_buyer_suspension_rpc fallo: ${e.message}")
+                }
+
                 val targetRole = if (isSuspended) "suspended_buyer" else "comprador"
                 postgrest.from("profiles").update(
                     buildJsonObject {
                         put("role", targetRole)
+                        put("is_suspended", isSuspended)
                         if (isSuspended && !reason.isNullOrBlank()) {
                             put("suspension_reason", reason)
                         } else if (!isSuspended) {
@@ -788,16 +816,35 @@ class AdminRepositoryImpl(
                     )
                 } catch (rpcErr: Exception) {
                     android.util.Log.w("AdminRepo", "RPC resolve_incident_rpc fallo, intentando update directo: ${rpcErr.message}")
-                    postgrest.from("order_incidents").update(
+                    try {
+                        postgrest.from("order_incidents").update(
+                            buildJsonObject {
+                                put("status", status)
+                                action?.let { put("resolution_action", it) }
+                                adminNotes?.let { put("admin_notes", it) }
+                            }
+                        ) {
+                            filter { eq("id", incidentId) }
+                        }
+                    } catch (directErr: Exception) {
+                        android.util.Log.e("AdminRepo", "Error al actualizar directo order_incidents: ${directErr.message}")
+                    }
+                }
+
+                try {
+                    postgrest.from("support_tickets").update(
                         buildJsonObject {
                             put("status", status)
-                            action?.let { put("resolution_action", it) }
+                            put("is_open", false)
                             adminNotes?.let { put("admin_notes", it) }
                         }
                     ) {
-                        filter { eq("id", incidentId) }
+                        filter { eq("incident_id", incidentId) }
                     }
+                } catch (tErr: Exception) {
+                    android.util.Log.w("AdminRepo", "Aviso al sincronizar support_tickets en resolveIncident: ${tErr.message}")
                 }
+
                 refreshIncidents()
                 return@withContext Result.success(Unit)
             }

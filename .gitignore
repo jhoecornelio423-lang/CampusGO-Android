@@ -20,3 +20,6 @@ app/release/
 credenciales.txt
 full_auth_repo_backup.txt
 emulator_screen.png
+.playwright-mcp/
+Errores.txt
+supabase/.temp/

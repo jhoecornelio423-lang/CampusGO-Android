@@ -1406,10 +1406,13 @@ private fun ProfileDetailRow(
 private fun formatTime(isoString: String): String {
     if (isoString.isBlank()) return ""
     return try {
+        val normalized = isoString.trim().replace(" ", "T")
         val formats = listOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
             "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
             "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
             "yyyy-MM-dd'T'HH:mm:ss'Z'",
             "yyyy-MM-dd'T'HH:mm:ss"
         )
@@ -1419,7 +1422,7 @@ private fun formatTime(isoString: String): String {
                 val sdf = SimpleDateFormat(pattern, Locale.US).apply {
                     timeZone = TimeZone.getTimeZone("UTC")
                 }
-                date = sdf.parse(isoString)
+                date = sdf.parse(normalized)
                 if (date != null) break
             } catch (_: Exception) {}
         }

@@ -1,6 +1,17 @@
 package com.example.campusgo.ui.components
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,35 +20,31 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.example.campusgo.R
 import com.example.campusgo.core.util.ImageCompressor
 import kotlinx.coroutines.launch
-import androidx.compose.ui.draw.clip
-import com.example.campusgo.R
 
 enum class IncidentContextType {
     SELLER,
@@ -166,8 +173,8 @@ fun ReportIncidentDialog(
                 ),
                 IncidentReasonOption(
                     "INAPPROPRIATE_BEHAVIOR",
-                    "Mala atenci\u00F3n durante la entrega",
-                    "Falta de respeto o trato descort\u00E9s en el campus"
+                    "Mala atención durante la entrega",
+                    "Falta de respeto o trato descortés en el campus"
                 ),
                 IncidentReasonOption(
                     "OTHER",
@@ -180,6 +187,9 @@ fun ReportIncidentDialog(
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    // Control de flujo en 2 pasos
+    var currentStep by remember { mutableStateOf(1) } // 1: Seleccionar motivo, 2: Detalles y evidencia
     var selectedKey by remember { mutableStateOf(options.first().key) }
     var detailsText by remember { mutableStateOf("") }
     var selectedImageBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -187,28 +197,88 @@ fun ReportIncidentDialog(
     var isCompressingImage by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
 
+    // Procesar compresión de imagen seleccionada
+    val processImageUri: (Uri) -> Unit = { uri ->
+        isCompressingImage = true
+        coroutineScope.launch {
+            val result = ImageCompressor.compressImageFromUri(context, uri)
+            if (result.isSuccess) {
+                val bytes = result.getOrThrow()
+                selectedImageBytes = bytes
+                selectedBitmap?.recycle()
+                selectedBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                validationError = null
+            } else {
+                validationError = "No se pudo optimizar la imagen seleccionada."
+            }
+            isCompressingImage = false
+        }
+    }
+
+    // Selector moderno PhotoPicker
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
-        if (uri != null) {
-            isCompressingImage = true
-            coroutineScope.launch {
-                val result = ImageCompressor.compressImageFromUri(context, uri)
-                if (result.isSuccess) {
-                    val bytes = result.getOrThrow()
-                    selectedImageBytes = bytes
-                    selectedBitmap?.recycle()
-                    selectedBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                } else {
-                    validationError = "No se pudo optimizar la imagen seleccionada."
-                }
-                isCompressingImage = false
-            }
+        if (uri != null) processImageUri(uri)
+    }
+
+    // Fallback de selector de archivos para dispositivos sin Google Play Services
+    val fallbackPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) processImageUri(uri)
+    }
+
+    val openPickerSafely: () -> Unit = {
+        try {
+            photoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        } catch (_: Exception) {
+            fallbackPickerLauncher.launch("image/*")
+        }
+    }
+
+    // Permiso de acceso a galería según versión de Android (no intrusivo)
+    val mediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            openPickerSafely()
+        } else {
+            Toast.makeText(
+                context,
+                "Permiso denegado. Puedes continuar con el reporte de texto sin imagen.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    val handleAttachImageClick: () -> Unit = {
+        val isPermissionGranted = ContextCompat.checkSelfPermission(
+            context,
+            mediaPermission
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (isPermissionGranted) {
+            openPickerSafely()
+        } else {
+            // Se solicita el permiso al usuario; si acepta, se abre la galería y el sistema lo recuerda
+            permissionLauncher.launch(mediaPermission)
         }
     }
 
     val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
+    val sheetMaxHeight = (configuration.screenHeightDp * 0.88f).dp
+    val selectedOption = remember(selectedKey, options) {
+        options.firstOrNull { it.key == selectedKey } ?: options.first()
+    }
 
     ModalBottomSheet(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
@@ -236,8 +306,9 @@ fun ReportIncidentDialog(
                 .fillMaxWidth()
                 .heightIn(max = sheetMaxHeight)
                 .navigationBarsPadding()
+                .imePadding()
         ) {
-            // Cabecera estilo Rappi / iOS
+            // Cabecera adaptable según el paso actual
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -247,38 +318,57 @@ fun ReportIncidentDialog(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFFFEE2E2),
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
+                    if (currentStep == 2) {
+                        IconButton(
+                            onClick = { if (!isSubmitting) currentStep = 1 },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(Color(0xFFF1F5F9), CircleShape)
+                        ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_report_triangle_custom),
-                                contentDescription = null,
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(22.dp)
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Volver al paso 1",
+                                tint = Color(0xFF0F172A),
+                                modifier = Modifier.size(20.dp)
                             )
+                        }
+                    } else {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFFEE2E2),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
+
                     Column {
                         Text(
-                            text = title,
+                            text = if (currentStep == 1) title else "¿Deseas agregar algo más?",
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp,
+                            fontSize = 17.5.sp,
                             color = Color(0xFF0F172A)
                         )
-                        if (!subtitle.isNullOrBlank()) {
-                            Text(
-                                text = subtitle,
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
-                            )
-                        }
+                        Text(
+                            text = if (currentStep == 1) {
+                                subtitle ?: "Paso 1 de 2: Selecciona el motivo principal"
+                            } else {
+                                "Paso 2 de 2: Detalles y evidencia (Opcional)"
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF64748B)
+                        )
                     }
                 }
 
@@ -302,402 +392,551 @@ fun ReportIncidentDialog(
                 modifier = Modifier.padding(top = 10.dp)
             )
 
-            // Contenido desplazable con amplio espacio
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Banner de seguridad institucional
-                Surface(
-                    color = Color(0xFFFFFBEB),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = Color(0xFFD97706),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Este reporte llegar\u00E1 directamente al Panel del Administrador del Campus para su investigaci\u00F3n y sanci\u00F3n si corresponde.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF92400E),
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp
-                        )
-                    }
-                }
-
-                // Título de la sección de motivos
-                Text(
-                    text = "SELECCIONA EL MOTIVO PRINCIPAL",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF64748B),
-                    letterSpacing = 0.5.sp
-                )
-
-                // Tarjetas seleccionables de motivos (estilo Rappi / iOS)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    options.forEach { option ->
-                        val isSelected = selectedKey == option.key
-                        Surface(
-                            color = if (isSelected) Color(0xFFEFF6FF) else Color.White,
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(
-                                width = if (isSelected) 1.8.dp else 1.dp,
-                                color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
-                            ),
-                            shadowElevation = if (isSelected) 1.5.dp else 0.dp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = !isSubmitting) {
-                                    selectedKey = option.key
-                                    validationError = null
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                // Indicador circular tipo check/radio iOS
-                                Box(
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .background(
-                                            color = if (isSelected) Color(0xFF2563EB) else Color.Transparent,
-                                            shape = CircleShape
-                                        )
-                                        .let {
-                                            if (!isSelected) it.background(Color(0xFFF1F5F9), CircleShape)
-                                            else it
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(10.dp)
-                                                .background(Color(0xFFCBD5E1), CircleShape)
-                                        )
-                                    }
-                                }
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = option.label,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                        fontSize = 13.5.sp,
-                                        color = if (isSelected) Color(0xFF1E3A8A) else Color(0xFF1E293B)
-                                    )
-                                    option.description?.let { desc ->
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = desc,
-                                            fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B),
-                                            lineHeight = 15.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Campo de texto de detalles adicionales
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "DETALLES DE LO OCURRIDO",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF64748B),
-                        letterSpacing = 0.5.sp
-                    )
-                    OutlinedTextField(
-                        value = detailsText,
-                        onValueChange = {
-                            if (it.length <= 400) {
-                                detailsText = it
-                                validationError = null
-                            }
-                        },
-                        placeholder = {
-                            Text(
-                                text = "Describe claramente qué sucedió, lugar exacto, hora o acuerdos no respetados...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF94A3B8)
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(115.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        enabled = !isSubmitting,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF2563EB),
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                        )
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        if (validationError != null) {
-                            Text(
-                                text = validationError ?: "",
-                                color = Color(0xFFDC2626),
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.width(1.dp))
-                        }
-                        Text(
-                            text = "${detailsText.length}/400",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF94A3B8)
-                        )
-                    }
-                }
-
-                // Sección de Evidencia Fotográfica (Opcional)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "EVIDENCIA FOTOGRÁFICA (OPCIONAL)",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF64748B),
-                        letterSpacing = 0.5.sp
-                    )
-
-                    if (selectedBitmap != null) {
-                        Surface(
-                            color = Color.White,
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Image(
-                                    bitmap = selectedBitmap!!.asImageBitmap(),
-                                    contentDescription = "Evidencia seleccionada",
-                                    modifier = Modifier
-                                        .size(68.dp)
-                                        .clip(RoundedCornerShape(10.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Fotografía adjunta",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
-                                        color = Color(0xFF0F172A)
-                                    )
-                                    Text(
-                                        text = "Optimizada para tu dispositivo",
-                                        fontSize = 11.5.sp,
-                                        color = Color(0xFF16A34A),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        selectedImageBytes = null
-                                        selectedBitmap?.recycle()
-                                        selectedBitmap = null
-                                    },
-                                    enabled = !isSubmitting,
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(Color(0xFFFEE2E2), CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Eliminar foto",
-                                        tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    } else if (isCompressingImage) {
-                        Surface(
-                            color = Color.White,
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color(0xFF2563EB)
-                                )
-                                Text(
-                                    text = "Optimizando imagen de forma segura...",
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            color = Color.White,
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.2.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = !isSubmitting) {
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Surface(
-                                    color = Color(0xFFEFF6FF),
-                                    shape = CircleShape,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.AddPhotoAlternate,
-                                            contentDescription = null,
-                                            tint = Color(0xFF2563EB),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Adjuntar Foto o Captura de Prueba",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
-                                        color = Color(0xFF1E3A8A)
-                                    )
-                                    Text(
-                                        text = "Comprobante Yape/Plin, punto de entrega, chat, etc.",
-                                        fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Barra inferior fija con botones de acción estilo Rappi
-            Surface(
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                shadowElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            // Contenedor dinámico según el paso
+            if (currentStep == 1) {
+                // ==================== PASO 1: SELECCIONAR MOTIVO ====================
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            val trimmed = detailsText.trim()
-                            if (selectedKey == "OTHER" && trimmed.length < 5) {
-                                validationError = "Por favor detalla el motivo del reporte."
-                                return@Button
-                            }
-                            val selectedOption = options.firstOrNull { it.key == selectedKey } ?: options.first()
-                            onSubmit(selectedOption.key, selectedOption.label, trimmed, selectedImageBytes)
-                        },
-                        enabled = !isSubmitting,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFDC2626),
-                            disabledContainerColor = Color(0xFFE2E8F0)
-                        ),
+                    // Banner de protección institucional
+                    Surface(
+                        color = Color(0xFFFFFBEB),
                         shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Este reporte llegará directamente al Panel del Administrador del Campus para su investigación y seguimiento confidencial.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF92400E),
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "SELECCIONA EL MOTIVO PRINCIPAL",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.5.sp
+                    )
+
+                    // Tarjetas seleccionables con diseño premium estilo Rappi / iOS
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        options.forEach { option ->
+                            val isSelected = selectedKey == option.key
+                            Surface(
+                                color = if (isSelected) Color(0xFFEFF6FF) else Color.White,
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.8.dp else 1.dp,
+                                    color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+                                ),
+                                shadowElevation = if (isSelected) 1.5.dp else 0.dp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !isSubmitting) {
+                                        selectedKey = option.key
+                                        validationError = null
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .background(
+                                                color = if (isSelected) Color(0xFF2563EB) else Color(0xFFF1F5F9),
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .background(Color(0xFFCBD5E1), CircleShape)
+                                            )
+                                        }
+                                    }
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = option.label,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                            fontSize = 13.5.sp,
+                                            color = if (isSelected) Color(0xFF1E3A8A) else Color(0xFF1E293B)
+                                        )
+                                        option.description?.let { desc ->
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = desc,
+                                                fontSize = 11.5.sp,
+                                                color = Color(0xFF64748B),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Barra inferior fija para Paso 1
+                Surface(
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (isSubmitting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Enviando reporte...", fontWeight = FontWeight.Bold)
-                        } else {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_report_triangle_custom),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                validationError = null
+                                currentStep = 2
+                            },
+                            enabled = !isSubmitting,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF2563EB)
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
                             Text(
-                                text = "Enviar Reporte al Campus",
+                                text = "Continuar (Paso 1 de 2) →",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
                         }
+
+                        TextButton(
+                            onClick = onDismiss,
+                            enabled = !isSubmitting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                        ) {
+                            Text(
+                                text = "Cancelar",
+                                color = Color(0xFF64748B),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            } else {
+                // ==================== PASO 2: DESCRIPCIÓN Y EVIDENCIA ====================
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Resumen del motivo seleccionado con opción de cambiar
+                    Surface(
+                        color = Color(0xFFF1F5F9),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFFDBEAFE),
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color(0xFF2563EB),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = "Motivo seleccionado:",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    Text(
+                                        text = selectedOption.label,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = { currentStep = 1 },
+                                enabled = !isSubmitting,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Cambiar",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2563EB)
+                                )
+                            }
+                        }
                     }
 
-                    TextButton(
-                        onClick = onDismiss,
-                        enabled = !isSubmitting,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp)
+                    // Mensaje explicativo
+                    Surface(
+                        color = Color(0xFFF0FDF4),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Cancelar",
-                            color = Color(0xFF64748B),
-                            fontWeight = FontWeight.SemiBold
+                            text = "Este paso es opcional. Puedes añadir una explicación o adjuntar una captura o foto como evidencia (por ejemplo un comprobante de pago o foto del producto) para agilizar la resolución.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF166534),
+                            lineHeight = 17.sp,
+                            modifier = Modifier.padding(12.dp)
                         )
+                    }
+
+                    // Campo de descripción
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = if (selectedKey == "OTHER") "DETALLES DE LO OCURRIDO *" else "DETALLES DE LO OCURRIDO (OPCIONAL)",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.5.sp
+                        )
+                        OutlinedTextField(
+                            value = detailsText,
+                            onValueChange = {
+                                if (it.length <= 400) {
+                                    detailsText = it
+                                    validationError = null
+                                }
+                            },
+                            placeholder = {
+                                Text(
+                                    text = if (selectedKey == "OTHER") {
+                                        "Por favor especifica brevemente qué sucedió..."
+                                    } else {
+                                        "Describe qué ocurrió, acuerdos no cumplidos, hora aproximada... (Opcional)"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(115.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            enabled = !isSubmitting,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedBorderColor = Color(0xFF2563EB),
+                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                            )
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            if (validationError != null) {
+                                Text(
+                                    text = validationError ?: "",
+                                    color = Color(0xFFDC2626),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.width(1.dp))
+                            }
+                            Text(
+                                text = "${detailsText.length}/400",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+
+                    // Sección de Evidencia Fotográfica (Opcional)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "EVIDENCIA FOTOGRÁFICA (OPCIONAL)",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.5.sp
+                        )
+
+                        if (selectedBitmap != null) {
+                            Surface(
+                                color = Color.White,
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Image(
+                                        bitmap = selectedBitmap!!.asImageBitmap(),
+                                        contentDescription = "Evidencia seleccionada",
+                                        modifier = Modifier
+                                            .size(68.dp)
+                                            .clip(RoundedCornerShape(10.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Fotografía adjunta",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                        Text(
+                                            text = "Optimizada para tu dispositivo",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF16A34A),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            selectedImageBytes = null
+                                            selectedBitmap?.recycle()
+                                            selectedBitmap = null
+                                        },
+                                        enabled = !isSubmitting,
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color(0xFFFEE2E2), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Eliminar foto",
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (isCompressingImage) {
+                            Surface(
+                                color = Color.White,
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                    Text(
+                                        text = "Optimizando imagen de forma segura...",
+                                        fontSize = 12.5.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        } else {
+                            Surface(
+                                color = Color.White,
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.2.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !isSubmitting) {
+                                        handleAttachImageClick()
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Surface(
+                                        color = Color(0xFFEFF6FF),
+                                        shape = CircleShape,
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.AddPhotoAlternate,
+                                                contentDescription = null,
+                                                tint = Color(0xFF2563EB),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Adjuntar Foto o Captura de Prueba",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp,
+                                            color = Color(0xFF1E3A8A)
+                                        )
+                                        Text(
+                                            text = "Comprobante Yape/Plin, captura de chat o entrega",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Barra inferior fija para Paso 2
+                Surface(
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val trimmed = detailsText.trim()
+                                if (selectedKey == "OTHER" && trimmed.length < 5) {
+                                    validationError = "Por favor detalla brevemente el motivo del reporte."
+                                    return@Button
+                                }
+                                onSubmit(
+                                    selectedOption.key,
+                                    selectedOption.label,
+                                    trimmed,
+                                    selectedImageBytes
+                                )
+                            },
+                            enabled = !isSubmitting,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFDC2626),
+                                disabledContainerColor = Color(0xFFE2E8F0)
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            if (isSubmitting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Enviando reporte...", fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Enviar Reporte al Campus",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        }
+
+                        TextButton(
+                            onClick = { currentStep = 1 },
+                            enabled = !isSubmitting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                        ) {
+                            Text(
+                                text = "← Volver a cambiar motivo",
+                                color = Color(0xFF64748B),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

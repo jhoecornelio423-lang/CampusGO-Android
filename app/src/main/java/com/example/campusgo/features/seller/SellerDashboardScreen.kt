@@ -140,6 +140,8 @@ fun SellerDashboardScreen(
     onSignOut: () -> Unit,
     pendingSubOrderId: String? = null,
     onClearPendingSubOrder: () -> Unit = {},
+    pendingRoute: com.example.campusgo.core.notification.AppNotificationPayload? = null,
+    onClearPendingRoute: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SellerDashboardViewModel = koinViewModel(),
     orderRepository: OrderRepository = koinInject(),
@@ -170,13 +172,18 @@ fun SellerDashboardScreen(
         while (true) {
             val res = supportRepository.getActiveTicketForUser(curProf.id)
             sellerActiveTicket = res.getOrNull()
-            kotlinx.coroutines.delay(20000)
+            kotlinx.coroutines.delay(4000)
         }
     }
 
-    LaunchedEffect(pendingSubOrderId, uiState.subOrders) {
-        if (!pendingSubOrderId.isNullOrBlank()) {
-            val subId = pendingSubOrderId
+    LaunchedEffect(pendingRoute, pendingSubOrderId, uiState.subOrders) {
+        val effectiveSubOrderId = when (val route = pendingRoute) {
+            is com.example.campusgo.core.notification.AppNotificationPayload.OrderChat -> route.subOrderId
+            else -> pendingSubOrderId
+        }
+
+        if (!effectiveSubOrderId.isNullOrBlank()) {
+            val subId = effectiveSubOrderId
             val matching = uiState.subOrders.find { it.id == subId }
             if (matching != null) {
                 activeChatSubOrder = matching
@@ -191,6 +198,7 @@ fun SellerDashboardScreen(
                     deliveryCode = matching.verificationCode
                 )
                 onClearPendingSubOrder()
+                onClearPendingRoute()
             } else {
                 coroutineScope.launch {
                     val fetched = orderRepository.getSubOrderById(subId).getOrNull()
@@ -207,9 +215,32 @@ fun SellerDashboardScreen(
                             deliveryCode = fetched.verificationCode
                         )
                         onClearPendingSubOrder()
+                        onClearPendingRoute()
                     }
                 }
             }
+        }
+
+        when (val route = pendingRoute) {
+            is com.example.campusgo.core.notification.AppNotificationPayload.SupportChat -> {
+                coroutineScope.launch {
+                    val ticketRes = supportRepository.getTicketById(route.ticketId)
+                    val ticket = ticketRes.getOrNull() ?: supportRepository.getActiveTicketForUser(curProf.id).getOrNull()
+                    if (ticket != null) {
+                        activeSupportTicket = ticket
+                        onClearPendingRoute()
+                    }
+                }
+            }
+            is com.example.campusgo.core.notification.AppNotificationPayload.Warning -> {
+                showNotificationsSheet = true
+                onClearPendingRoute()
+            }
+            is com.example.campusgo.core.notification.AppNotificationPayload.OrderTracking -> {
+                viewModel.setSelectedTab(SellerTab.PEDIDOS)
+                onClearPendingRoute()
+            }
+            else -> {}
         }
     }
 
@@ -249,8 +280,7 @@ fun SellerDashboardScreen(
             uiState.subOrderToRate != null ||
             showNotificationsSheet ||
             showDatePickerDialog ||
-            activeChatSubOrder != null ||
-            activeSupportTicket != null
+            activeChatSubOrder != null
 
     activeSupportTicket?.let { ticket ->
         SupportChatBottomSheet(
@@ -265,6 +295,7 @@ fun SellerDashboardScreen(
                 }
             }
         )
+        return
     }
 
     val backgroundBlurRadius by animateDpAsState(
@@ -2032,67 +2063,40 @@ fun SellerDashboardScreen(
                             val unreadWarningsCount = (uiState.warnings.size - lastReadWarningCount).coerceAtLeast(0)
 
                             // Botón de Notificaciones con Badge para Strikes
-                            IconButton(
-                                onClick = {
-                                    val currentWarningIds = uiState.warnings.map { it.id }.toSet()
-                                    val seenWarningIds = prefs.getStringSet("seen_warning_ids_${curProf.id}", emptySet()) ?: emptySet()
-                                    prefs.edit().putStringSet("seen_warning_ids_${curProf.id}", seenWarningIds + currentWarningIds).apply()
-                                    lastReadWarningCount = uiState.warnings.size
-                                    showWarningBanner = false
-                                    showNotificationsSheet = true
-                                },
-                                modifier = Modifier.size(38.dp)
-                            ) {
-                                BadgedBox(
-                                    badge = {
-                                        if (unreadWarningsCount > 0) {
-                                            Badge(
-                                                containerColor = Color(0xFFDC2626),
-                                                contentColor = Color.White
-                                            ) {
-                                                Text(
-                                                    text = "$unreadWarningsCount",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = if (uiState.warnings.isNotEmpty()) Icons.Default.WarningAmber else Icons.Outlined.Notifications,
-                                        contentDescription = "Avisos y Moderación",
-                                        tint = if (unreadWarningsCount > 0) Color(0xFFDC2626) else if (uiState.warnings.isNotEmpty()) Color(0xFFE65100) else Color(0xFF16324F),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-
-                            // Botón de Chat de Soporte Institucional Activo
-                            if (sellerActiveTicket != null) {
+                            // Botón de Avisos y Moderación (solo se muestra cuando tiene como mínimo 1 aviso)
+                            if (uiState.warnings.isNotEmpty()) {
                                 IconButton(
-                                    onClick = { activeSupportTicket = sellerActiveTicket },
+                                    onClick = {
+                                        val currentWarningIds = uiState.warnings.map { it.id }.toSet()
+                                        val seenWarningIds = prefs.getStringSet("seen_warning_ids_${curProf.id}", emptySet()) ?: emptySet()
+                                        prefs.edit().putStringSet("seen_warning_ids_${curProf.id}", seenWarningIds + currentWarningIds).apply()
+                                        lastReadWarningCount = uiState.warnings.size
+                                        showWarningBanner = false
+                                        showNotificationsSheet = true
+                                    },
                                     modifier = Modifier.size(38.dp)
                                 ) {
                                     BadgedBox(
                                         badge = {
-                                            Badge(
-                                                containerColor = Color(0xFF2563EB),
-                                                contentColor = Color.White
-                                            ) {
-                                                Text(
-                                                    text = "1",
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                            if (unreadWarningsCount > 0) {
+                                                Badge(
+                                                    containerColor = Color(0xFFDC2626),
+                                                    contentColor = Color.White
+                                                ) {
+                                                    Text(
+                                                        text = "$unreadWarningsCount",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
                                     ) {
                                         Icon(
-                                            painter = painterResource(id = R.drawable.ic_chat_custom),
-                                            contentDescription = "Chat con Administración",
-                                            tint = Color(0xFF003366),
-                                            modifier = Modifier.size(20.dp)
+                                            imageVector = Icons.Default.WarningAmber,
+                                            contentDescription = "Avisos y Moderación",
+                                            tint = if (unreadWarningsCount > 0) Color(0xFFDC2626) else Color(0xFFE65100),
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
@@ -2146,19 +2150,7 @@ fun SellerDashboardScreen(
                                 )
                             }
 
-                            // Banner de Mesa de Diálogo Oficial (Chat de Soporte con Admin)
-                            AnimatedVisibility(
-                                visible = sellerActiveTicket != null,
-                                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                                exit = fadeOut(tween(400)) + shrinkVertically(tween(400))
-                            ) {
-                                sellerActiveTicket?.let { ticket ->
-                                    ActiveSupportTicketBanner(
-                                        ticket = ticket,
-                                        onClick = { activeSupportTicket = ticket }
-                                    )
-                                }
-                            }
+
                     val formattedSelectedDate = remember(uiState.selectedDate) {
                         val dayName = uiState.selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"))
                             .replaceFirstChar { it.uppercase() }
@@ -2684,6 +2676,8 @@ fun SellerDashboardScreen(
 
                     ActiveChatsSheet(
                         chats = activeSellerChatSummaries,
+                        supportTickets = listOfNotNull(sellerActiveTicket),
+                        onSelectSupportTicket = { activeSupportTicket = it },
                         onSelectChat = { summary ->
                             val matchingSub = uiState.subOrders.find { it.id == summary.subOrderId }
                             if (matchingSub != null) {
@@ -2735,8 +2729,8 @@ fun SellerDashboardScreen(
                         },
                         onToggleAcceptingOrders = { viewModel.toggleAcceptingOrders(it) },
                         onSignOut = onSignOut,
-                        onReportIncident = { key, label, details ->
-                            viewModel.reportIncident(key, label, details)
+                        onReportIncident = { key, label, details, evidenceBytes ->
+                            viewModel.reportIncident(key, label, details, evidenceBytes = evidenceBytes)
                         },
                         showHeader = false
                     )

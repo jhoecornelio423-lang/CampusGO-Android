@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.admin
+package com.example.campusgo.features.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -78,6 +78,7 @@ class AdminViewModel(
             }
         }
         loadDetailedMetrics(MetricsPeriod.HOY)
+        refresh()
     }
 
     fun setTab(tab: AdminTab) {

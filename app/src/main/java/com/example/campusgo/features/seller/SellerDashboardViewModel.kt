@@ -712,13 +712,20 @@ class SellerDashboardViewModel(
         _uiState.update { it.copy(selectedDate = LocalDate.now(limaZone)) }
     }
 
-    fun reportIncident(reasonKey: String, reasonLabel: String, details: String, reportedUserId: String? = null) {
+    fun reportIncident(
+        reasonKey: String,
+        reasonLabel: String,
+        details: String,
+        reportedUserId: String? = null,
+        evidenceBytes: ByteArray? = null
+    ) {
         viewModelScope.launch {
             val result = orderRepository.reportIncident(
                 reporterId = currentSellerId,
                 reportedUserId = reportedUserId,
                 incidentType = reasonKey,
-                details = "[$reasonLabel] $details"
+                details = "[$reasonLabel] $details",
+                evidenceBytes = evidenceBytes
             )
             if (result.isSuccess) {
                 _uiState.update { it.copy(successMessage = "Reporte enviado con éxito al Administrador del Campus.") }

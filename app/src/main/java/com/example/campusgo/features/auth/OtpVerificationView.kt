@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.auth
+package com.example.campusgo.features.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -367,14 +367,16 @@ fun OtpInputRow(
     otpCode: String,
     onOtpChange: (String) -> Unit,
     focusRequester: FocusRequester,
-    maxDigits: Int = 8,
+    maxDigits: Int = 6,
     onDone: () -> Unit
 ) {
     BasicTextField(
         value = otpCode,
-        onValueChange = {
-            if (it.length <= maxDigits && it.all { c -> c.isDigit() }) {
-                onOtpChange(it)
+        onValueChange = { input ->
+            val clean = input.filter { c -> c.isDigit() }.take(maxDigits)
+            onOtpChange(clean)
+            if (clean.length == maxDigits) {
+                onDone()
             }
         },
         keyboardOptions = KeyboardOptions(
@@ -385,7 +387,7 @@ fun OtpInputRow(
         modifier = Modifier.focusRequester(focusRequester),
         decorationBox = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(maxDigits) { index ->
@@ -396,8 +398,8 @@ fun OtpInputRow(
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(width = 37.dp, height = 50.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .size(width = 44.dp, height = 54.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(
                                 when {
                                     isCurrent -> Color.White
@@ -412,12 +414,12 @@ fun OtpInputRow(
                                     isFilled -> Color(0xFF00A884)
                                     else -> Color(0xFFCBD5E1)
                                 },
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(12.dp)
                             )
                     ) {
                         Text(
                             text = char,
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF16324F)
                         )

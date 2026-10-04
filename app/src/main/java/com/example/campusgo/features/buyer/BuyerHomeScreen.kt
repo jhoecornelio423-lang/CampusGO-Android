@@ -159,6 +159,8 @@ fun BuyerHomeScreen(
     onSignOut: () -> Unit,
     pendingSubOrderId: String? = null,
     onClearPendingSubOrder: () -> Unit = {},
+    pendingRoute: com.example.campusgo.core.notification.AppNotificationPayload? = null,
+    onClearPendingRoute: () -> Unit = {},
     modifier: Modifier = Modifier,
     cartRepository: CartRepository = koinInject(),
     productRepository: ProductRepository = koinInject(),
@@ -178,7 +180,7 @@ fun BuyerHomeScreen(
         while (true) {
             val res = supportRepository.getActiveTicketForUser(currentProfile.id)
             buyerActiveTicket = res.getOrNull()
-            kotlinx.coroutines.delay(20000)
+            kotlinx.coroutines.delay(4000)
         }
     }
     var currentTab by rememberSaveable { mutableStateOf(BuyerBottomNavTab.INICIO) }
@@ -479,9 +481,14 @@ fun BuyerHomeScreen(
         }
     }
 
-    LaunchedEffect(pendingSubOrderId, buyerOrders, realStoresWithProducts) {
-        if (!pendingSubOrderId.isNullOrBlank()) {
-            val subId = pendingSubOrderId
+    LaunchedEffect(pendingRoute, pendingSubOrderId, buyerOrders, realStoresWithProducts) {
+        val effectiveSubOrderId = when (val route = pendingRoute) {
+            is com.example.campusgo.core.notification.AppNotificationPayload.OrderChat -> route.subOrderId
+            else -> pendingSubOrderId
+        }
+
+        if (!effectiveSubOrderId.isNullOrBlank()) {
+            val subId = effectiveSubOrderId
             val existing = buyerOrders.flatMap { it.subOrders }.find { it.id == subId }
             if (existing != null) {
                 val store = realStoresWithProducts.find { it.sellerId == existing.sellerId }
@@ -512,6 +519,7 @@ fun BuyerHomeScreen(
                     deliveryCode = existing.verificationCode
                 )
                 onClearPendingSubOrder()
+                onClearPendingRoute()
             } else {
                 coroutineScope.launch {
                     val fetched = orderRepository.getSubOrderById(subId).getOrNull()
@@ -544,9 +552,32 @@ fun BuyerHomeScreen(
                             deliveryCode = fetched.verificationCode
                         )
                         onClearPendingSubOrder()
+                        onClearPendingRoute()
                     }
                 }
             }
+        }
+
+        when (val route = pendingRoute) {
+            is com.example.campusgo.core.notification.AppNotificationPayload.SupportChat -> {
+                coroutineScope.launch {
+                    val ticketRes = supportRepository.getTicketById(route.ticketId)
+                    val ticket = ticketRes.getOrNull() ?: supportRepository.getActiveTicketForUser(currentProfile.id).getOrNull()
+                    if (ticket != null) {
+                        activeSupportTicket = ticket
+                        onClearPendingRoute()
+                    }
+                }
+            }
+            is com.example.campusgo.core.notification.AppNotificationPayload.Warning -> {
+                showStrikesBottomSheet = true
+                onClearPendingRoute()
+            }
+            is com.example.campusgo.core.notification.AppNotificationPayload.OrderTracking -> {
+                currentTab = BuyerBottomNavTab.PEDIDOS
+                onClearPendingRoute()
+            }
+            else -> {}
         }
     }
 
@@ -575,6 +606,22 @@ fun BuyerHomeScreen(
             onDismiss = {
                 activeChatSummary = null
                 chatViewModel.clearChat()
+            }
+        )
+        return
+    }
+
+    activeSupportTicket?.let { ticket ->
+        SupportChatBottomSheet(
+            ticket = ticket,
+            currentUserId = currentProfile.id,
+            isAdmin = false,
+            onDismiss = {
+                activeSupportTicket = null
+                coroutineScope.launch {
+                    val res = supportRepository.getActiveTicketForUser(currentProfile.id)
+                    buyerActiveTicket = res.getOrNull()
+                }
             }
         )
         return
@@ -879,35 +926,32 @@ fun BuyerHomeScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // 0. Botón de Advertencia / Strikes (igual que en el vendedor)
-                                    Box(
-                                        modifier = Modifier.size(40.dp)
-                                    ) {
-                                        Surface(
-                                            onClick = {
-                                                showStrikesBottomSheet = true
-                                            },
-                                            shape = CircleShape,
-                                            color = if (buyerWarnings.isNotEmpty()) Color(0xFFFFF7ED) else Color.White,
-                                            border = BorderStroke(
-                                                1.dp,
-                                                if (buyerWarnings.isNotEmpty()) Color(0xFFFFD8BF) else Color(0xFFE2E8F0)
-                                            ),
-                                            shadowElevation = 1.dp,
-                                            modifier = Modifier.fillMaxSize()
+                                    // 0. Botón de Advertencia / Strikes (solo visible si tiene al menos 1 aviso activo)
+                                    if (buyerWarnings.isNotEmpty()) {
+                                        Box(
+                                            modifier = Modifier.size(40.dp)
                                         ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = Icons.Default.WarningAmber,
-                                                    contentDescription = "Avisos y Moderación",
-                                                    tint = if (buyerWarnings.isNotEmpty()) Color(0xFFEA580C) else Color(0xFF64748B),
-                                                    modifier = Modifier.size(20.dp)
-                                                )
+                                            Surface(
+                                                onClick = {
+                                                    showStrikesBottomSheet = true
+                                                },
+                                                shape = CircleShape,
+                                                color = Color(0xFFFFF7ED),
+                                                border = BorderStroke(1.dp, Color(0xFFFFD8BF)),
+                                                shadowElevation = 1.dp,
+                                                modifier = Modifier.fillMaxSize()
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.WarningAmber,
+                                                        contentDescription = "Avisos y Moderación",
+                                                        tint = Color(0xFFEA580C),
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
                                             }
-                                        }
 
-                                        // Badge con cantidad de strikes activos
-                                        if (buyerWarnings.isNotEmpty()) {
+                                            // Badge con cantidad de strikes activos
                                             Box(
                                                 modifier = Modifier
                                                     .align(Alignment.TopEnd)
@@ -920,47 +964,6 @@ fun BuyerHomeScreen(
                                                     Text(
                                                         text = "${buyerWarnings.size}",
                                                         fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // 0.5. Botón de Chat de Soporte Institucional (Mesa de Diálogo Oficial)
-                                    if (buyerActiveTicket != null) {
-                                        Box(
-                                            modifier = Modifier.size(40.dp)
-                                        ) {
-                                            Surface(
-                                                onClick = { activeSupportTicket = buyerActiveTicket },
-                                                shape = CircleShape,
-                                                color = Color(0xFFEFF6FF),
-                                                border = BorderStroke(1.dp, Color(0xFF93C5FD)),
-                                                shadowElevation = 1.dp,
-                                                modifier = Modifier.fillMaxSize()
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Icon(
-                                                        painter = painterResource(id = R.drawable.ic_chat_custom),
-                                                        contentDescription = "Chat de Soporte Institucional",
-                                                        tint = Color(0xFF003366),
-                                                        modifier = Modifier.size(19.dp)
-                                                    )
-                                                }
-                                            }
-                                            Box(
-                                                modifier = Modifier
-                                                    .align(Alignment.TopEnd)
-                                                    .offset(x = 2.dp, y = (-2).dp)
-                                            ) {
-                                                Badge(
-                                                    containerColor = Color(0xFF2563EB),
-                                                    contentColor = Color.White
-                                                ) {
-                                                    Text(
-                                                        text = "1",
-                                                        fontSize = 9.sp,
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                 }
@@ -1161,21 +1164,7 @@ fun BuyerHomeScreen(
                         }
                     }
 
-                    // Banner de Mesa de Diálogo Oficial (Chat de Soporte con Admin)
-                    AnimatedVisibility(
-                        visible = buyerActiveTicket != null,
-                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                        exit = fadeOut(tween(400)) + shrinkVertically(tween(400))
-                    ) {
-                        buyerActiveTicket?.let { ticket ->
-                            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                                ActiveSupportTicketBanner(
-                                    ticket = ticket,
-                                    onClick = { activeSupportTicket = ticket }
-                                )
-                            }
-                        }
-                    }
+
 
                     // 0. Aviso de notificación dinámica con alarma en movimiento, temporizador de 5 segundos y texto según estado
                     AnimatedVisibility(
@@ -1877,6 +1866,8 @@ fun BuyerHomeScreen(
         BuyerBottomNavTab.CHATS -> {
             ActiveChatsSheet(
                 chats = activeBuyerChats,
+                supportTickets = listOfNotNull(buyerActiveTicket),
+                onSelectSupportTicket = { activeSupportTicket = it },
                 onSelectChat = { selectedChat ->
                     activeChatSummary = selectedChat
                     chatViewModel.initChat(
@@ -1958,21 +1949,5 @@ fun BuyerHomeScreen(
                 isSeller = false
             )
         }
-
-        activeSupportTicket?.let { ticket ->
-            SupportChatBottomSheet(
-                ticket = ticket,
-                currentUserId = currentProfile.id,
-                isAdmin = false,
-                onDismiss = {
-                    activeSupportTicket = null
-                    coroutineScope.launch {
-                        val res = supportRepository.getActiveTicketForUser(currentProfile.id)
-                        buyerActiveTicket = res.getOrNull()
-                    }
-                }
-            )
-        }
-
 }
 }

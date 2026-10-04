@@ -18,6 +18,8 @@ import com.example.campusgo.data.repository.ProfileBasicDto
 import com.example.campusgo.data.repository.ProductBasicDto
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.features.chat.ActiveChatSessionManager
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Order
@@ -281,12 +283,19 @@ class CampusGoPushService : Service(), KoinComponent {
                             resolved
                         }
 
-                        if (roleStr == "emprendedor" || roleStr == "admin") {
+                        val isAdmin = roleStr == "admin"
+                        if (isAdmin) {
                             monitorSellerOrders(userId)
+                            monitorAdminIncidents()
+                        } else if (roleStr == "emprendedor") {
+                            monitorSellerOrders(userId)
+                            monitorUserWarnings(userId)
                         } else {
                             monitorBuyerOrders(userId)
+                            monitorUserWarnings(userId)
                         }
                         monitorChatMessages(userId)
+                        monitorSupportMessages(userId, isAdmin)
                     } else {
                         Log.i(TAG, "Bucle de monitoreo: esperando autenticación o sesión activa...")
                     }
@@ -682,6 +691,218 @@ class CampusGoPushService : Service(), KoinComponent {
         }
     }
 
+    private suspend fun monitorSupportMessages(currentUserId: String, isAdmin: Boolean) {
+        try {
+            if (isAdmin) {
+                val unreadMessages = postgrest.from("support_messages")
+                    .select {
+                        filter {
+                            eq("is_admin", false)
+                            eq("is_read", false)
+                        }
+                        order("created_at", Order.DESCENDING)
+                        limit(10)
+                    }
+                    .decodeList<RemoteSupportMessagePushDto>()
+
+                if (unreadMessages.isEmpty()) return
+
+                val ticketIds = unreadMessages.map { it.ticketId }.distinct()
+                val ticketsMap = try {
+                    postgrest.from("support_tickets")
+                        .select {
+                            filter { isIn("id", ticketIds) }
+                        }
+                        .decodeList<RemoteSupportTicketPushDto>()
+                        .associateBy { it.id }
+                } catch (_: Exception) {
+                    emptyMap()
+                }
+
+                for (msg in unreadMessages) {
+                    val eventKey = "support_msg_${msg.id}"
+                    if (isAlreadyNotified(eventKey)) continue
+
+                    if (ActiveChatSessionManager.isSupportChatActive(msg.ticketId)) {
+                        markAsNotified(eventKey)
+                        continue
+                    }
+
+                    // DEDUPLICACIÓN CLAVE: Si el mensaje es parte de un reporte de incidencia que ya generó
+                    // la notificación de "Nuevo Reporte", silenciar la alerta de soporte repetida.
+                    val ticket = ticketsMap[msg.ticketId] ?: runCatching {
+                        postgrest.from("support_tickets").select {
+                            filter { eq("id", msg.ticketId) }
+                        }.decodeSingleOrNull<RemoteSupportTicketPushDto>()
+                    }.getOrNull()
+
+                    // Si el ticket ya está resuelto o cerrado, silenciar y marcar como notificado
+                    if (ticket != null && (ticket.status.equals("RESUELTO", true) || ticket.status.equals("CERRADO", true))) {
+                        markAsNotified(eventKey)
+                        continue
+                    }
+
+                    // DEDUPLICACIÓN INTELIGENTE:
+                    // Al crearse una incidencia, se inserta una fila en support_messages con la descripción inicial.
+                    // Para evitar notificar 2 veces al admin al mismo tiempo (como incidencia y como chat),
+                    // silenciamos el mensaje inicial SOLO si es el mensaje automático de creación inicial (antes de que haya intervención del admin).
+                    // Una vez que el admin ya envió un mensaje o el usuario responde en la conversación,
+                    // TODO mensaje del reportador es un mensaje real de chat y DEBE notificar inmediatamente al admin.
+                    if (ticket?.incidentId != null) {
+                        val hasAdminMessageInTicket = runCatching {
+                            val list = postgrest.from("support_messages").select {
+                                filter {
+                                    eq("ticket_id", msg.ticketId)
+                                    eq("is_admin", true)
+                                }
+                                limit(1)
+                            }.decodeList<RemoteSupportMessagePushDto>()
+                            list.isNotEmpty()
+                        }.getOrDefault(false)
+
+                        val isInitialReportMessage = !hasAdminMessageInTicket && (
+                            msg.message.trim() == ticket.adminNotes?.trim() ||
+                            msg.message.trim() == "Reporte inicial registrado."
+                        )
+
+                        if (isInitialReportMessage) {
+                            Log.i(TAG, "Silenciando mensaje inicial de reporte para admin en ticket ${ticket.id}")
+                            markAsNotified(eventKey)
+                            continue
+                        }
+                    }
+
+                    val senderName = getSenderName(msg.senderId)
+                    markAsNotified(eventKey)
+
+                    Log.i(TAG, "DISPARANDO NOTIFICACION SOPORTE PARA ADMIN: de $senderName en ticket ${msg.ticketId}: ${msg.message}")
+                    CampusGoNotificationHelper.showSupportNotification(
+                        context = this@CampusGoPushService,
+                        ticketId = msg.ticketId,
+                        senderName = senderName,
+                        message = msg.message,
+                        isForAdmin = true
+                    )
+                }
+            } else {
+                val userTickets = postgrest.from("support_tickets")
+                    .select {
+                        filter {
+                            eq("user_id", currentUserId)
+                            neq("status", "RESUELTO")
+                            neq("status", "CERRADO")
+                        }
+                        order("created_at", Order.DESCENDING)
+                        limit(10)
+                    }
+                    .decodeList<RemoteSupportTicketPushDto>()
+
+                if (userTickets.isEmpty()) return
+
+                val ticketIds = userTickets.map { it.id }
+                val unreadMessages = postgrest.from("support_messages")
+                    .select {
+                        filter {
+                            isIn("ticket_id", ticketIds)
+                            eq("is_admin", true)
+                            eq("is_read", false)
+                        }
+                        order("created_at", Order.DESCENDING)
+                        limit(10)
+                    }
+                    .decodeList<RemoteSupportMessagePushDto>()
+
+                for (msg in unreadMessages) {
+                    val eventKey = "support_msg_${msg.id}"
+                    if (isAlreadyNotified(eventKey)) continue
+
+                    if (ActiveChatSessionManager.isSupportChatActive(msg.ticketId)) {
+                        markAsNotified(eventKey)
+                        continue
+                    }
+
+                    markAsNotified(eventKey)
+                    CampusGoNotificationHelper.showSupportNotification(
+                        context = this@CampusGoPushService,
+                        ticketId = msg.ticketId,
+                        senderName = "Administración CampusGO",
+                        message = msg.message,
+                        isForAdmin = false
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Chequeo de support_messages omitido/aviso: ${e.message}")
+        }
+    }
+
+    private suspend fun monitorAdminIncidents() {
+        try {
+            val pendingIncidents = postgrest.from("order_incidents")
+                .select {
+                    filter {
+                        eq("status", "PENDIENTE")
+                    }
+                    order("created_at", Order.DESCENDING)
+                    limit(10)
+                }
+                .decodeList<RemoteIncidentPushDto>()
+
+            for (inc in pendingIncidents) {
+                val eventKey = "admin_incident_${inc.id}"
+                if (isAlreadyNotified(eventKey)) continue
+
+                if (isRecent(inc.createdAt, 30)) {
+                    markAsNotified(eventKey)
+                    CampusGoNotificationHelper.showAdminIncidentNotification(
+                        context = this@CampusGoPushService,
+                        incidentId = inc.id,
+                        incidentType = inc.incidentType,
+                        details = inc.details ?: "Nuevo reporte pendiente de revisión"
+                    )
+                } else {
+                    markAsNotified(eventKey)
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Chequeo de order_incidents omitido/aviso: ${e.message}")
+        }
+    }
+
+    private suspend fun monitorUserWarnings(currentUserId: String) {
+        try {
+            val warnings = postgrest.from("profile_warnings")
+                .select {
+                    filter {
+                        eq("profile_id", currentUserId)
+                    }
+                    order("created_at", Order.DESCENDING)
+                    limit(5)
+                }
+                .decodeList<RemoteWarningPushDto>()
+
+            for ((index, warning) in warnings.withIndex()) {
+                val eventKey = "user_warning_${warning.id}"
+                if (isAlreadyNotified(eventKey)) continue
+
+                if (isRecent(warning.createdAt, 60)) {
+                    markAsNotified(eventKey)
+                    val strikeNumber = warnings.size - index
+                    CampusGoNotificationHelper.showWarningNotification(
+                        context = this@CampusGoPushService,
+                        profileId = warning.profileId,
+                        reason = warning.reason,
+                        strikeNumber = strikeNumber.coerceAtLeast(1)
+                    )
+                } else {
+                    markAsNotified(eventKey)
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Chequeo de profile_warnings omitido/aviso: ${e.message}")
+        }
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         Log.i(TAG, "onTaskRemoved: Reprogramando servicio en segundo plano...")
@@ -728,3 +949,45 @@ class CampusGoPushService : Service(), KoinComponent {
         }
     }
 }
+
+@Serializable
+private data class RemoteSupportMessagePushDto(
+    val id: String,
+    @SerialName("ticket_id") val ticketId: String,
+    @SerialName("sender_id") val senderId: String,
+    val message: String,
+    @SerialName("is_admin") val isAdmin: Boolean = false,
+    @SerialName("is_read") val isRead: Boolean = false,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+private data class RemoteSupportTicketPushDto(
+    val id: String,
+    @SerialName("user_id") val userId: String = "",
+    @SerialName("incident_id") val incidentId: String? = null,
+    @SerialName("ticket_number") val ticketNumber: Int? = null,
+    val subject: String = "",
+    val status: String = "",
+    @SerialName("admin_notes") val adminNotes: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+private data class RemoteIncidentPushDto(
+    val id: String,
+    @SerialName("incident_type") val incidentType: String,
+    val details: String? = null,
+    val status: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+private data class RemoteWarningPushDto(
+    val id: String,
+    @SerialName("profile_id") val profileId: String,
+    val reason: String,
+    @SerialName("ticket_id") val ticketId: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+

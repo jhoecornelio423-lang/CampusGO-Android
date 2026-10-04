@@ -28,16 +28,36 @@ data class OrderIncident(
                 status.equals("DESCARTADO", ignoreCase = true)
 
     val displayIncidentTitle: String
-        get() = when (incidentType) {
-            "NO_SHOW_BUYER" -> "Comprador no se presentó al punto"
-            "NO_SHOW_SELLER" -> "Vendedor no se presentó al punto"
-            "WRONG_DAMAGED_PRODUCT" -> "Producto vencido o en mal estado"
-            "UNAUTHORIZED_CHARGE" -> "Cobro indebido o alteración de precio"
-            "INAPPROPRIATE_BEHAVIOR" -> "Conducta inapropiada / falta de respeto"
-            "STORE_UNAVAILABLE" -> "Puesto cerrado / no atiende pedidos"
-            "SCAM_SUSPICION" -> "Sospecha de estafa o suplantación"
-            "CANCELADO_VENDEDOR" -> "Cancelado unilateralmente por vendedor"
-            else -> incidentType.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+        get() = formatIncidentType(incidentType)
+}
+
+fun formatIncidentType(rawType: String?): String {
+    if (rawType.isNullOrBlank()) return "Incidencia de mediación"
+    var clean = rawType.trim()
+    while (clean.contains(":") && (
+            clean.startsWith("Incidencia", ignoreCase = true) ||
+            clean.startsWith("Reclamo", ignoreCase = true) ||
+            clean.startsWith("Caso", ignoreCase = true) ||
+            clean.startsWith("Reporte", ignoreCase = true))) {
+        clean = clean.substringAfter(":").trim()
+    }
+    clean = clean.replace(Regex("Caso\\s*#?\\d+", RegexOption.IGNORE_CASE), "").trim()
+    clean = clean.trim('-', ':', '•', ' ')
+
+    val normalized = clean.uppercase().replace(" ", "_")
+    return when {
+        normalized.contains("NO_SHOW_BUYER") || normalized.contains("COMPRADOR_NO_SE_PRESENT") -> "Comprador ausente en punto de entrega"
+        normalized.contains("NO_SHOW_SELLER") || normalized.contains("VENDEDOR_NO_SE_PRESENT") -> "Vendedor ausente en punto de entrega"
+        normalized.contains("WRONG_DAMAGED_PRODUCT") || normalized.contains("MAL_ESTADO") || normalized.contains("VENCIDO") -> "Producto vencido o en mal estado"
+        normalized.contains("UNAUTHORIZED_CHARGE") || normalized.contains("COBRO_INDEBIDO") || normalized.contains("ALTERACION_PRECIO") -> "Cobro indebido o alteración de precio"
+        normalized.contains("INAPPROPRIATE_BEHAVIOR") || normalized.contains("CONDUCTA_INAPROPIADA") -> "Conducta inapropiada / falta de respeto"
+        normalized.contains("STORE_UNAVAILABLE") || normalized.contains("PUESTO_CERRADO") || normalized.contains("NO_ATIENDE") -> "Puesto inactivo / no atiende pedidos"
+        normalized.contains("SCAM_SUSPICION") || normalized.contains("ESTAFA") -> "Sospecha de estafa o suplantación"
+        normalized.contains("CANCELADO_VENDEDOR") -> "Cancelado unilateralmente por vendedor"
+        else -> {
+            if (clean.any { it.isLowerCase() }) clean
+            else clean.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
         }
+    }
 }
 

@@ -15,6 +15,9 @@ object ActiveChatSessionManager {
     var activeOtherUserId: String? = null
 
     @Volatile
+    var activeTicketId: String? = null
+
+    @Volatile
     var isAppInForeground: Boolean = false
 
     /**
@@ -42,8 +45,20 @@ object ActiveChatSessionManager {
         return false
     }
 
+    /**
+     * Retorna verdadero si el chat de soporte del ticket está visible en pantalla.
+     */
+    fun isSupportChatActive(ticketId: String?): Boolean {
+        if (!isAppInForeground) {
+            return false
+        }
+        val curTicket = activeTicketId
+        return !ticketId.isNullOrBlank() && !curTicket.isNullOrBlank() && curTicket.equals(ticketId, ignoreCase = true)
+    }
+
     fun clear() {
         activeSubOrderId = null
         activeOtherUserId = null
+        activeTicketId = null
     }
 }

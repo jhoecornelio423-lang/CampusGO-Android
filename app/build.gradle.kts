@@ -29,7 +29,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 7
-        versionName = "0.5.2-beta"
+        versionName = "0.6.2-beta"
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")

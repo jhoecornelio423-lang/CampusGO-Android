@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.model
+package com.example.campusgo.domain.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -25,9 +25,12 @@ data class UserProfile(
     @SerialName("supported_meeting_points") val supportedMeetingPoints: List<String> = emptyList(),
     @SerialName("supported_payment_methods") val supportedPaymentMethods: List<String> = emptyList(),
     @SerialName("suspension_reason") val suspensionReason: String? = null,
+    @SerialName("is_suspended") val isSuspended: Boolean = false,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 ) {
+    val isAccountSuspended: Boolean
+        get() = role.isSuspended || isSuspended || businessStatus.equals("SUSPENDIDO", ignoreCase = true)
     val displayStoreName: String get() = businessName?.trim()?.takeIf { it.isNotBlank() } ?: fullName
     val displayBusinessDescription: String?
         get() = businessDescription?.replace(Regex("<!--PM:[^>]*-->"), "")?.trim()?.takeIf { it.isNotBlank() }

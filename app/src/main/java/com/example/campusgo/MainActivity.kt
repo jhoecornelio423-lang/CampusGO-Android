@@ -12,10 +12,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.campusgo.core.notification.AppNotificationRouter
 import com.example.campusgo.core.notification.CampusGoFirebaseMessagingService
 import com.example.campusgo.core.notification.CampusGoPushService
 import com.example.campusgo.theme.CampusGOTheme
@@ -98,20 +100,23 @@ class MainActivity : ComponentActivity() {
             android.util.Log.e("MainActivity", "Error iniciando CampusGoPushService", e)
         }
 
-        val initialSubOrderId = intent?.getStringExtra("sub_order_id")
-        if (!initialSubOrderId.isNullOrBlank()) {
-            pendingSubOrderIdState.value = initialSubOrderId
-        }
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+
+        // Procesar cualquier intent de notificación recibido al abrir
+        AppNotificationRouter.onNotificationIntent(intent)
 
         setContent {
+            val pendingRoute = AppNotificationRouter.pendingRoute.collectAsState().value
+
             CampusGOTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = androidx.compose.ui.graphics.Color.White
                 ) {
                     MainNavigation(
-                        pendingSubOrderId = pendingSubOrderIdState.value,
-                        onClearPendingSubOrder = { pendingSubOrderIdState.value = null }
+                        pendingRoute = pendingRoute,
+                        onClearPendingRoute = { AppNotificationRouter.clearRoute() }
                     )
                 }
             }
@@ -121,10 +126,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val subOrderId = intent.getStringExtra("sub_order_id")
-        if (!subOrderId.isNullOrBlank()) {
-            pendingSubOrderIdState.value = subOrderId
-        }
+        AppNotificationRouter.onNotificationIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkAndRequestNotificationPermission()
     }
 
     private fun checkAndRequestNotificationPermission() {

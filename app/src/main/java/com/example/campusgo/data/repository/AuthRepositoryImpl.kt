@@ -12,6 +12,7 @@ import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -109,32 +110,51 @@ class AuthRepositoryImpl(
                                 )
                             }
 
-                            val isSeller = profile.role == UserRole.EMPRENDEDOR ||
-                                    !profile.businessName.isNullOrBlank() ||
-                                    metaRoleStr.equals("emprendedor", ignoreCase = true) ||
-                                    !metaStoreName.isNullOrBlank()
+                            val isSuspendedAccount = profile.isAccountSuspended ||
+                                    profile.role.isSuspended ||
+                                    profile.businessStatus.equals("SUSPENDIDO", ignoreCase = true)
 
-                            if (isSeller) {
-                                val isApproved = try {
-                                    val apps = postgrest.from("seller_applications").select {
-                                        filter { eq("user_id", user.id) }
-                                    }.decodeList<SellerApplication>()
-                                    apps.any { it.status == ApplicationStatus.APROBADA }
-                                } catch (_: Exception) { false }
+                            if (isSuspendedAccount) {
+                                val effectiveSuspendedProfile = profile.copy(
+                                    role = if (profile.role == UserRole.EMPRENDEDOR || !profile.businessName.isNullOrBlank()) {
+                                        UserRole.SUSPENDED
+                                    } else {
+                                        UserRole.SUSPENDED_BUYER
+                                    }
+                                )
+                                _currentProfile.value = effectiveSuspendedProfile
+                                _isAuthenticated.value = true
+                                startProfileMonitoring()
+                            } else {
+                                val isSeller = profile.role == UserRole.EMPRENDEDOR ||
+                                        !profile.businessName.isNullOrBlank() ||
+                                        metaRoleStr.equals("emprendedor", ignoreCase = true) ||
+                                        !metaStoreName.isNullOrBlank()
 
-                                if (!isApproved || profile.businessStatus.equals("SUSPENDIDO", ignoreCase = true) || profile.businessStatus.equals("RECHAZADO", ignoreCase = true)) {
-                                    try {
-                                        auth.signOut()
-                                    } catch (_: Exception) {}
-                                    _currentProfile.value = null
-                                    _isAuthenticated.value = false
+                                if (isSeller) {
+                                    val isApproved = try {
+                                        val apps = postgrest.from("seller_applications").select {
+                                            filter { eq("user_id", user.id) }
+                                        }.decodeList<SellerApplication>()
+                                        apps.any { it.status == ApplicationStatus.APROBADA }
+                                    } catch (_: Exception) { false }
+
+                                    if (!isApproved || profile.businessStatus.equals("RECHAZADO", ignoreCase = true)) {
+                                        try {
+                                            auth.signOut()
+                                        } catch (_: Exception) {}
+                                        _currentProfile.value = null
+                                        _isAuthenticated.value = false
+                                    } else {
+                                        _currentProfile.value = profile
+                                        _isAuthenticated.value = true
+                                        startProfileMonitoring()
+                                    }
                                 } else {
                                     _currentProfile.value = profile
                                     _isAuthenticated.value = true
+                                    startProfileMonitoring()
                                 }
-                            } else {
-                                _currentProfile.value = profile
-                                _isAuthenticated.value = true
                             }
                         } else {
                             _currentProfile.value = null
@@ -215,17 +235,23 @@ class AuthRepositoryImpl(
                 )
             }
 
-            // 1. Validar si la cuenta está suspendida
-            if (profile.role.isSuspended || profile.businessStatus.equals("SUSPENDIDO", ignoreCase = true)) {
-                try {
-                    auth.signOut()
-                } catch (_: Exception) {}
-                _currentProfile.value = null
-                _isAuthenticated.value = false
-                val reasonText = profile.suspensionReason?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: ""
-                return Result.failure(
-                    IllegalStateException("Tu cuenta se encuentra suspendida por la administración$reasonText")
+            // 1. Validar si la cuenta está suspendida: permitir entrar para mostrar SuspendedAccountScreen
+            val isSuspendedUser = profile.isAccountSuspended ||
+                    profile.role.isSuspended ||
+                    profile.businessStatus.equals("SUSPENDIDO", ignoreCase = true)
+
+            if (isSuspendedUser) {
+                val effectiveSuspendedProfile = profile.copy(
+                    role = if (profile.role == UserRole.EMPRENDEDOR || !profile.businessName.isNullOrBlank()) {
+                        UserRole.SUSPENDED
+                    } else {
+                        UserRole.SUSPENDED_BUYER
+                    }
                 )
+                _currentProfile.value = effectiveSuspendedProfile
+                _isAuthenticated.value = true
+                startProfileMonitoring()
+                return Result.success(effectiveSuspendedProfile)
             }
 
             // 2. Validar si la solicitud fue rechazada
@@ -340,6 +366,7 @@ class AuthRepositoryImpl(
 
             _currentProfile.value = profile
             _isAuthenticated.value = true
+            startProfileMonitoring()
             Result.success(profile)
         } catch (e: Exception) {
             Result.failure(e)
@@ -482,11 +509,23 @@ class AuthRepositoryImpl(
 
         isSuppressingSessionBroadcast.set(true)
         return try {
-            auth.verifyEmailOtp(
-                type = OtpType.Email.SIGNUP,
-                email = trimmedEmail,
-                token = trimmedToken
-            )
+            try {
+                auth.verifyEmailOtp(
+                    type = OtpType.Email.SIGNUP,
+                    email = trimmedEmail,
+                    token = trimmedToken
+                )
+            } catch (signupErr: Exception) {
+                try {
+                    auth.verifyEmailOtp(
+                        type = OtpType.Email.EMAIL,
+                        email = trimmedEmail,
+                        token = trimmedToken
+                    )
+                } catch (_: Exception) {
+                    throw signupErr
+                }
+            }
 
             val user = auth.currentUserOrNull()
                 ?: throw IllegalStateException("No se pudo iniciar sesión tras verificar el código")
@@ -640,12 +679,59 @@ class AuthRepositoryImpl(
 
     override suspend fun signOut(): Result<Unit> {
         return try {
+            profileMonitoringJob?.cancel()
+            profileMonitoringJob = null
             auth.signOut()
             _currentProfile.value = null
             _isAuthenticated.value = false
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private var profileMonitoringJob: kotlinx.coroutines.Job? = null
+
+    private fun startProfileMonitoring() {
+        if (profileMonitoringJob?.isActive == true) return
+        profileMonitoringJob = scope.launch {
+            while (isActive) {
+                kotlinx.coroutines.delay(2500L)
+                try {
+                    val currentId = _currentProfile.value?.id ?: auth.currentUserOrNull()?.id ?: continue
+                    if (!_isAuthenticated.value) continue
+                    val remoteProfile = fetchProfile(currentId)
+                    val effectiveProfile = if (remoteProfile.isAccountSuspended && !remoteProfile.role.isSuspended) {
+                        remoteProfile.copy(
+                            role = if (remoteProfile.role == UserRole.EMPRENDEDOR || !remoteProfile.businessName.isNullOrBlank()) {
+                                UserRole.SUSPENDED
+                            } else {
+                                UserRole.SUSPENDED_BUYER
+                            }
+                        )
+                    } else if (!remoteProfile.isAccountSuspended && remoteProfile.role.isSuspended) {
+                        // Reactivado por el administrador
+                        remoteProfile.copy(
+                            role = if (!remoteProfile.businessName.isNullOrBlank()) UserRole.EMPRENDEDOR else UserRole.COMPRADOR
+                        )
+                    } else {
+                        remoteProfile
+                    }
+
+                    val current = _currentProfile.value
+                    if (current == null ||
+                        current.role != effectiveProfile.role ||
+                        current.isSuspended != effectiveProfile.isSuspended ||
+                        current.businessStatus != effectiveProfile.businessStatus ||
+                        current.suspensionReason != effectiveProfile.suspensionReason
+                    ) {
+                        android.util.Log.i("AuthRepo", "Cambio de estado detectado en tiempo real: anterior=${current?.role} -> nuevo=${effectiveProfile.role}")
+                        _currentProfile.value = effectiveProfile
+                    }
+                } catch (_: Exception) {
+                    // Ignorar fallos de red transitorios
+                }
+            }
         }
     }
 

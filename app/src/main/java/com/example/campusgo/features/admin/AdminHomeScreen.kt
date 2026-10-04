@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.blur
@@ -100,6 +103,8 @@ import kotlinx.coroutines.launch
 fun AdminHomeScreen(
     profile: UserProfile,
     onSignOut: () -> Unit,
+    pendingRoute: com.example.campusgo.core.notification.AppNotificationPayload? = null,
+    onClearPendingRoute: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: AdminViewModel = koinViewModel()
 ) {
@@ -109,6 +114,26 @@ fun AdminHomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var activeSupportTicket by remember { mutableStateOf<SupportTicket?>(null) }
     var enlargedPhotoUrl by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pendingRoute) {
+        when (val route = pendingRoute) {
+            is com.example.campusgo.core.notification.AppNotificationPayload.SupportChat -> {
+                coroutineScope.launch {
+                    val ticketRes = supportRepository.getTicketById(route.ticketId)
+                    val ticket = ticketRes.getOrNull()
+                    if (ticket != null) {
+                        activeSupportTicket = ticket
+                        onClearPendingRoute()
+                    }
+                }
+            }
+            is com.example.campusgo.core.notification.AppNotificationPayload.AdminIncident -> {
+                viewModel.setTab(AdminTab.SELLER_APPLICATIONS)
+                onClearPendingRoute()
+            }
+            else -> {}
+        }
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -130,7 +155,6 @@ fun AdminHomeScreen(
             uiState.selectedBuyerForSuspension != null ||
             uiState.selectedUserForWarning != null ||
             uiState.pointToDelete != null ||
-            activeSupportTicket != null ||
             enlargedPhotoUrl != null
 
     activeSupportTicket?.let { ticket ->
@@ -154,6 +178,7 @@ fun AdminHomeScreen(
                 }
             }
         )
+        return
     }
 
     enlargedPhotoUrl?.let { url ->
@@ -692,6 +717,9 @@ fun AdminHomeScreen(
                                                 ticket = created.getOrNull()
                                             }
                                             if (ticket != null) {
+                                                if (incident.isResolved) {
+                                                    ticket = ticket.copy(status = incident.status)
+                                                }
                                                 activeSupportTicket = ticket
                                             } else {
                                                 snackbarHostState.showSnackbar("No se pudo iniciar el chat de soporte")
@@ -961,33 +989,45 @@ fun SellerApplicationsTabContent(
     onOpenSupportChat: (OrderIncident) -> Unit = {},
     onOpenPhoto: (String) -> Unit = {}
 ) {
-    var activeSubSection by rememberSaveable { mutableStateOf(0) } // 0 = Solicitudes, 1 = Reportes e Incidencias
+    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val coroutineScope = rememberCoroutineScope()
     val pendingIncidentsCount = remember(allIncidents) { allIncidents.count { it.isPending } }
+
+    val applicationsListState = rememberLazyListState()
+    val incidentsListState = rememberLazyListState()
+
+    LaunchedEffect(selectedFilter) {
+        applicationsListState.scrollToItem(0)
+    }
+
+    LaunchedEffect(incidentFilter) {
+        incidentsListState.scrollToItem(0)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Selector superior entre Solicitudes de Puestos y Reportes e Incidencias
+        // Selector superior swipeable entre Solicitudes de Puestos y Reportes e Incidencias
         PrimaryTabRow(
-            selectedTabIndex = activeSubSection,
+            selectedTabIndex = pagerState.currentPage,
             containerColor = Color.Transparent,
             contentColor = Color(0xFF003366)
         ) {
             Tab(
-                selected = activeSubSection == 0,
-                onClick = { activeSubSection = 0 },
+                selected = pagerState.currentPage == 0,
+                onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                 text = {
                     Text(
                         text = "Solicitudes (${applications.size})",
-                        fontWeight = if (activeSubSection == 0) FontWeight.Bold else FontWeight.Medium,
+                        fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 13.5.sp
                     )
                 }
             )
             Tab(
-                selected = activeSubSection == 1,
-                onClick = { activeSubSection = 1 },
+                selected = pagerState.currentPage == 1,
+                onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                 text = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -995,7 +1035,7 @@ fun SellerApplicationsTabContent(
                     ) {
                         Text(
                             text = "Reportes (${allIncidents.size})",
-                            fontWeight = if (activeSubSection == 1) FontWeight.Bold else FontWeight.Medium,
+                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 13.5.sp
                         )
                         if (pendingIncidentsCount > 0) {
@@ -1017,189 +1057,210 @@ fun SellerApplicationsTabContent(
             )
         }
 
-        if (activeSubSection == 0) {
-            // Sección 0: Solicitudes de Vendedor
-            Column {
-                Text(
-                    "Solicitudes de Vendedor",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF003366)
-                )
-                Text(
-                    "Revisión y autorización de nuevos emprendedores en el campus",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Filtros de estado para Solicitudes
-            val filterOptions = listOf(
-                "TODAS" to "Todas",
-                "PENDIENTE" to "Pendientes",
-                "APROBADA" to "Aprobadas",
-                "RECHAZADA" to "Rechazadas"
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                filterOptions.forEach { (key, label) ->
-                    val isSelected = selectedFilter.equals(key, ignoreCase = true)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onFilterChange(key) },
-                        label = { Text(label, fontSize = 12.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF003366),
-                            selectedLabelColor = Color.White
-                        )
-                    )
-                }
-            }
-
-            if (applications.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            if (page == 0) {
+                // Sección 0: Solicitudes de Vendedor
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VerifiedUser,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Column {
                         Text(
-                            text = when (selectedFilter.uppercase()) {
-                                "PENDIENTE" -> "No hay solicitudes pendientes de aprobación"
-                                "APROBADA" -> "No hay solicitudes aprobadas"
-                                "RECHAZADA" -> "No hay solicitudes rechazadas"
-                                else -> "No hay solicitudes de nuevos vendedores registradas"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            "Solicitudes de Vendedor",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFF003366)
                         )
+                        Text(
+                            "Revisión y autorización de nuevos emprendedores en el campus",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Filtros de estado para Solicitudes
+                    val filterOptions = listOf(
+                        "TODAS" to "Todas",
+                        "PENDIENTE" to "Pendientes",
+                        "APROBADA" to "Aprobadas",
+                        "RECHAZADA" to "Rechazadas"
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        filterOptions.forEach { (key, label) ->
+                            val isSelected = selectedFilter.equals(key, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onFilterChange(key) },
+                                label = { Text(label, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFF003366),
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    if (applications.isEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = when (selectedFilter.uppercase()) {
+                                        "PENDIENTE" -> "No hay solicitudes pendientes de aprobación"
+                                        "APROBADA" -> "No hay solicitudes aprobadas"
+                                        "RECHAZADA" -> "No hay solicitudes rechazadas"
+                                        else -> "No hay solicitudes de nuevos vendedores registradas"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            state = applicationsListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(applications, key = { it.id }) { app ->
+                                SellerApplicationCard(
+                                    application = app,
+                                    onApprove = { onApprove(app) },
+                                    onReject = { onReject(app) }
+                                )
+                            }
+                        }
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp),
+                // Sección 1: Moderación de Reportes e Incidencias
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(applications, key = { it.id }) { app ->
-                        SellerApplicationCard(
-                            application = app,
-                            onApprove = { onApprove(app) },
-                            onReject = { onReject(app) }
-                        )
-                    }
-                }
-            }
-        } else {
-            // Sección 1: Moderación de Reportes e Incidencias
-            Column {
-                Text(
-                    "Centro de Reportes y Moderación",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF003366)
-                )
-                Text(
-                    "Reclamos entre estudiantes, compradores y vendedores del campus",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Filtros de estado de Incidencias
-            val incidentFilterOptions = listOf(
-                "TODAS" to "Todas (${allIncidents.size})",
-                "PENDIENTES" to "Pendientes (${allIncidents.count { it.isPending }})",
-                "SANCIONADO" to "Sancionadas (${allIncidents.count { it.status.equals("SANCIONADO", ignoreCase = true) }})",
-                "RESUELTO" to "Resueltas (${allIncidents.count { it.status.equals("RESUELTO", ignoreCase = true) }})"
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                incidentFilterOptions.forEach { (key, label) ->
-                    val isSelected = incidentFilter.equals(key, ignoreCase = true)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onIncidentFilterChange(key) },
-                        label = { Text(label, fontSize = 11.5.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF003366),
-                            selectedLabelColor = Color.White
-                        )
-                    )
-                }
-            }
-
-            if (incidents.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ReportProblem,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = Color(0xFF00A884)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Column {
                         Text(
-                            text = when (incidentFilter.uppercase()) {
-                                "PENDIENTES", "PENDIENTE" -> "¡Excelente! No hay reportes pendientes de moderación en el campus."
-                                "SANCIONADO" -> "No hay sanciones registradas en este momento."
-                                "RESUELTO" -> "No hay incidencias resueltas registradas."
-                                else -> "No se han emitido reportes de incidencias aún."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            "Centro de Reportes y Moderación",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFF003366)
+                        )
+                        Text(
+                            "Reclamos entre estudiantes, compradores y vendedores del campus",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(incidents, key = { it.id }) { incident ->
-                        val reportedUser = sellers.find { it.id == incident.reportedUserId }
-                            ?: buyers.find { it.id == incident.reportedUserId }
-                        val reporterUser = sellers.find { it.id == incident.reporterId }
-                            ?: buyers.find { it.id == incident.reporterId }
 
-                        AdminIncidentCard(
-                            incident = incident,
-                            reportedUser = reportedUser,
-                            reporterUser = reporterUser,
-                            onSelectSeller = onSelectSeller,
-                            onSelectBuyer = onSelectBuyer,
-                            onIssueWarning = { user -> onIssueWarningForIncident(incident, user) },
-                            onSuspend = { user -> onSuspendForIncident(incident, user) },
-                            onResolve = { onResolveIncident(incident) },
-                            onOpenSupportChat = { onOpenSupportChat(incident) },
-                            onOpenPhoto = onOpenPhoto
-                        )
+                    // Filtros de estado de Incidencias
+                    val incidentFilterOptions = listOf(
+                        "TODAS" to "Todas (${allIncidents.size})",
+                        "PENDIENTES" to "Pendientes (${allIncidents.count { it.isPending }})",
+                        "SANCIONADO" to "Sancionadas (${allIncidents.count { it.status.equals("SANCIONADO", ignoreCase = true) }})",
+                        "RESUELTO" to "Resueltas (${allIncidents.count { it.status.equals("RESUELTO", ignoreCase = true) }})"
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        incidentFilterOptions.forEach { (key, label) ->
+                            val isSelected = incidentFilter.equals(key, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onIncidentFilterChange(key) },
+                                label = { Text(label, fontSize = 11.5.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFF003366),
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    if (incidents.isEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ReportProblem,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = Color(0xFF00A884)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = when (incidentFilter.uppercase()) {
+                                        "PENDIENTES", "PENDIENTE" -> "¡Excelente! No hay reportes pendientes de moderación en el campus."
+                                        "SANCIONADO" -> "No hay sanciones registradas en este momento."
+                                        "RESUELTO" -> "No hay incidencias resueltas registradas."
+                                        else -> "No se han emitido reportes de incidencias aún."
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            state = incidentsListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(incidents, key = { it.id }) { incident ->
+                                val reportedUser = sellers.find { it.id == incident.reportedUserId }
+                                    ?: buyers.find { it.id == incident.reportedUserId }
+                                val reporterUser = sellers.find { it.id == incident.reporterId }
+                                    ?: buyers.find { it.id == incident.reporterId }
+
+                                AdminIncidentCard(
+                                    incident = incident,
+                                    reportedUser = reportedUser,
+                                    reporterUser = reporterUser,
+                                    onSelectSeller = onSelectSeller,
+                                    onSelectBuyer = onSelectBuyer,
+                                    onIssueWarning = { user -> onIssueWarningForIncident(incident, user) },
+                                    onSuspend = { user -> onSuspendForIncident(incident, user) },
+                                    onResolve = { onResolveIncident(incident) },
+                                    onOpenSupportChat = { onOpenSupportChat(incident) },
+                                    onOpenPhoto = onOpenPhoto
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1432,8 +1493,8 @@ fun AdminIncidentCard(
             OutlinedButton(
                 onClick = onOpenSupportChat,
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFF003366)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF003366)),
+                border = BorderStroke(1.dp, if (incident.isPending) Color(0xFF003366) else Color(0xFF64748B)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = if (incident.isPending) Color(0xFF003366) else Color(0xFF64748B)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(38.dp),
@@ -1443,11 +1504,11 @@ fun AdminIncidentCard(
                     painter = painterResource(id = R.drawable.ic_chat_custom),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = Color(0xFF003366)
+                    tint = if (incident.isPending) Color(0xFF003366) else Color(0xFF64748B)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Abrir Chat con el Usuario",
+                    text = if (incident.isPending) "Abrir Chat con el Usuario" else "Ver Chat de Mediación (Archivado)",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
@@ -2761,11 +2822,7 @@ fun CampusMetricsTabContent(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = when (incident.incidentType) {
-                                    "NO_SHOW_BUYER" -> "Comprador no se presentó (No-Show)"
-                                    "CANCELADO_VENDEDOR" -> "Cancelado por el puesto"
-                                    else -> incident.incidentType
-                                },
+                                text = incident.displayIncidentTitle,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFE65100)

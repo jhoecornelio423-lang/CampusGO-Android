@@ -1569,9 +1569,9 @@ class OrderRepositoryImpl(
                 postgrest.from("order_incidents").insert(
                     buildJsonObject {
                         put("id", incidentId)
-                        subOrderId?.let { put("sub_order_id", it) }
-                        reporterId?.let { put("reporter_id", it) }
-                        reportedUserId?.let { put("reported_user_id", it) }
+                        subOrderId?.takeIf { it.isNotBlank() }?.let { put("sub_order_id", it) }
+                        reporterId?.takeIf { it.isNotBlank() }?.let { put("reporter_id", it) }
+                        reportedUserId?.takeIf { it.isNotBlank() }?.let { put("reported_user_id", it) }
                         put("incident_type", incidentType)
                         put("details", details.trim())
                         put("status", "PENDIENTE")
@@ -1587,7 +1587,7 @@ class OrderRepositoryImpl(
                                 put("id", ticketId)
                                 put("user_id", reporterId)
                                 put("incident_id", incidentId)
-                                put("subject", "Incidencia: $incidentType")
+                                put("subject", com.example.campusgo.domain.model.formatIncidentType(incidentType))
                                 put("status", "ABIERTO")
                                 put("admin_notes", details.trim())
                             }

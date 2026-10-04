@@ -13,6 +13,8 @@ interface SupportRepository {
 
     suspend fun getActiveTicketForUser(userId: String): Result<SupportTicket?>
 
+    suspend fun getTicketById(ticketId: String): Result<SupportTicket?>
+
     suspend fun getTicketForIncident(incidentId: String): Result<SupportTicket?>
 
     suspend fun observeMessages(ticketId: String): Flow<List<SupportMessage>>
@@ -33,4 +35,9 @@ interface SupportRepository {
     suspend fun uploadEvidenceImage(
         imageBytes: ByteArray
     ): Result<String>
+
+    suspend fun markMessagesAsRead(
+        ticketId: String,
+        isCurrentUserAdmin: Boolean
+    ): Result<Unit>
 }

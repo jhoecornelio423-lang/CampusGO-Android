@@ -40,16 +40,29 @@ A diferencia de un delivery tradicional, CampusGO opera mediante **puntos de enc
 * **Estadísticas y finanzas:** Balance de ingresos, pedidos completados y métricas clave del negocio.
 * **Perfil de tienda:** Personalización de portada, logo y descripción comercial.
 
-### 🛡️ 3. Administrador (Supervisión y Auditoría)
+### 🛡️ 3. Administrador (Supervisión, Auditoría y Mediación)
 * **Auditoría de usuarios:** Consulta detallada de perfiles de compradores y vendedores.
 * **Puntos de encuentro:** Creación, habilitación y administración de ubicaciones oficiales de entrega en el campus.
-* **Aprobación de puestos:** Validación y autorización de solicitudes de nuevos emprendedores.
-* **Sistema disciplinario de 5 Strikes:**
+* **Aprobación de puestos:** Validación y autorización de solicitudes de nuevos emprendedores con navegación por gestos táctiles (swipe).
+* **Gestión de incidencias y reportes:**
+  - Recepción de reportes de compradores y vendedores en tiempo real.
+  - Mesa de diálogo y chat de mediación institucional con identidad visual distintiva (Azul Marino y Dorado).
+  - Privacidad estricta: el chat solo es visible para el reportador después de que el administrador inicia la conversación.
+  - Resolución formal de casos con bloqueo automático de nuevos mensajes y cierre seguro.
+* **Sistema disciplinario de 5 Strikes y Suspensión Inmediata:**
   - Emisión de advertencias y llamadas de atención estructuradas con motivo formal.
   - Indicador visual unificado en perfiles de usuario (`X/5 strikes`).
-  - **Suspensión automática** al alcanzar el tope de 5 strikes con bloqueo de emisión adicional de faltas.
-  - Opción administrativa de reactivación de cuenta (con reinicio de strikes a cero).
+  - **Suspensión inmediata en tiempo real**: Transición instantánea del usuario afectado a la pantalla de suspensión sin necesidad de reiniciar la app, aplicable tanto por suspensión manual directa como por acumulación del 5to strike.
+  - Reactivación administrativa instantánea en vivo.
 * **Métricas y telemetría:** Registro de volumen de ventas, tiempos de entrega y salud operativa del campus.
+
+---
+
+## 🔔 Sistema de Notificaciones y Redirección Inteligente
+
+* **Enrutamiento Centralizado (`AppNotificationRouter`):** Deep linking que redirige directamente a la pantalla correspondiente (Chat de Pedido, Mediación de Soporte, Panel de Incidencias o Diálogo de Advertencias) sin pantallas de carga redundantes si la app ya está abierta.
+* **Canales Dedicados con Alta Prioridad:** Canales diferenciados para pedidos, chats de coordinación y mediación administrativa (`CHANNEL_SUPPORT`), con tonos audibles y alertas heads-up tanto en primer plano como en segundo plano.
+* **Deduplicación Inteligente:** Supresión de alertas redundantes de creación inicial preservando la entrega inmediata de todos los mensajes reales de conversación.
 
 ---
 

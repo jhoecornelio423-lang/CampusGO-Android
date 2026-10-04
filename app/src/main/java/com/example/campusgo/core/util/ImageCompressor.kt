@@ -3,23 +3,21 @@ package com.example.campusgo.core.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import kotlin.math.max
 
 object ImageCompressor {
 
     /**
-     * Comprime y optimiza imágenes seleccionadas desde la galería o cámara de forma segura
-     * para cualquier dispositivo Android (Samsung OneUI, Xiaomi MIUI/HyperOS, Motorola, etc.).
+     * Comprime y optimiza imágenes de forma altamente resiliente para cualquier dispositivo
+     * Android (Samsung OneUI, Xiaomi MIUI/HyperOS, Motorola, Pixel, etc.).
      *
-     * Previene OutOfMemoryError (OOM) en fotos de alta resolución (48MP/108MP) y
-     * corrige automáticamente la orientación EXIF en dispositivos Samsung.
+     * Lee el flujo content:// en una sola pasada para evitar que el ContentResolver cierre
+     * o revoque el permiso del stream, y garantiza un fallback seguro a bytes crudos si la
+     * decodificación de mapa de bits falla.
      */
     suspend fun compressImageFromUri(
         context: Context,
@@ -29,40 +27,54 @@ object ImageCompressor {
         quality: Int = 80
     ): Result<ByteArray> = withContext(Dispatchers.IO) {
         try {
-            // 1. Obtener orientación EXIF si está disponible (crucial en Samsung Galaxy)
-            val orientation = getExifOrientation(context, uri)
-
-            // 2. Primera pasada: leer sólo dimensiones sin alojar mapa de bits en memoria
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-            }
-            context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, options)
+            // 1. Leer bytes una sola vez del ContentResolver
+            val rawBytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+                stream.readBytes()
             } ?: return@withContext Result.failure(IllegalStateException("No se pudo abrir el archivo de imagen"))
 
-            val originalWidth = options.outWidth
-            val originalHeight = options.outHeight
-
-            if (originalWidth <= 0 || originalHeight <= 0) {
-                return@withContext Result.failure(IllegalArgumentException("Dimensiones de imagen inválidas"))
+            if (rawBytes.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("Archivo de imagen vacío"))
             }
 
-            // 3. Calcular factor de reducción de escala (submuestreo exponencial)
-            options.inSampleSize = calculateInSampleSize(options, maxWidth, maxHeight)
-            options.inJustDecodeBounds = false
-            options.inPreferredConfig = Bitmap.Config.RGB_565 // Optimización de memoria RAM
+            // 2. Analizar dimensiones desde el buffer en memoria
+            val boundsOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, boundsOptions)
 
-            // 4. Segunda pasada: decodificar mapa de bits ya reducido
-            val decodedBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, options)
-            } ?: return@withContext Result.failure(IllegalStateException("Fallo al decodificar la imagen"))
+            val originalWidth = boundsOptions.outWidth
+            val originalHeight = boundsOptions.outHeight
 
-            // 5. Aplicar rotación EXIF y escalado final si es necesario
-            val finalBitmap = adjustBitmapOrientationAndScale(decodedBitmap, orientation, maxWidth, maxHeight)
+            if (originalWidth <= 0 || originalHeight <= 0) {
+                // Si no se pueden obtener dimensiones (ej. formato exótico), devolver bytes originales
+                return@withContext Result.success(rawBytes)
+            }
 
-            // 6. Comprimir a formato JPEG
+            // 3. Submuestreo seguro con ARGB_8888 (compatible con canales alfa / PNG)
+            val sampleSize = calculateInSampleSize(boundsOptions, maxWidth, maxHeight)
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+
+            val decodedBitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, decodeOptions)
+                ?: return@withContext Result.success(rawBytes)
+
+            // 4. Escalar proporcionalmente si excede los límites máximos
+            val width = decodedBitmap.width
+            val height = decodedBitmap.height
+            val finalBitmap = if (width > maxWidth || height > maxHeight) {
+                val ratio = width.toFloat() / height.toFloat()
+                val targetW = if (ratio > 1f) maxWidth else (maxHeight * ratio).toInt()
+                val targetH = if (ratio > 1f) (maxWidth / ratio).toInt() else maxHeight
+                Bitmap.createScaledBitmap(decodedBitmap, max(1, targetW), max(1, targetH), true)
+            } else {
+                decodedBitmap
+            }
+
+            // 5. Comprimir a JPEG
             val outputStream = ByteArrayOutputStream()
-            finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            val compressed = finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
 
             if (finalBitmap != decodedBitmap && !decodedBitmap.isRecycled) {
                 decodedBitmap.recycle()
@@ -71,11 +83,23 @@ object ImageCompressor {
                 finalBitmap.recycle()
             }
 
-            val compressedBytes = outputStream.toByteArray()
-            Result.success(compressedBytes)
+            if (compressed && outputStream.size() > 0) {
+                Result.success(outputStream.toByteArray())
+            } else {
+                Result.success(rawBytes)
+            }
         } catch (e: Exception) {
-            android.util.Log.e("ImageCompressor", "Error al procesar imagen: ${e.message}", e)
-            Result.failure(e)
+            android.util.Log.e("ImageCompressor", "Error procesando imagen: ${e.message}", e)
+            try {
+                val fallbackBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (fallbackBytes != null && fallbackBytes.isNotEmpty()) {
+                    Result.success(fallbackBytes)
+                } else {
+                    Result.failure(e)
+                }
+            } catch (fallbackEx: Exception) {
+                Result.failure(fallbackEx)
+            }
         }
     }
 
@@ -96,64 +120,5 @@ object ImageCompressor {
             }
         }
         return max(1, inSampleSize)
-    }
-
-    private fun getExifOrientation(context: Context, uri: Uri): Int {
-        return try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val exifInterface = ExifInterface(inputStream)
-                exifInterface.getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL
-                )
-            } ?: ExifInterface.ORIENTATION_NORMAL
-        } catch (_: Exception) {
-            ExifInterface.ORIENTATION_NORMAL
-        }
-    }
-
-    private fun adjustBitmapOrientationAndScale(
-        bitmap: Bitmap,
-        orientation: Int,
-        maxWidth: Int,
-        maxHeight: Int
-    ): Bitmap {
-        val matrix = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-        }
-
-        val rotatedBitmap = if (!matrix.isIdentity) {
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        } else {
-            bitmap
-        }
-
-        // Si excede el tamaño máximo, escalar proporcionalmente
-        val width = rotatedBitmap.width
-        val height = rotatedBitmap.height
-        if (width > maxWidth || height > maxHeight) {
-            val ratio = width.toFloat() / height.toFloat()
-            val targetWidth: Int
-            val targetHeight: Int
-            if (ratio > 1) {
-                targetWidth = maxWidth
-                targetHeight = (maxWidth / ratio).toInt()
-            } else {
-                targetHeight = maxHeight
-                targetWidth = (maxHeight * ratio).toInt()
-            }
-            val scaled = Bitmap.createScaledBitmap(rotatedBitmap, targetWidth, targetHeight, true)
-            if (rotatedBitmap != bitmap && !rotatedBitmap.isRecycled) {
-                rotatedBitmap.recycle()
-            }
-            return scaled
-        }
-
-        return rotatedBitmap
     }
 }

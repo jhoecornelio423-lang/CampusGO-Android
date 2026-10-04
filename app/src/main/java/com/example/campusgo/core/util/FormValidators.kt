@@ -225,7 +225,7 @@ object FormValidators {
         }
         val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
         if (!emailRegex.matches(trimmed)) {
-            return "Ingresa un formato de correo válido (ej. usuario@ucvvirtual.edu.pe)"
+            return "Ingresa un correo electrónico válido (ej. usuario@ejemplo.com)"
         }
         return null
     }
