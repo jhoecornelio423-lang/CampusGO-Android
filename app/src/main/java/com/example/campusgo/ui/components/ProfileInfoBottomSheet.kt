@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,27 +15,41 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.campusgo.R
+import com.example.campusgo.core.util.SupportEmailHelper
 
 enum class ProfileInfoType {
     NONE,
     TERMS,
     PRIVACY,
     HELP
+}
+
+enum class SupportEmailFeedbackState {
+    NONE,
+    SUCCESS,
+    ERROR
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,8 +61,83 @@ fun ProfileInfoBottomSheet(
     if (type == ProfileInfoType.NONE) return
 
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val configuration = LocalConfiguration.current
     val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
+
+    var pendingEmailReturnCheck by remember { mutableStateOf(false) }
+    var emailLaunchTimestamp by remember { mutableStateOf(0L) }
+    var feedbackState by remember { mutableStateOf(SupportEmailFeedbackState.NONE) }
+    var lastSentSuccess by remember { mutableStateOf<Boolean?>(null) }
+    var errorMessageDetail by remember { mutableStateOf<String?>(null) }
+
+    val handleEmailReturn: (Int?) -> Unit = { resultCode ->
+        if (pendingEmailReturnCheck) {
+            pendingEmailReturnCheck = false
+            val durationMs = System.currentTimeMillis() - emailLaunchTimestamp
+            val wasSent = (resultCode == android.app.Activity.RESULT_OK) || (durationMs >= 2500L)
+            if (wasSent) {
+                lastSentSuccess = true
+                feedbackState = SupportEmailFeedbackState.SUCCESS
+                Toast.makeText(
+                    context,
+                    "Correo enviado correctamente a ${SupportEmailHelper.SUPPORT_EMAIL}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                lastSentSuccess = false
+                errorMessageDetail = "El envío no se completó en la aplicación de correo."
+                feedbackState = SupportEmailFeedbackState.ERROR
+                Toast.makeText(
+                    context,
+                    "Error al enviar correo electrónico",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    val emailLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        handleEmailReturn(result.resultCode)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && pendingEmailReturnCheck) {
+                handleEmailReturn(null)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val triggerSendEmail: () -> Unit = {
+        try {
+            val intent = SupportEmailHelper.createSupportEmailIntent()
+            pendingEmailReturnCheck = true
+            emailLaunchTimestamp = System.currentTimeMillis()
+            Toast.makeText(
+                context,
+                "Abriendo aplicación de correo para ${SupportEmailHelper.SUPPORT_EMAIL}...",
+                Toast.LENGTH_SHORT
+            ).show()
+            emailLauncher.launch(intent)
+        } catch (_: Exception) {
+            pendingEmailReturnCheck = false
+            lastSentSuccess = false
+            errorMessageDetail = "No se encontró una aplicación de correo electrónico instalada o configurada en tu dispositivo."
+            feedbackState = SupportEmailFeedbackState.ERROR
+            Toast.makeText(
+                context,
+                "Error al enviar correo electrónico",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -271,20 +362,53 @@ fun ProfileInfoBottomSheet(
                                     )
                                 }
                                 Text(
-                                    text = "Escríbenos a nuestro correo de soporte estudiantil para resolver cualquier duda o incidencia con tu cuenta o puesto.",
+                                    text = "Escríbenos a nuestro correo de soporte estudiantil para resolver cualquier duda o incidencia con tu cuenta o puesto:\n📧 ${SupportEmailHelper.SUPPORT_EMAIL}\n⏰ Horario: Lun - Sáb 8:00 AM a 8:00 PM\n📍 Sede oficial: UCV - Lima Norte",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF15803D)
+                                    color = Color(0xFF15803D),
+                                    lineHeight = 18.sp
                                 )
+
+                                if (lastSentSuccess != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (lastSentSuccess == true) Color(0xFFDCFCE7) else Color(0xFFFEE2E2),
+                                        border = BorderStroke(1.dp, if (lastSentSuccess == true) Color(0xFF86EFAC) else Color(0xFFFCA5A5)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = if (lastSentSuccess == true) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                                contentDescription = null,
+                                                tint = if (lastSentSuccess == true) Color(0xFF16A34A) else Color(0xFFDC2626),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (lastSentSuccess == true)
+                                                    "Se envió correctamente el correo a ${SupportEmailHelper.SUPPORT_EMAIL}"
+                                                else
+                                                    "Error al enviar correo electrónico",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (lastSentSuccess == true) Color(0xFF166534) else Color(0xFF991B1B)
+                                            )
+                                        }
+                                    }
+                                }
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     OutlinedButton(
                                         onClick = {
-                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                            val clip = ClipData.newPlainText("Soporte CampusGO", "soporte@kodexti.com")
-                                            clipboard.setPrimaryClip(clip)
-                                            Toast.makeText(context, "Correo de soporte copiado", Toast.LENGTH_SHORT).show()
+                                            val copied = SupportEmailHelper.copySupportEmailToClipboard(context)
+                                            if (copied) {
+                                                Toast.makeText(context, "Correo de soporte copiado (${SupportEmailHelper.SUPPORT_EMAIL})", Toast.LENGTH_SHORT).show()
+                                            }
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         border = BorderStroke(1.dp, Color(0xFF86EFAC)),
@@ -302,18 +426,7 @@ fun ProfileInfoBottomSheet(
                                     }
 
                                     Button(
-                                        onClick = {
-                                            try {
-                                                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                                    data = Uri.parse("mailto:soporte@kodexti.com")
-                                                    putExtra(Intent.EXTRA_SUBJECT, "Consulta Soporte CampusGO")
-                                                }
-                                                context.startActivity(intent)
-                                                Toast.makeText(context, "Abriendo tu app de correo para enviar mensaje a soporte@kodexti.com", Toast.LENGTH_SHORT).show()
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Escribe a soporte@kodexti.com", Toast.LENGTH_LONG).show()
-                                            }
-                                        },
+                                        onClick = triggerSendEmail,
                                         shape = RoundedCornerShape(10.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -352,6 +465,193 @@ fun ProfileInfoBottomSheet(
                 )
             }
         }
+    }
+
+    // Alertas automáticas según el resultado del envío al regresar a la aplicación
+    when (feedbackState) {
+        SupportEmailFeedbackState.SUCCESS -> {
+            AlertDialog(
+                onDismissRequest = { feedbackState = SupportEmailFeedbackState.NONE },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = Color.White,
+                icon = {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFE6F7F3),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF00A884),
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    }
+                },
+                title = {
+                    Text(
+                        text = "Correo enviado correctamente",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        color = Color(0xFF16324F)
+                    )
+                },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Se envió correctamente el correo a la casilla oficial de soporte:",
+                            fontSize = 13.5.sp,
+                            color = Color(0xFF475569),
+                            textAlign = TextAlign.Center
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFE6F7F3),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = SupportEmailHelper.SUPPORT_EMAIL,
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00A884),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+                            )
+                        }
+                        Text(
+                            text = "El equipo de soporte de Campus GO revisará tu caso y responderá a tu correo a la brevedad posible.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { feedbackState = SupportEmailFeedbackState.NONE },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Entendido", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            )
+        }
+        SupportEmailFeedbackState.ERROR -> {
+            AlertDialog(
+                onDismissRequest = { feedbackState = SupportEmailFeedbackState.NONE },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = Color.White,
+                icon = {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFEF2F2),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    }
+                },
+                title = {
+                    Text(
+                        text = "Error al enviar correo electrónico",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        color = Color(0xFF16324F)
+                    )
+                },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = errorMessageDetail ?: "No se pudo completar el envío del correo electrónico a la dirección de soporte.",
+                            fontSize = 13.5.sp,
+                            color = Color(0xFF475569),
+                            textAlign = TextAlign.Center
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF1F5F9),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Buzón oficial: ${SupportEmailHelper.SUPPORT_EMAIL}",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF0F172A),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp)
+                            )
+                        }
+                        Text(
+                            text = "Por favor verifica tu conexión o copia el correo de soporte para redactar tu consulta manualmente.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                },
+                confirmButton = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                feedbackState = SupportEmailFeedbackState.NONE
+                                triggerSendEmail()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Reintentar Envío de Correo", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                SupportEmailHelper.copySupportEmailToClipboard(context)
+                                Toast.makeText(context, "Correo de soporte copiado (${SupportEmailHelper.SUPPORT_EMAIL})", Toast.LENGTH_SHORT).show()
+                                feedbackState = SupportEmailFeedbackState.NONE
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF166534)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Copiar Correo Oficial", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        TextButton(
+                            onClick = { feedbackState = SupportEmailFeedbackState.NONE },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cerrar", color = Color(0xFF64748B), fontSize = 13.sp)
+                        }
+                    }
+                }
+            )
+        }
+        SupportEmailFeedbackState.NONE -> {}
     }
 }
 

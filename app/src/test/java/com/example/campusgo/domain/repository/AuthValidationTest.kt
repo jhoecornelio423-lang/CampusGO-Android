@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.repository
+package com.example.campusgo.domain.repository
 
 import com.example.campusgo.domain.model.UserRole
 import org.junit.Assert.assertFalse
@@ -52,7 +52,8 @@ class AuthValidationTest {
         val validRegisterState = com.example.campusgo.features.auth.AuthUiState(
             email = "vendedor.cercano@hotmail.com",
             password = "password123",
-            fullName = "Don Pepe Delivery",
+            firstName = "Don Pepe",
+            lastName = "Delivery",
             phone = "987654321",
             isLoginMode = false
         )

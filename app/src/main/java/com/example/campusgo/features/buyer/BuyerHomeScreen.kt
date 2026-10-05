@@ -184,6 +184,7 @@ fun BuyerHomeScreen(
         }
     }
     var currentTab by rememberSaveable { mutableStateOf(BuyerBottomNavTab.INICIO) }
+    var ordersNavKey by remember { mutableStateOf(0) }
     var favoriteProductIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
     var showStrikesBottomSheet by remember { mutableStateOf(false) }
@@ -574,6 +575,7 @@ fun BuyerHomeScreen(
                 onClearPendingRoute()
             }
             is com.example.campusgo.core.notification.AppNotificationPayload.OrderTracking -> {
+                ordersNavKey++
                 currentTab = BuyerBottomNavTab.PEDIDOS
                 onClearPendingRoute()
             }
@@ -634,6 +636,7 @@ fun BuyerHomeScreen(
             onNavigateBack = { showCartScreen = false },
             onNavigateToTracking = {
                 showCartScreen = false
+                ordersNavKey++
                 currentTab = BuyerBottomNavTab.PEDIDOS
             },
             onExploreStalls = {
@@ -1826,42 +1829,44 @@ fun BuyerHomeScreen(
             )
         }
         BuyerBottomNavTab.PEDIDOS -> {
-            OrderTrackingScreen(
-                buyerProfile = currentProfile,
-                onNavigateBack = null,
-                onNavigateToCart = {
-                    showCartScreen = true
-                },
-                onOpenChat = { order, subOrder ->
-                    val store = realStoresWithProducts.find { it.sellerId == subOrder.sellerId }
-                    val sellerAvatar = store?.avatarUrl
-                    val meetingPt = subOrder.meetingPointName ?: order.meetingPointName.ifBlank { "Punto por convenir" }
-                    val sellerName = subOrder.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" }
-                    val chatSummary = ActiveChatSummary(
-                        subOrderId = subOrder.id,
-                        otherUserId = subOrder.sellerId,
-                        otherUserName = sellerName,
-                        meetingPoint = meetingPt,
-                        status = subOrder.status,
-                        subtotal = subOrder.subtotalAmount,
-                        itemsSummary = subOrder.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
-                        deliveryCode = subOrder.verificationCode,
-                        isBuyerPerspective = true,
-                        otherUserAvatarUrl = sellerAvatar
-                    )
-                    activeChatSummary = chatSummary
-                    chatViewModel.initChat(
-                        subOrderId = subOrder.id,
-                        currentUserId = currentProfile.id,
-                        otherUserId = subOrder.sellerId,
-                        otherUserName = sellerName,
-                        meetingPoint = meetingPt,
-                        subOrderStatus = subOrder.status,
-                        otherUserAvatarUrl = sellerAvatar,
-                        deliveryCode = subOrder.verificationCode
-                    )
-                }
-            )
+            key(ordersNavKey) {
+                OrderTrackingScreen(
+                    buyerProfile = currentProfile,
+                    onNavigateBack = null,
+                    onNavigateToCart = {
+                        showCartScreen = true
+                    },
+                    onOpenChat = { order, subOrder ->
+                        val store = realStoresWithProducts.find { it.sellerId == subOrder.sellerId }
+                        val sellerAvatar = store?.avatarUrl
+                        val meetingPt = subOrder.meetingPointName ?: order.meetingPointName.ifBlank { "Punto por convenir" }
+                        val sellerName = subOrder.sellerName.ifBlank { store?.sellerName ?: "Vendedor Campus Go" }
+                        val chatSummary = ActiveChatSummary(
+                            subOrderId = subOrder.id,
+                            otherUserId = subOrder.sellerId,
+                            otherUserName = sellerName,
+                            meetingPoint = meetingPt,
+                            status = subOrder.status,
+                            subtotal = subOrder.subtotalAmount,
+                            itemsSummary = subOrder.items.joinToString(", ") { "${it.quantity}x ${it.productName}" },
+                            deliveryCode = subOrder.verificationCode,
+                            isBuyerPerspective = true,
+                            otherUserAvatarUrl = sellerAvatar
+                        )
+                        activeChatSummary = chatSummary
+                        chatViewModel.initChat(
+                            subOrderId = subOrder.id,
+                            currentUserId = currentProfile.id,
+                            otherUserId = subOrder.sellerId,
+                            otherUserName = sellerName,
+                            meetingPoint = meetingPt,
+                            subOrderStatus = subOrder.status,
+                            otherUserAvatarUrl = sellerAvatar,
+                            deliveryCode = subOrder.verificationCode
+                        )
+                    }
+                )
+            }
         }
         BuyerBottomNavTab.CHATS -> {
             ActiveChatsSheet(
@@ -1925,7 +1930,12 @@ fun BuyerHomeScreen(
         // Barra de navegación inferior flotante - Único contorno redondeado visible con fondo exterior transparente
         CampusGoBottomNavBar(
             selectedTab = currentTab,
-            onTabSelected = { currentTab = it },
+            onTabSelected = { tab ->
+                if (tab == BuyerBottomNavTab.PEDIDOS) {
+                    ordersNavKey++
+                }
+                currentTab = tab
+            },
             unreadChatCount = unreadChatCount,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
@@ -1937,6 +1947,7 @@ fun BuyerHomeScreen(
                 onDismiss = { showNotificationsDialog = false },
                 onNavigateToOrders = {
                     showNotificationsDialog = false
+                    ordersNavKey++
                     currentTab = BuyerBottomNavTab.PEDIDOS
                 }
             )

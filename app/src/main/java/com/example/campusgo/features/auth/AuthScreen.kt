@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -125,6 +126,10 @@ fun AuthRoute(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showWelcome by rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        viewModel.resetCredentials()
+    }
 
     LaunchedEffect(uiState.infoMessage, uiState.errorMessage) {
         if (uiState.infoMessage != null || uiState.errorMessage != null) {
@@ -280,10 +285,30 @@ fun AuthScreen(
     var showSupportDialog by remember { mutableStateOf(false) }
     var showTermsSheet by remember { mutableStateOf(false) }
     var showFieldErrors by remember { mutableStateOf(false) }
+
+    var firstNameTouched by remember { mutableStateOf(false) }
+    var lastNameTouched by remember { mutableStateOf(false) }
+    var phoneTouched by remember { mutableStateOf(false) }
+    var storeNameTouched by remember { mutableStateOf(false) }
+    var customCategoryTouched by remember { mutableStateOf(false) }
+    var storeDescTouched by remember { mutableStateOf(false) }
+    var meetingPointTouched by remember { mutableStateOf(false) }
+    var emailTouched by remember { mutableStateOf(false) }
+    var passwordTouched by remember { mutableStateOf(false) }
+
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(uiState.isLoginMode) {
         showFieldErrors = false
+        firstNameTouched = false
+        lastNameTouched = false
+        phoneTouched = false
+        storeNameTouched = false
+        customCategoryTouched = false
+        storeDescTouched = false
+        meetingPointTouched = false
+        emailTouched = false
+        passwordTouched = false
         scrollState.scrollTo(0)
     }
 
@@ -546,9 +571,20 @@ fun AuthScreen(
                         }
 
                         // Nombres & Apellidos en 2 columnas
-                        val firstNameError = if (showFieldErrors) FormValidators.validateFirstName(uiState.firstName) else null
-                        val lastNameError = if (showFieldErrors) FormValidators.validateLastName(uiState.lastName) else null
-                        val phoneError = if (showFieldErrors) FormValidators.validatePhone(uiState.phone) else null
+                        val firstNameError = if (!uiState.isLoginMode && (showFieldErrors || firstNameTouched)) {
+                            if (uiState.firstName.isBlank()) "El nombre es obligatorio"
+                            else FormValidators.validateFirstName(uiState.firstName)
+                        } else null
+
+                        val lastNameError = if (!uiState.isLoginMode && (showFieldErrors || lastNameTouched)) {
+                            if (uiState.lastName.isBlank()) "Los apellidos son obligatorios"
+                            else FormValidators.validateLastName(uiState.lastName)
+                        } else null
+
+                        val phoneError = if (!uiState.isLoginMode && (showFieldErrors || phoneTouched)) {
+                            if (uiState.phone.isBlank()) "El número de teléfono es obligatorio"
+                            else FormValidators.validatePhone(uiState.phone)
+                        } else null
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -564,7 +600,10 @@ fun AuthScreen(
                                 )
                                 OutlinedTextField(
                                     value = uiState.firstName,
-                                    onValueChange = onFirstNameChange,
+                                    onValueChange = {
+                                        firstNameTouched = true
+                                        onFirstNameChange(it)
+                                    },
                                     placeholder = { Text("Tus nombres", fontSize = 13.sp) },
                                     isError = firstNameError != null,
                                     supportingText = firstNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
@@ -585,7 +624,9 @@ fun AuthScreen(
                                         focusedBorderColor = Color(0xFF00A884),
                                         unfocusedBorderColor = Color(0xFFE2E8F0)
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { if (it.isFocused) firstNameTouched = true }
                                 )
                             }
 
@@ -599,7 +640,10 @@ fun AuthScreen(
                                 )
                                 OutlinedTextField(
                                     value = uiState.lastName,
-                                    onValueChange = onLastNameChange,
+                                    onValueChange = {
+                                        lastNameTouched = true
+                                        onLastNameChange(it)
+                                    },
                                     placeholder = { Text("Tus apellidos", fontSize = 13.sp) },
                                     isError = lastNameError != null,
                                     supportingText = lastNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
@@ -620,7 +664,9 @@ fun AuthScreen(
                                         focusedBorderColor = Color(0xFF00A884),
                                         unfocusedBorderColor = Color(0xFFE2E8F0)
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { if (it.isFocused) lastNameTouched = true }
                                 )
                             }
                         }
@@ -636,8 +682,11 @@ fun AuthScreen(
                             )
                             OutlinedTextField(
                                 value = uiState.phone,
-                                onValueChange = onPhoneChange,
-                                placeholder = { Text("987654321", fontSize = 13.sp) },
+                                onValueChange = {
+                                    phoneTouched = true
+                                    onPhoneChange(it)
+                                },
+                                placeholder = { Text("Número de teléfono", fontSize = 13.sp, color = Color(0xFF94A3B8)) },
                                 isError = phoneError != null,
                                 supportingText = phoneError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                 leadingIcon = {
@@ -660,17 +709,28 @@ fun AuthScreen(
                                     focusedBorderColor = Color(0xFF00A884),
                                     unfocusedBorderColor = Color(0xFFE2E8F0)
                                 ),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { if (it.isFocused) phoneTouched = true }
                             )
                         }
 
                         // CAMPOS EXCLUSIVOS DE VENDEDOR
                         if (uiState.selectedRole == UserRole.EMPRENDEDOR) {
-                            val storeNameError = if (showFieldErrors) FormValidators.validateStoreName(uiState.storeName) else null
+                            val storeNameError = if (!uiState.isLoginMode && (showFieldErrors || storeNameTouched)) {
+                                if (uiState.storeName.isBlank()) "El nombre del puesto es obligatorio"
+                                else FormValidators.validateStoreName(uiState.storeName)
+                            } else null
                             val isOtherCategory = uiState.storeCategory.equals("Otros", ignoreCase = true) || uiState.storeCategory.equals("Otro", ignoreCase = true)
-                            val customCategoryError = if (showFieldErrors && isOtherCategory) FormValidators.validateCustomCategory(uiState.customCategory) else null
-                            val storeDescError = if (showFieldErrors) FormValidators.validateStoreDescription(uiState.storeDescription) else null
-                            val meetingPointError = if (showFieldErrors && uiState.selectedMeetingPoint.isBlank()) "Selecciona un punto de entrega oficial" else null
+                            val customCategoryError = if (!uiState.isLoginMode && isOtherCategory && (showFieldErrors || customCategoryTouched)) {
+                                if (uiState.customCategory.isBlank()) "Especifica la categoría de tu puesto"
+                                else FormValidators.validateCustomCategory(uiState.customCategory)
+                            } else null
+                            val storeDescError = if (!uiState.isLoginMode && (showFieldErrors || storeDescTouched)) {
+                                if (uiState.storeDescription.isBlank()) "La descripción del puesto es obligatoria"
+                                else FormValidators.validateStoreDescription(uiState.storeDescription)
+                            } else null
+                            val meetingPointError = if (!uiState.isLoginMode && (showFieldErrors || meetingPointTouched) && uiState.selectedMeetingPoint.isBlank()) "Selecciona un punto de entrega oficial" else null
 
                             // Nombre de la Tienda
                             Column {
@@ -683,7 +743,10 @@ fun AuthScreen(
                                 )
                                 OutlinedTextField(
                                     value = uiState.storeName,
-                                    onValueChange = onStoreNameChange,
+                                    onValueChange = {
+                                        storeNameTouched = true
+                                        onStoreNameChange(it)
+                                    },
                                     placeholder = { Text("Ej. Jugos y Snacks Doña Luz", fontSize = 13.sp) },
                                     isError = storeNameError != null,
                                     supportingText = storeNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
@@ -704,7 +767,9 @@ fun AuthScreen(
                                         focusedBorderColor = Color(0xFF00A884),
                                         unfocusedBorderColor = Color(0xFFE2E8F0)
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { if (it.isFocused) storeNameTouched = true }
                                 )
                             }
 
@@ -782,7 +847,10 @@ fun AuthScreen(
                                     )
                                     OutlinedTextField(
                                         value = uiState.customCategory,
-                                        onValueChange = onCustomCategoryChange,
+                                        onValueChange = {
+                                            customCategoryTouched = true
+                                            onCustomCategoryChange(it)
+                                        },
                                         placeholder = { Text("Ej. Artesanías, Ropa, Papelería...", fontSize = 13.sp) },
                                         isError = customCategoryError != null,
                                         supportingText = customCategoryError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
@@ -795,7 +863,9 @@ fun AuthScreen(
                                             focusedBorderColor = Color(0xFF00A884),
                                             unfocusedBorderColor = Color(0xFFE2E8F0)
                                         ),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .onFocusChanged { if (it.isFocused) customCategoryTouched = true }
                                     )
                                 }
                             }
@@ -811,7 +881,10 @@ fun AuthScreen(
                                 )
                                 OutlinedTextField(
                                     value = uiState.storeDescription,
-                                    onValueChange = onStoreDescriptionChange,
+                                    onValueChange = {
+                                        storeDescTouched = true
+                                        onStoreDescriptionChange(it)
+                                    },
                                     placeholder = { Text("Ej. Venta de jugos naturales, sánguches frescos y postres caseros...", fontSize = 13.sp) },
                                     isError = storeDescError != null,
                                     supportingText = storeDescError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
@@ -833,7 +906,9 @@ fun AuthScreen(
                                         focusedBorderColor = Color(0xFF00A884),
                                         unfocusedBorderColor = Color(0xFFE2E8F0)
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { if (it.isFocused) storeDescTouched = true }
                                 )
                             }
 
@@ -850,6 +925,7 @@ fun AuthScreen(
                                 ExposedDropdownMenuBox(
                                     expanded = meetingPointDropdownExpanded,
                                     onExpandedChange = { expanded ->
+                                        meetingPointTouched = true
                                         focusManager.clearFocus()
                                         keyboardController?.hide()
                                         meetingPointDropdownExpanded = expanded
@@ -920,7 +996,14 @@ fun AuthScreen(
                     }
 
                     // Campo Correo Electrónico (Cualquier dominio válido)
-                    val emailError = if (showFieldErrors) FormValidators.validateEmail(uiState.email) else null
+                    val emailError = if (uiState.isLoginMode) {
+                        if (showFieldErrors) FormValidators.validateEmail(uiState.email) else null
+                    } else {
+                        if (showFieldErrors || emailTouched) {
+                            if (uiState.email.isBlank()) "El correo electrónico es obligatorio"
+                            else FormValidators.validateEmail(uiState.email)
+                        } else null
+                    }
                     Column {
                         Text(
                             text = "Correo Electrónico *",
@@ -931,7 +1014,10 @@ fun AuthScreen(
                         )
                         OutlinedTextField(
                             value = uiState.email,
-                            onValueChange = onEmailChange,
+                            onValueChange = {
+                                if (!uiState.isLoginMode) emailTouched = true
+                                onEmailChange(it)
+                            },
                             placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
                             isError = emailError != null,
                             supportingText = emailError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
@@ -960,12 +1046,21 @@ fun AuthScreen(
                                 focusedTextColor = Color(0xFF16324F),
                                 unfocusedTextColor = Color(0xFF16324F)
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { if (!uiState.isLoginMode && it.isFocused) emailTouched = true }
                         )
                     }
 
                     // Campo Contraseña
-                    val passwordError = if (showFieldErrors) FormValidators.validatePassword(uiState.password) else null
+                    val passwordError = if (uiState.isLoginMode) {
+                        if (showFieldErrors) FormValidators.validatePassword(uiState.password) else null
+                    } else {
+                        if (showFieldErrors || passwordTouched) {
+                            if (uiState.password.isBlank()) "La contraseña es obligatoria"
+                            else FormValidators.validatePassword(uiState.password)
+                        } else null
+                    }
                     Column {
                         Text(
                             text = "Contraseña *",
@@ -976,7 +1071,10 @@ fun AuthScreen(
                         )
                         OutlinedTextField(
                             value = uiState.password,
-                            onValueChange = onPasswordChange,
+                            onValueChange = {
+                                if (!uiState.isLoginMode) passwordTouched = true
+                                onPasswordChange(it)
+                            },
                             placeholder = {
                                 Text(
                                     text = if (uiState.isLoginMode) "••••••••" else "Mínimo 6 caracteres",
@@ -1029,7 +1127,9 @@ fun AuthScreen(
                                 unfocusedTextColor = Color(0xFF16324F)
                             ),
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { if (!uiState.isLoginMode && it.isFocused) passwordTouched = true }
                         )
                     }
 
@@ -1306,50 +1406,9 @@ fun AuthScreen(
     }
 
     if (showSupportDialog) {
-        AlertDialog(
-            onDismissRequest = { showSupportDialog = false },
-            shape = CampusGoDialogShape,
-            containerColor = CampusGoDialogContainerColor,
-            tonalElevation = CampusGoDialogTonalElevation,
-            modifier = Modifier.campusGoDialogStyle(),
-            title = {
-                Text(
-                    text = "Centro de Soporte y Reportes Campus Go",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF16324F)
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "¿Tienes inconvenientes con tu cuenta, verificación, reportes o solicitud de vendedor? Comunícate con nuestro canal oficial de Campus Go:",
-                        fontSize = 13.5.sp,
-                        color = Color(0xFF475569)
-                    )
-                    Text(
-                        text = "📧 Correo: soporte@kodexti.com\n⏰ Horario: Lun - Sáb 8:00 AM a 8:00 PM\n📍 Sede oficial: UCV - Lima Norte",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1E293B)
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        try {
-                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Soporte%20Campus%20Go")
-                        } catch (_: Exception) {}
-                    }
-                ) {
-                    Text("Enviar Correo", fontWeight = FontWeight.Bold, color = Color(0xFF00A884))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSupportDialog = false }) {
-                    Text("Cerrar", color = Color(0xFF64748B))
-                }
-            }
+        ProfileInfoBottomSheet(
+            type = ProfileInfoType.HELP,
+            onDismiss = { showSupportDialog = false }
         )
     }
 

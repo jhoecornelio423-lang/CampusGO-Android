@@ -76,7 +76,51 @@ class AuthViewModel(
     }
 
     fun setLoginMode(isLogin: Boolean) {
-        setScreenMode(if (isLogin) AuthScreenMode.LOGIN else AuthScreenMode.REGISTER)
+        val newMode = if (isLogin) AuthScreenMode.LOGIN else AuthScreenMode.REGISTER
+        _uiState.update {
+            it.copy(
+                screenMode = newMode,
+                isLoginMode = isLogin,
+                email = "",
+                password = "",
+                firstName = "",
+                lastName = "",
+                phone = "",
+                storeName = "",
+                customCategory = "",
+                storeDescription = "",
+                otpCode = "",
+                newPassword = "",
+                confirmNewPassword = "",
+                errorMessage = null,
+                infoMessage = null,
+                isSuccess = false,
+                isLoading = false
+            )
+        }
+    }
+
+    fun resetCredentials() {
+        countdownJob?.cancel()
+        _uiState.update {
+            it.copy(
+                email = "",
+                password = "",
+                firstName = "",
+                lastName = "",
+                phone = "",
+                storeName = "",
+                customCategory = "",
+                storeDescription = "",
+                otpCode = "",
+                newPassword = "",
+                confirmNewPassword = "",
+                errorMessage = null,
+                infoMessage = null,
+                isSuccess = false,
+                isLoading = false
+            )
+        }
     }
 
     fun onEmailChange(email: String) {
@@ -471,11 +515,21 @@ class AuthViewModel(
             it.copy(
                 screenMode = AuthScreenMode.LOGIN,
                 isLoginMode = true,
+                email = "",
+                password = "",
+                firstName = "",
+                lastName = "",
+                phone = "",
+                storeName = "",
+                customCategory = "",
+                storeDescription = "",
                 errorMessage = null,
                 infoMessage = null,
                 otpCode = "",
                 newPassword = "",
-                confirmNewPassword = ""
+                confirmNewPassword = "",
+                isSuccess = false,
+                isLoading = false
             )
         }
     }
@@ -483,6 +537,7 @@ class AuthViewModel(
     fun signOutFromPending() {
         viewModelScope.launch {
             authRepository.signOut()
+            resetCredentials()
             backToLogin()
         }
     }

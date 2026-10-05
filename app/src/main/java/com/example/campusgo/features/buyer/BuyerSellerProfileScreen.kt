@@ -4,8 +4,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +26,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
@@ -33,6 +40,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,7 +58,6 @@ import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.IncidentContextType
 import com.example.campusgo.ui.components.PaymentMethodLogoByName
 import com.example.campusgo.ui.components.ReportIncidentDialog
-import com.example.campusgo.ui.components.StoreStatusBadge
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 import com.example.campusgo.ui.components.CampusGoBusinessBanner
 import com.example.campusgo.ui.components.CampusGoProductImage
@@ -78,6 +85,37 @@ fun BuyerSellerProfileScreen(
     var showReportDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
     var isMeetingPointsExpanded by remember { mutableStateOf(false) }
+    var isStatusDropdownOpen by remember { mutableStateOf(false) }
+
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val bannerScrollThresholdPx = remember(density) { with(density) { 200.dp.toPx() } }
+    val isScrolledPastBanner by remember {
+        derivedStateOf { scrollState.value >= bannerScrollThresholdPx }
+    }
+
+    val (cleanStoreName, cleanSellerName) = remember(store.sellerName, store.sellerProfile) {
+        val bName = store.sellerProfile?.businessName?.trim()?.replace("-", " ")?.replace(Regex("\\s+"), " ")?.takeIf { it.isNotBlank() }
+        val fName = store.sellerProfile?.fullName?.trim()?.replace("-", " ")?.replace(Regex("\\s+"), " ")?.takeIf { it.isNotBlank() }
+
+        if (bName != null && fName != null && !bName.equals(fName, ignoreCase = true)) {
+            Pair(bName, fName)
+        } else if (store.sellerName.contains(" - ")) {
+            val parts = store.sellerName.split(" - ")
+            val sName = parts[0].replace("-", " ").replace(Regex("\\s+"), " ").trim()
+            val pName = parts.drop(1).joinToString(" ").replace("-", " ").replace(Regex("\\s+"), " ").trim()
+            Pair(sName, fName ?: pName.takeIf { it.isNotBlank() })
+        } else if (store.sellerName.contains("-")) {
+            val parts = store.sellerName.split("-")
+            val sName = parts[0].trim()
+            val pName = parts.drop(1).joinToString(" ").trim()
+            Pair(sName, fName ?: pName.takeIf { it.isNotBlank() })
+        } else {
+            val sName = (bName ?: store.sellerName).replace("-", " ").replace(Regex("\\s+"), " ").trim()
+            val pName = fName?.takeIf { !it.equals(sName, ignoreCase = true) }
+            Pair(sName, pName)
+        }
+    }
 
     val sellerSupportedPoints = remember(store.supportedMeetingPoints, meetingPoints) {
         val supportedSet = store.supportedMeetingPoints.filter { it.isNotBlank() }.toSet()
@@ -161,7 +199,7 @@ fun BuyerSellerProfileScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
             ) {
                 // 1. Portada Hero Superior a Pantalla Completa (Full Width)
                 Box(
@@ -171,12 +209,12 @@ fun BuyerSellerProfileScreen(
                 ) {
                     CampusGoBusinessBanner(
                         bannerUrl = store.bannerUrl,
-                        storeName = store.sellerName,
+                        storeName = cleanStoreName,
                         modifier = Modifier
                             .fillMaxSize()
                             .clickable {
                                 enlargedPhotoUrl = store.bannerUrl
-                                enlargedPhotoTitle = store.sellerName
+                                enlargedPhotoTitle = cleanStoreName
                                 enlargedPhotoRole = "Banner del Puesto"
                                 isEnlargedBanner = true
                                 showEnlargedPhoto = true
@@ -221,10 +259,9 @@ fun BuyerSellerProfileScreen(
                                 .padding(18.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Fila de Avatar + Estado del Puesto
+                            // Fila: Foto del Puesto a la izquierda + Nombre del Puesto y Nombre del Vendedor a la derecha
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Surface(
@@ -235,7 +272,7 @@ fun BuyerSellerProfileScreen(
                                         .size(76.dp)
                                         .clickable {
                                             enlargedPhotoUrl = store.avatarUrl
-                                            enlargedPhotoTitle = store.sellerName
+                                            enlargedPhotoTitle = cleanStoreName
                                             enlargedPhotoRole = "Puesto • " + (store.businessCategory ?: "Campus")
                                             isEnlargedBanner = false
                                             showEnlargedPhoto = true
@@ -243,25 +280,54 @@ fun BuyerSellerProfileScreen(
                                 ) {
                                     CampusGoBusinessAvatar(
                                         avatarUrl = store.avatarUrl,
-                                        storeName = store.sellerName,
+                                        storeName = cleanStoreName,
                                         size = 76.dp
                                     )
                                 }
 
-                                StoreStatusBadge(
-                                    status = store.businessStatus,
-                                    acceptingOrders = store.acceptingOrders
-                                )
-                            }
+                                Spacer(modifier = Modifier.width(14.dp))
 
-                            // Nombre del Puesto
-                            Text(
-                                text = store.sellerName,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF16324F)
-                            )
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    // Nombre del puesto resaltado con otro color y sin guiones
+                                    Text(
+                                        text = cleanStoreName,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF0F766E),
+                                        lineHeight = 24.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    if (!cleanSellerName.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = null,
+                                                tint = Color(0xFF64748B),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = cleanSellerName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF475569),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
 
                             // Badges: Estrellas / Calificación, Categoría y Emprendedor Autorizado
                             Row(
@@ -347,7 +413,9 @@ fun BuyerSellerProfileScreen(
                                 ) {
                                     // 1. Ubicación
                                     Column(
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 2.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(3.dp)
                                     ) {
@@ -375,8 +443,14 @@ fun BuyerSellerProfileScreen(
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF1E293B),
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .basicMarquee(
+                                                    iterations = Int.MAX_VALUE,
+                                                    initialDelayMillis = 1200,
+                                                    repeatDelayMillis = 1200
+                                                )
                                         )
                                     }
 
@@ -851,12 +925,12 @@ fun BuyerSellerProfileScreen(
                 }
             }
 
-            // 5. Controles Flotantes Superiores estilo Rappi (Botón Volver y Botón Reportar con fondo circular blanco)
+            // 5. Controles Flotantes Superiores estilo Rappi (Botón Volver y Tarjeta Abierto con desplegable)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -866,7 +940,7 @@ fun BuyerSellerProfileScreen(
                     shape = CircleShape,
                     color = Color.White.copy(alpha = 0.96f),
                     shadowElevation = 5.dp,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
@@ -878,20 +952,88 @@ fun BuyerSellerProfileScreen(
                     }
                 }
 
-                // Botón de reportar con círculo blanco detrás
-                Surface(
-                    onClick = { showReportDialog = true },
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.96f),
-                    shadowElevation = 5.dp,
-                    modifier = Modifier.size(42.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_report_triangle_custom),
-                            contentDescription = "Reportar Puesto",
-                            tint = Color(0xFFDC2626),
-                            modifier = Modifier.size(20.dp)
+                // Tarjeta de estado (Abierto) con punto verde y menú desplegable
+                Box {
+                    Surface(
+                        onClick = { isStatusDropdownOpen = true },
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.96f),
+                        shadowElevation = 5.dp,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier
+                            .height(40.dp)
+                            .then(if (isScrolledPastBanner) Modifier.width(40.dp) else Modifier)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .padding(horizontal = if (isScrolledPastBanner) 0.dp else 12.dp)
+                                .animateContentSize()
+                        ) {
+                            // Punto verde animado / visible
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isScrolledPastBanner) 10.dp else 8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isOpen) Color(0xFF10B981) else Color(0xFFEF4444))
+                            )
+
+                            AnimatedVisibility(
+                                visible = !isScrolledPastBanner,
+                                enter = fadeIn() + expandHorizontally(),
+                                exit = fadeOut() + shrinkHorizontally()
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isOpen) "Abierto" else "Cerrado",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = if (isOpen) Color(0xFF065F46) else Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = isStatusDropdownOpen,
+                        onDismissRequest = { isStatusDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color.White)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(9.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isOpen) Color(0xFF10B981) else Color(0xFFEF4444))
+                                    )
+                                    Column {
+                                        Text(
+                                            text = if (isOpen) "Abierto ahora" else "Cerrado ahora",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                        Text(
+                                            text = if (isOpen) "Puesto activo y recibiendo pedidos" else "No acepta pedidos en este momento",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = { isStatusDropdownOpen = false }
                         )
                     }
                 }
@@ -912,7 +1054,7 @@ fun BuyerSellerProfileScreen(
     if (showReportDialog) {
         ReportIncidentDialog(
             title = "Reportar Puesto Comercial",
-            subtitle = store.sellerName,
+            subtitle = cleanStoreName,
             contextType = IncidentContextType.SELLER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },

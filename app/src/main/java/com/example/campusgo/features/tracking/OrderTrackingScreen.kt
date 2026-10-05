@@ -101,24 +101,23 @@ fun OrderTrackingScreen(
     val coroutineScope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = 0) { 2 }
 
-    // Bug 9: Siempre mantener "En curso" al abrir o resetear la pantalla de seguimiento
+    // Siempre priorizar y mostrar primero "En curso" al abrir o acceder al apartado de pedidos
     LaunchedEffect(Unit) {
         viewModel.resetToActiveTab()
         pagerState.scrollToPage(0)
     }
 
-    // Bug 17: Sincronizar el swipe del Pager con el ViewModel
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetToActiveTab()
+        }
+    }
+
+    // Sincronizar el swipe del Pager con el ViewModel
     LaunchedEffect(pagerState.currentPage) {
         val targetTab = if (pagerState.currentPage == 0) TrackingTab.EN_CURSO else TrackingTab.HISTORIAL
         if (uiState.selectedTab != targetTab) {
             viewModel.setSelectedTab(targetTab)
-        }
-    }
-
-    LaunchedEffect(uiState.selectedTab) {
-        val targetPage = if (uiState.selectedTab == TrackingTab.EN_CURSO) 0 else 1
-        if (pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
         }
     }
 

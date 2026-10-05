@@ -79,9 +79,8 @@ class SellerDashboardViewModel(
                 val todayCompleted = todayClosed.filter { it.status == SubOrderStatus.COMPLETADO || it.status == SubOrderStatus.PAGO_CONFIRMADO }
                 val todayEarnings = todayCompleted.sumOf { it.subtotalAmount }
 
-                val todayOrders = (activeOrders + todayClosed)
+                val todayOrders = (activeOrders.sortedByDescending { it.createdAt } + todayClosed.sortedByDescending { it.createdAt })
                     .distinctBy { it.id }
-                    .sortedByDescending { it.createdAt }
 
                 val pastDates = closedGroupedByDate.keys.filter { it.isBefore(today) }.sortedDescending()
                 val pastGroups = pastDates.map { date ->

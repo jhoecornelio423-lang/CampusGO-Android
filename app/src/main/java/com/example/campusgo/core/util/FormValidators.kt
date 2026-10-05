@@ -109,8 +109,11 @@ object FormValidators {
         if (!cleaned.all { it.isDigit() }) {
             return "El teléfono solo debe contener números"
         }
-        if (cleaned.length != 9 || !cleaned.startsWith("9")) {
-            return "Debe tener 9 dígitos y empezar con 9 (ej. 987654321)"
+        if (!cleaned.startsWith("9")) {
+            return "El número de teléfono debe empezar con 9"
+        }
+        if (cleaned.length != 9) {
+            return "El número de teléfono debe tener 9 dígitos"
         }
         return null
     }
@@ -234,6 +237,9 @@ object FormValidators {
      * Valida contraseña
      */
     fun validatePassword(password: String): String? {
+        if (password.isBlank()) {
+            return "La contraseña es obligatoria"
+        }
         if (password.length < 6) {
             return "La contraseña debe tener al menos 6 caracteres"
         }
