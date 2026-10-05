@@ -18,6 +18,8 @@ app/release/
 *.log
 .kotlin/
 credenciales.txt
+credenciales_vps.txt
+vps_acceso.txt
 full_auth_repo_backup.txt
 emulator_screen.png
 .playwright-mcp/
