@@ -1,58 +1,76 @@
 package com.example.campusgo.features.cart
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.res.painterResource
-import com.example.campusgo.R
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.ReportProblem
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.widget.Toast
+import com.example.campusgo.R
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.OrderStatus
 import com.example.campusgo.domain.model.SubOrder
+import com.example.campusgo.domain.model.SubOrderStatus
 import com.example.campusgo.domain.model.orderCodeDisplay
+import com.example.campusgo.domain.model.verificationCode
 import com.example.campusgo.domain.repository.OrderRepository
+import com.example.campusgo.theme.TurquoiseGreen
+import com.example.campusgo.theme.WarmYellow
+import com.example.campusgo.ui.components.DashedDivider
 import com.example.campusgo.ui.components.IncidentContextType
+import com.example.campusgo.ui.components.PaymentMethodPill
 import com.example.campusgo.ui.components.ReportIncidentDialog
+import com.example.campusgo.ui.components.formatReceiptOrderDate
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
- * Pantalla completa de Comprobante / Resumen de Pedido (Estilo Boleta Digital).
- * Muestra el desglose detallado de los productos y subpedidos generados tras el checkout.
+ * Pantalla de Comprobante / Boleta Digital Inteligente (E-Receipt Fintech).
+ * Con paleta oficial de CampusGo (Verde Turquesa), logo oficial tipográfico,
+ * método de pago con logotipo oficial, PIN de seguridad, sin redundancias y botones inferiores diferenciados.
  */
 @Composable
 fun OrderSummaryReceiptScreen(
     order: Order,
-    onNavigateToTracking: () -> Unit,
+    reviewedOrders: Map<String, Int> = emptyMap(),
+    onRateSeller: ((SubOrder) -> Unit)? = null,
+    onNavigateToTracking: (() -> Unit)? = null,
     onOpenChat: ((SubOrder) -> Unit)? = null,
     onNavigateBack: () -> Unit,
     orderRepository: OrderRepository = koinInject()
@@ -68,53 +86,78 @@ fun OrderSummaryReceiptScreen(
     )
     BackHandler(onBack = onNavigateBack)
 
+    val isCompleted = order.status == OrderStatus.COMPLETADA
+    val isCancelled = order.status == OrderStatus.CANCELADA
+
+    val originalSum = if (order.subOrders.isNotEmpty()) order.subOrders.sumOf { it.subtotalAmount } else order.totalAmount
+    val cancelledSum = order.subOrders.filter {
+        it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO
+    }.sumOf { it.subtotalAmount }
+    val hasCancelledSubOrders = cancelledSum > 0.0
+    val effectiveTotal = if (isCancelled) 0.0 else (originalSum - cancelledSum).coerceAtLeast(0.0)
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier),
         topBar = {
+            // Barra superior limpia y centrada (sin botones redundantes en los extremos)
             Surface(
-                color = Color.White,
-                shadowElevation = 2.dp,
+                color = TurquoiseGreen,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .height(56.dp)
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .height(52.dp)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = Color(0xFF1E293B)
-                        )
-                    }
-                    Text(
-                        text = "Comprobante de Pedido",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFF1E293B)
-                    )
-                    IconButton(onClick = onNavigateToTracking) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                            contentDescription = "Seguimiento",
-                            tint = Color(0xFF003366)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            isCompleted -> Color.White
+                                            isCancelled -> Color(0xFFFEE2E2)
+                                            else -> Color.White
+                                        }
+                                    )
+                            )
+                            Text(
+                                text = when {
+                                    isCompleted -> "COMPROBANTE FINALIZADO"
+                                    isCancelled -> "COMPROBANTE CANCELADO"
+                                    else -> "COMPROBANTE EN CURSO"
+                                },
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.5.sp,
+                                letterSpacing = 1.2.sp,
+                                color = Color.White
+                            )
+                        }
+                        Text(
+                            text = if (isCompleted) "Historial de Pedidos" else "Seguimiento en Tiempo Real",
+                            fontSize = 10.sp,
+                            color = Color.White.copy(alpha = 0.85f)
                         )
                     }
                 }
             }
         },
-        containerColor = Color(0xFFF1F5F9),
+        containerColor = TurquoiseGreen,
         bottomBar = {
             Surface(
                 color = Color.White,
-                shadowElevation = 8.dp,
+                shadowElevation = 12.dp,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -124,77 +167,146 @@ fun OrderSummaryReceiptScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = onNavigateToTracking,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            text = "Seguir mi Pedido en Tiempo Real",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.5.sp
-                        )
-                    }
-
                     val activeSubOrders = order.subOrders.filter { !it.status.isFinal }
-                    if (activeSubOrders.isNotEmpty() && order.status != OrderStatus.COMPLETADA && order.status != OrderStatus.CANCELADA && onOpenChat != null) {
-                        OutlinedButton(
-                            onClick = { onOpenChat(activeSubOrders.first()) },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00A884)),
-                            border = BorderStroke(1.dp, Color(0xFF00A884)),
-                            shape = RoundedCornerShape(12.dp),
+
+                    if (onNavigateToTracking != null) {
+                        // Botón Principal de Seguimiento (si se llega desde checkout)
+                        Button(
+                            onClick = onNavigateToTracking,
+                            colors = ButtonDefaults.buttonColors(containerColor = TurquoiseGreen),
+                            shape = RoundedCornerShape(14.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(46.dp)
+                                .height(50.dp)
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_chat_custom),
+                                imageVector = Icons.Default.Navigation,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Coordinar por Chat con el Vendedor",
+                                text = "Seguir mi Pedido en Tiempo Real",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                fontSize = 14.5.sp,
+                                color = Color.White
                             )
                         }
-                    }
 
-                    OutlinedButton(
-                        onClick = { showReportDialog = true },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
-                        border = BorderStroke(1.dp, Color(0xFFFFCDD2)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_report_triangle_custom),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "¿Problema con esta orden? Reportar al Administrador",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.5.sp
-                        )
-                    }
+                        // Botón de Chat si hay subpedidos activos
+                        if (activeSubOrders.isNotEmpty() && !isCompleted && !isCancelled && onOpenChat != null) {
+                            OutlinedButton(
+                                onClick = { onOpenChat(activeSubOrders.first()) },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color(0xFFE6F6F3),
+                                    contentColor = TurquoiseGreen
+                                ),
+                                border = BorderStroke(1.dp, TurquoiseGreen),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_chat_custom),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = TurquoiseGreen
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Coordinar por Chat con el Vendedor",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = TurquoiseGreen
+                                )
+                            }
+                        }
 
-                    TextButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Volver al Catálogo",
-                            color = Color(0xFF64748B),
-                            fontWeight = FontWeight.Medium
-                        )
+                        // Botón discreto de retorno
+                        TextButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(38.dp)
+                        ) {
+                            Text(
+                                text = "Volver al Catálogo",
+                                color = Color(0xFF64748B),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
+                        // Flujo desde Seguimiento / Historial ("Ver Detalle")
+                        val hasActiveChat = activeSubOrders.isNotEmpty() && !isCompleted && !isCancelled && onOpenChat != null
+
+                        if (hasActiveChat) {
+                            // Acción Principal: Coordinar por Chat (Botón Destacado Verde Turquesa)
+                            Button(
+                                onClick = { onOpenChat(activeSubOrders.first()) },
+                                colors = ButtonDefaults.buttonColors(containerColor = TurquoiseGreen),
+                                shape = RoundedCornerShape(14.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_chat_custom),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Coordinar por Chat",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White
+                                )
+                            }
+
+                            // Acción Secundaria: Cerrar Comprobante (Botón Diferenciado con Borde Sutil)
+                            OutlinedButton(
+                                onClick = onNavigateBack,
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color(0xFFF8FAFC),
+                                    contentColor = Color(0xFF475569)
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp)
+                            ) {
+                                Text(
+                                    text = "Cerrar Comprobante",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF475569)
+                                )
+                            }
+                        } else {
+                            // En pedidos completados o cancelados (sin chat activo), el botón principal es cerrar
+                            Button(
+                                onClick = onNavigateBack,
+                                colors = ButtonDefaults.buttonColors(containerColor = TurquoiseGreen),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp)
+                            ) {
+                                Text(
+                                    text = "Cerrar Comprobante",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -205,267 +317,661 @@ fun OrderSummaryReceiptScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Tarjeta de Éxito y Código de Boleta
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.fillMaxWidth()
+            // ==========================================
+            // 1. HEADER BRANDING CAMPUSGO (VERDE TURQUESA)
+            // ==========================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                TurquoiseGreen,
+                                Color(0xFF0E7A66)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    // Ícono circular con halo luminoso blanco/menta
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE8F5E9)),
+                            .size(76.dp)
+                            .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(40.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .background(Color.White.copy(alpha = 0.25f), CircleShape)
+                                .padding(6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(Color.White, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = when {
+                                        isCompleted -> Icons.Default.Check
+                                        isCancelled -> Icons.Default.Close
+                                        else -> Icons.Default.Check
+                                    },
+                                    contentDescription = null,
+                                    tint = when {
+                                        isCancelled -> Color(0xFFEF4444)
+                                        else -> TurquoiseGreen
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
                     }
+
                     Text(
-                        text = "¡Pedido Confirmado!",
-                        fontWeight = FontWeight.ExtraBold,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color(0xFF1E293B)
+                        text = when {
+                            isCompleted -> "¡ORDEN COMPLETADA!"
+                            isCancelled -> "ORDEN CANCELADA"
+                            else -> "PEDIDO EN CURSO"
+                        },
+                        fontWeight = FontWeight.Black,
+                        fontSize = 19.sp,
+                        letterSpacing = 1.sp,
+                        color = Color.White
                     )
+
+                    // Monto Pagado en grande, centrado y limpio
                     Text(
-                        text = "Entrega en: ${order.meetingPointName.ifBlank { "Campus Universitario" }}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = Color(0xFF003366)
+                        text = "S/ %.2f".format(effectiveTotal),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 36.sp,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
                     )
+
                     Text(
-                        text = "Los emprendedores fueron notificados y prepararán tu pedido para la hora indicada.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
+                        text = when {
+                            isCompleted -> "Total cancelado • Pedido entregado con éxito"
+                            isCancelled -> "Este pedido fue cancelado"
+                            else -> "Total a pagar en entrega • Pedido en preparación"
+                        },
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center
                     )
                 }
             }
 
-            // Datos de Entrega
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
-                modifier = Modifier.fillMaxWidth()
+            // ==========================================
+            // 2. BOLETA / TICKET DIGITAL INTELIGENTE
+            // ==========================================
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF4F6F8))
+                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // Tarjeta Principal Tipo Ticket
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White,
+                    shadowElevation = 6.dp,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "DATOS DE ENTREGA EN CAMPUS",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF94A3B8)
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_location_custom),
-                            contentDescription = null,
-                            tint = Color(0xFFE59A00),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Punto de Encuentro",
-                                fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
-                            )
-                            Text(
-                                text = order.meetingPointName.ifBlank { "Campus Universitario" },
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                                color = Color(0xFF1E293B)
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_alarm_custom),
-                            contentDescription = null,
-                            tint = Color(0xFF003366),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Horario Acordado",
-                                fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
-                            )
-                            Text(
-                                text = order.scheduledTime.ifBlank { "Entrega Inmediata" },
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                                color = Color(0xFF1E293B)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Desglose de Productos por Puesto / Emprendimiento
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = "DESGLOSE POR EMPRENDIMIENTO",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF94A3B8)
-                        )
-                        Text(
-                            text = "${order.subOrders.size} Puesto(s)",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-
-                    order.subOrders.forEachIndexed { index, subOrder ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
+                        // Franja Superior del Ticket: Logo Oficial de Letras + Código de Orden
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.letras_logo),
+                                    contentDescription = "CampusGo",
+                                    modifier = Modifier.height(26.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                                Text(
+                                    text = formatReceiptOrderDate(order.createdAt),
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF64748B),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            // Chip con botón interactivo de copiar código
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFF1F5F9),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier.clickable {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Código de Orden", order.orderCodeDisplay))
+                                    Toast.makeText(context, "Código copiado: ${order.orderCodeDisplay}", Toast.LENGTH_SHORT).show()
+                                }
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_store_custom),
-                                            contentDescription = null,
-                                            tint = Color(0xFF003366),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = subOrder.sellerName.ifBlank { "Emprendedor #${index + 1}" },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF1E293B)
-                                        )
-                                    }
                                     Text(
-                                        text = "S/ %.2f".format(subOrder.subtotalAmount),
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color(0xFF003366),
-                                        fontSize = 14.sp
+                                        text = order.orderCodeDisplay,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF0D5C4C)
                                     )
-                                }
-
-                                HorizontalDivider(color = Color(0xFFE2E8F0))
-
-                                subOrder.items.forEach { item ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "${item.quantity}x ${item.productName}",
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF475569),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Text(
-                                            text = "S/ %.2f".format(item.subtotal),
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF1E293B)
-                                        )
-                                    }
-                                }
-
-                                HorizontalDivider(color = Color(0xFFE2E8F0))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val ptText = subOrder.meetingPointName?.takeIf { it.isNotBlank() } ?: order.meetingPointName.ifBlank { "Campus" }
-                                    val pmText = subOrder.paymentMethod?.name ?: order.paymentMethod?.name ?: "Efectivo"
-                                    Text(
-                                        text = "📍 $ptText",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF003366),
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                    Text(
-                                        text = "💳 $pmText",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF475569),
-                                        fontWeight = FontWeight.Bold
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copiar",
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(13.dp)
                                     )
                                 }
                             }
                         }
-                    }
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
 
-                    // Resumen Total
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "TOTAL A PAGAR",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 16.sp,
-                            color = Color(0xFF1E293B)
+                        // PIN DE RETIRO SEGURO (Estilo Cripto / Tech en gama Verde Turquesa)
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF064E3B),
+                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Security,
+                                        contentDescription = null,
+                                        tint = Color(0xFF34D399),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "PIN DE RETIRO SEGURO",
+                                        color = Color(0xFFA7F3D0),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val pin = order.subOrders.firstOrNull()?.verificationCode ?: order.id.takeLast(4)
+                                    pin.forEach { digit ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(42.dp)
+                                                .background(Color(0xFF022C22), RoundedCornerShape(10.dp))
+                                                .border(1.dp, Color(0xFF10B981).copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = digit.toString(),
+                                                color = Color(0xFF34D399),
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Black,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = if (isCompleted) "Pedido entregado y verificado con código PIN" else "Muestra este PIN al momento de recoger tu pedido",
+                                    color = Color(0xFF6EE7B7),
+                                    fontSize = 10.5.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        // LOGÍSTICA DE ENTREGA (Grid Tecnológico)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Punto de Entrega
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFF8FAFC),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_location_custom),
+                                            contentDescription = null,
+                                            tint = WarmYellow,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "ENTREGA EN",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = order.meetingPointName.ifBlank { "Campus Universitario" },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp,
+                                        color = Color(0xFF1E293B),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            // Horario Acordado
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFF8FAFC),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_alarm_custom),
+                                            contentDescription = null,
+                                            tint = TurquoiseGreen,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "HORARIO",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = order.scheduledTime.ifBlank { "Entrega Inmediata" },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp,
+                                        color = Color(0xFF1E293B),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        // DESGLOSE POR PUESTO / EMPRENDIMIENTO
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_store_custom),
+                                        contentDescription = null,
+                                        tint = TurquoiseGreen,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "DETALLE DE PRODUCTOS",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.5.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                                Text(
+                                    text = "${order.subOrders.size} Puesto(s)",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseGreen
+                                )
+                            }
+
+                            order.subOrders.forEachIndexed { index, subOrder ->
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color(0xFFF8FAFC),
+                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Header Puesto: Sin precio redundante en la cabecera del vendedor
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = subOrder.sellerName.ifBlank { "Emprendedor #${index + 1}" },
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 13.5.sp,
+                                                color = Color(0xFF1E293B),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f, fill = false)
+                                            )
+                                            ReceiptSubOrderStatusBadge(status = subOrder.status)
+                                        }
+
+                                        HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                                        // Lista de Ítems (Muestra claramente cantidad, producto y su precio individual)
+                                        subOrder.items.forEach { item ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = Color(0xFFE2E8F0),
+                                                        modifier = Modifier.padding(vertical = 1.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "${item.quantity}x",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFF334155),
+                                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = item.productName,
+                                                        fontSize = 12.5.sp,
+                                                        color = Color(0xFF475569)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "S/ %.2f".format(item.subtotal),
+                                                    fontSize = 12.5.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFF1E293B)
+                                                )
+                                            }
+                                        }
+
+                                        // Calificación del puesto si está completado
+                                        val canRateSub = subOrder.status == SubOrderStatus.COMPLETADO ||
+                                                subOrder.status == SubOrderStatus.PAGO_CONFIRMADO ||
+                                                isCompleted
+                                        if (canRateSub) {
+                                            val rating = reviewedOrders["${subOrder.orderId}-${subOrder.sellerId}"]
+                                                ?: reviewedOrders[subOrder.id]
+                                                ?: if (order.subOrders.size == 1) reviewedOrders[order.id] else null
+
+                                            if (rating != null && rating > 0) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 4.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "Tu calificación:",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFF92400E)
+                                                    )
+                                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                        for (star in 1..5) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Star,
+                                                                contentDescription = null,
+                                                                tint = if (star <= rating) Color(0xFFF59E0B) else Color(0xFFCBD5E1),
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            } else if (onRateSeller != null) {
+                                                OutlinedButton(
+                                                    onClick = { onRateSeller(subOrder) },
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
+                                                    border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 4.dp)
+                                                        .height(36.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Star,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFF59E0B),
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = "Calificar Puesto",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp,
+                                                        color = Color(0xFFD97706)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // LÍNEA PERFORADA DE BOLETA DIGITAL
+                        DashedDivider(
+                            color = Color(0xFFCBD5E1),
+                            thickness = 1.5.dp,
+                            dashLength = 6.dp,
+                            gapLength = 4.dp
                         )
+
+                        // RESUMEN FINANCIERO (Invoice Breakdown con Método de Pago Presentable)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Subtotal de Productos",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "S/ %.2f".format(originalSum),
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF334155)
+                                )
+                            }
+
+                            if (hasCancelledSubOrders) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Puestos cancelados",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                    Text(
+                                        text = "-S/ %.2f".format(cancelledSum),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Tarifa de Entrega Campus",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                                Surface(
+                                    color = Color(0xFFECFDF5),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = "GRATIS",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFF059669),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            // Posición Presentable para el Método de Pago con su Logo Oficial
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Método de Pago",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                PaymentMethodPill(method = order.paymentMethod)
+                            }
+
+                            HorizontalDivider(color = Color(0xFFF1F5F9))
+
+                            // Total sincronizado según el estado del pedido:
+                            // En curso -> TOTAL A PAGAR
+                            // Completado o Historial -> TOTAL CANCELADO
+                            val totalLabel = when {
+                                isCompleted -> "TOTAL CANCELADO"
+                                isCancelled -> "TOTAL CANCELADO"
+                                else -> "TOTAL A PAGAR"
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = totalLabel,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Text(
+                                    text = "S/ %.2f".format(effectiveTotal),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 22.sp,
+                                    color = TurquoiseGreen
+                                )
+                            }
+                        }
+
+                        // SELLO DE AUTENTICIDAD DIGITAL (Limpio, sin código de barras ni dígitos TRX)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp, bottom = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(TurquoiseGreen)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Transacción Verificada • Red Oficial CampusGo",
+                                fontSize = 10.5.sp,
+                                color = Color(0xFF64748B),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                // ==========================================
+                // 3. CENTRO DE AYUDA (DISCRETO Y NO ALARMISTA)
+                // ==========================================
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { showReportDialog = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF94A3B8))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "S/ %.2f".format(order.totalAmount),
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 20.sp,
+                            text = "¿Tienes alguna duda sobre tu pedido? Centro de ayuda",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF64748B)
                         )
                     }
                 }
@@ -473,15 +979,16 @@ fun OrderSummaryReceiptScreen(
         }
     }
 
+    // Diálogo de Reporte / Mediación (Solo si el usuario voluntariamente lo solicita desde el pie de página)
     if (showReportDialog) {
         val targetSeller = order.subOrders.firstOrNull()
         ReportIncidentDialog(
-            title = "Reportar Problema con el Pedido",
+            title = "Centro de Ayuda y Mediación",
             subtitle = "Puesto: ${targetSeller?.sellerName ?: "Campus"}",
             contextType = IncidentContextType.ORDER,
             isSubmitting = isSubmittingReport,
             onDismiss = { showReportDialog = false },
-            onSubmit = { reasonKey, reasonLabel, details, evidenceBytes ->
+            onSubmit = { reasonKey, reasonLabel, details ->
                 coroutineScope.launch {
                     isSubmittingReport = true
                     val result = orderRepository.reportIncident(
@@ -489,18 +996,48 @@ fun OrderSummaryReceiptScreen(
                         reporterId = order.buyerId,
                         reportedUserId = targetSeller?.sellerId,
                         incidentType = reasonKey,
-                        details = details.ifBlank { reasonLabel },
-                        evidenceBytes = evidenceBytes
+                        details = details.ifBlank { reasonLabel }
                     )
                     isSubmittingReport = false
                     showReportDialog = false
                     if (result.isSuccess) {
-                        Toast.makeText(context, "Reporte enviado con éxito al Administrador del Campus.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Solicitud de asistencia enviada al Administrador.", Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "Error al enviar reporte: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Error al enviar: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
+        )
+    }
+}
+
+/**
+ * Insignia visual para el estado del subpedido en el comprobante digital.
+ */
+@Composable
+private fun ReceiptSubOrderStatusBadge(status: SubOrderStatus) {
+    val (backgroundColor, textColor, label) = when (status) {
+        SubOrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
+        SubOrderStatus.ACEPTADO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "Aceptado")
+        SubOrderStatus.EN_PREPARACION -> Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "En Preparación")
+        SubOrderStatus.LISTO -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Listo")
+        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Esperando")
+        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), "Completado")
+        SubOrderStatus.RECHAZADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
+        SubOrderStatus.CANCELADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelado")
+        SubOrderStatus.NO_ENTREGADO -> Triple(Color(0xFFECEFF1), Color(0xFF455A64), "No entregado")
+    }
+
+    Surface(
+        color = backgroundColor,
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = textColor
         )
     }
 }

@@ -71,14 +71,14 @@ fun VideoSplashScreen(
         }
     }
 
-    // Configuración optimizada de ExoPlayer para reproducción inmediata y ágil (Bug 18: Reducción de tiempo)
+    // Configuración optimizada de ExoPlayer para reproducción fluida del video de presentación
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             val videoUri = "android.resource://${context.packageName}/${R.raw.logo_cargando}"
             setMediaItem(MediaItem.fromUri(videoUri))
             repeatMode = Player.REPEAT_MODE_OFF
-            volume = 0f // Silencioso para evitar retrasos de sincronización de audio
-            setPlaybackSpeed(1.6f) // Velocidad dinámica para hacer la animación fluida y no tediosa
+            volume = 1f
+            setPlaybackSpeed(1.0f)
             playWhenReady = true
             prepare()
         }
@@ -105,9 +105,9 @@ fun VideoSplashScreen(
         }
     }
 
-    // Temporizador óptimo para pantalla de bienvenida (2.8 segundos)
+    // Temporizador de seguridad para pantalla de bienvenida (finaliza con STATE_ENDED o máximo 4.2s)
     LaunchedEffect(Unit) {
-        delay(2800L)
+        delay(4200L)
         safeFinish()
     }
 

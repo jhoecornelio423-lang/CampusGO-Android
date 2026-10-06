@@ -153,7 +153,11 @@ class CartViewModel(
                         val validMethods = sellerPaymentMethodsMap[sId] ?: listOf(PaymentMethod.YAPE, PaymentMethod.PLIN, PaymentMethod.EFECTIVO)
                         val prev = updatedSellerPayments[sId]
                         if (prev == null || !validMethods.contains(prev)) {
-                            updatedSellerPayments[sId] = validMethods.firstOrNull() ?: PaymentMethod.EFECTIVO
+                            updatedSellerPayments[sId] = if (validMethods.contains(updatedPayment)) {
+                                updatedPayment
+                            } else {
+                                validMethods.firstOrNull() ?: PaymentMethod.EFECTIVO
+                            }
                         }
                     }
 
@@ -228,10 +232,13 @@ class CartViewModel(
     fun selectPaymentMethod(method: PaymentMethod) {
         _uiState.update { current ->
             val updatedMap = current.selectedPaymentMethodsBySeller.toMutableMap()
-            current.sellerPaymentMethods.forEach { (sId, methods) ->
-                if (methods.contains(method)) {
-                    updatedMap[sId] = method
-                }
+            // Sincronizar todos los puestos presentes en el carrito con el método global seleccionado
+            val cartSellerIds = current.calculation.storeGroups.map { it.sellerId }
+            cartSellerIds.forEach { sId ->
+                updatedMap[sId] = method
+            }
+            current.sellerPaymentMethods.keys.forEach { sId ->
+                updatedMap[sId] = method
             }
             current.copy(selectedPaymentMethod = method, selectedPaymentMethodsBySeller = updatedMap)
         }
@@ -290,8 +297,8 @@ class CartViewModel(
                     paymentMethod = state.selectedPaymentMethod,
                     cartResult = state.calculation,
                     notes = state.orderNotes.takeIf { it.isNotBlank() },
-                    meetingPointsBySeller = state.selectedMeetingPointsBySeller,
-                    paymentMethodsBySeller = state.selectedPaymentMethodsBySeller
+                    meetingPointsBySeller = if (state.isSplitDeliveryEffective) state.selectedMeetingPointsBySeller else emptyMap(),
+                    paymentMethodsBySeller = if (state.isSplitPaymentEffective) state.selectedPaymentMethodsBySeller else emptyMap()
                 )
 
                 orderRepository.placeOrder(order)

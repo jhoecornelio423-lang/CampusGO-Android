@@ -200,6 +200,7 @@ class OrderRepositoryImpl(
 
             val enrichedSubOrders = order.subOrders.map { sub ->
                 sub.copy(
+                    paymentMethod = sub.paymentMethod ?: order.paymentMethod ?: PaymentMethod.EFECTIVO,
                     meetingPointId = sub.meetingPointId ?: order.meetingPointId,
                     meetingPointName = sub.meetingPointName ?: order.meetingPointName,
                     scheduledTime = sub.scheduledTime ?: order.scheduledTime,
@@ -226,7 +227,7 @@ class OrderRepositoryImpl(
                 val subordersArray = buildJsonArray {
                     for (sub in enrichedSubOrders) {
                         val subId = if (isValidUUID(sub.id)) sub.id else UUID.randomUUID().toString()
-                        val subPm = (sub.paymentMethod ?: PaymentMethod.EFECTIVO).name
+                        val subPm = (sub.paymentMethod ?: order.paymentMethod ?: PaymentMethod.EFECTIVO).name
                         add(buildJsonObject {
                             put("id", subId)
                             put("seller_id", sub.sellerId)
@@ -257,7 +258,7 @@ class OrderRepositoryImpl(
                 }
 
                 val orderId = if (isValidUUID(order.id)) order.id else UUID.randomUUID().toString()
-                val paymentMethodName = (order.paymentMethod ?: order.subOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO).name
+                val paymentMethodName = (order.paymentMethod ?: enrichedSubOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO).name
 
                 val rpcResult = postgrest.rpc(
                     function = "checkout_order_atomic",
@@ -448,6 +449,12 @@ class OrderRepositoryImpl(
             val subStatus = mapRemoteStatusToSubOrderStatus(rso.status)
             val meetingPlace = parentOrder?.meetingPointName?.takeIf { it.isNotBlank() } ?: parentOrder?.deliveryPlace ?: "Punto de encuentro"
             val scheduledTime = parentOrder?.scheduledTime ?: extractScheduleFromDeliveryPlace(parentOrder?.deliveryPlace)
+            val parentPm = parsePaymentMethod(parentOrder?.paymentMethod)
+            val resolvedSubPm = when {
+                parentPm != PaymentMethod.EFECTIVO && (rso.paymentMethod.isNullOrBlank() || rso.paymentMethod.equals("EFECTIVO", ignoreCase = true)) -> parentPm
+                !rso.paymentMethod.isNullOrBlank() -> parsePaymentMethod(rso.paymentMethod)
+                else -> parentPm
+            }
 
             val subOrder = SubOrder(
                 id = rso.id,
@@ -458,7 +465,7 @@ class OrderRepositoryImpl(
                 subtotalAmount = rso.subtotalAmount,
                 status = subStatus,
                 rejectionReason = rso.rejectionReason,
-                paymentMethod = parsePaymentMethod(rso.paymentMethod),
+                paymentMethod = resolvedSubPm,
                 meetingPointId = rso.meetingPointId ?: parentOrder?.meetingPointId,
                 meetingPointName = rso.meetingPointName ?: meetingPlace,
                 scheduledTime = rso.scheduledTime ?: scheduledTime,
@@ -597,6 +604,10 @@ class OrderRepositoryImpl(
 
                         val mappedOrders = remoteOrders.map { ro ->
                             val subsForOrder = subOrdersByOrder[ro.id] ?: emptyList()
+                            val parentPm = parsePaymentMethod(ro.paymentMethod)
+                            val allSubsAreDefaultEfectivo = subsForOrder.all {
+                                it.paymentMethod.isNullOrBlank() || it.paymentMethod.equals("EFECTIVO", ignoreCase = true)
+                            }
                             val domainSubOrders = if (subsForOrder.isNotEmpty()) {
                                 subsForOrder.map { rso ->
                                     val sItems = (itemsBySubOrder[rso.id] ?: emptyList()).map { oi ->
@@ -613,6 +624,11 @@ class OrderRepositoryImpl(
                                     val subStatus = mapRemoteStatusToSubOrderStatus(rso.status)
                                     val meetingPlace = ro.meetingPointName ?: ro.deliveryPlace ?: "Campus Universitario"
                                     val schedule = ro.scheduledTime ?: extractScheduleFromDeliveryPlace(ro.deliveryPlace)
+                                    val resolvedSubPm = when {
+                                        parentPm != PaymentMethod.EFECTIVO && (subsForOrder.size <= 1 || allSubsAreDefaultEfectivo) -> parentPm
+                                        !rso.paymentMethod.isNullOrBlank() -> parsePaymentMethod(rso.paymentMethod)
+                                        else -> parentPm
+                                    }
                                     SubOrder(
                                         id = rso.id,
                                         orderId = ro.id,
@@ -622,7 +638,7 @@ class OrderRepositoryImpl(
                                         subtotalAmount = rso.subtotalAmount,
                                         status = subStatus,
                                         rejectionReason = rso.rejectionReason,
-                                        paymentMethod = parsePaymentMethod(rso.paymentMethod),
+                                        paymentMethod = resolvedSubPm,
                                         meetingPointId = rso.meetingPointId ?: ro.meetingPointId,
                                         meetingPointName = rso.meetingPointName ?: meetingPlace,
                                         scheduledTime = rso.scheduledTime ?: schedule,
@@ -718,7 +734,7 @@ class OrderRepositoryImpl(
                                 totalAmount = effectiveTotal,
                                 status = computedOrderStatus,
                                 subOrders = domainSubOrders,
-                                paymentMethod = parsePaymentMethod(ro.paymentMethod),
+                                paymentMethod = if (parentPm != PaymentMethod.EFECTIVO) parentPm else (domainSubOrders.firstOrNull()?.paymentMethod ?: parentPm),
                                 notes = ro.notes,
                                 createdAt = ro.createdAt,
                                 updatedAt = ro.updatedAt
@@ -920,6 +936,12 @@ class OrderRepositoryImpl(
                             val buyerAvatar = buyerId?.let { profileAvatarCache[it] }
                             val meetingPlace = parentOrder?.meetingPointName?.takeIf { it.isNotBlank() } ?: parentOrder?.deliveryPlace ?: "Punto de encuentro"
                             val scheduledTime = parentOrder?.scheduledTime ?: extractScheduleFromDeliveryPlace(parentOrder?.deliveryPlace)
+                            val parentPm = parsePaymentMethod(parentOrder?.paymentMethod)
+                            val resolvedSubPm = when {
+                                parentPm != PaymentMethod.EFECTIVO && (rso.paymentMethod.isNullOrBlank() || rso.paymentMethod.equals("EFECTIVO", ignoreCase = true)) -> parentPm
+                                !rso.paymentMethod.isNullOrBlank() -> parsePaymentMethod(rso.paymentMethod)
+                                else -> parentPm
+                            }
 
                             SubOrder(
                                 id = rso.id,
@@ -930,7 +952,7 @@ class OrderRepositoryImpl(
                                 subtotalAmount = rso.subtotalAmount,
                                 status = subStatus,
                                 rejectionReason = rso.rejectionReason,
-                                paymentMethod = parsePaymentMethod(rso.paymentMethod),
+                                paymentMethod = resolvedSubPm,
                                 meetingPointId = rso.meetingPointId ?: parentOrder?.meetingPointId,
                                 meetingPointName = rso.meetingPointName ?: meetingPlace,
                                 scheduledTime = rso.scheduledTime ?: scheduledTime,

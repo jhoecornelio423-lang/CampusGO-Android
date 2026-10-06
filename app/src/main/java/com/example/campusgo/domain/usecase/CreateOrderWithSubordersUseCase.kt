@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.usecase
+package com.example.campusgo.domain.usecase
 
 import com.example.campusgo.domain.model.*
 import java.util.UUID
@@ -29,7 +29,11 @@ class CreateOrderWithSubordersUseCase {
                 )
             }
             val sellerPoint = meetingPointsBySeller[group.sellerId] ?: meetingPoint
-            val sellerPm = paymentMethodsBySeller[group.sellerId] ?: paymentMethod
+            val sellerPm = if (paymentMethodsBySeller.isNotEmpty()) {
+                paymentMethodsBySeller[group.sellerId] ?: paymentMethod
+            } else {
+                paymentMethod
+            }
             SubOrder(
                 id = subOrderId,
                 orderId = orderId,
