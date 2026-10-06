@@ -127,8 +127,16 @@ fun SellerStoreProfileScreen(
         onNavigateBack()
     }
 
-    var selectedMeetingPoints by remember(activeProfile.id, activeProfile.supportedMeetingPoints) {
-        mutableStateOf(activeProfile.supportedMeetingPoints.toSet())
+    var selectedMeetingPoints by remember(activeProfile.id, activeProfile.supportedMeetingPoints, availableMeetingPoints) {
+        val sanitized = if (availableMeetingPoints.isNotEmpty()) {
+            activeProfile.supportedMeetingPoints.mapNotNull { item ->
+                availableMeetingPoints.find { it.id == item }?.id
+                    ?: availableMeetingPoints.find { it.name.equals(item, ignoreCase = true) }?.id
+            }.toSet()
+        } else {
+            activeProfile.supportedMeetingPoints.toSet()
+        }
+        mutableStateOf(sanitized)
     }
     var selectedPaymentMethods by remember(activeProfile.id, activeProfile.supportedPaymentMethods) {
         mutableStateOf(activeProfile.effectivePaymentMethods.toSet())
@@ -205,7 +213,14 @@ fun SellerStoreProfileScreen(
         avatarUrl = activeProfile.avatarUrl.orEmpty()
         businessStatus = activeProfile.businessStatus.ifBlank { "ABIERTO" }
         acceptingOrders = activeProfile.acceptingOrders
-        selectedMeetingPoints = activeProfile.supportedMeetingPoints.toSet()
+        selectedMeetingPoints = if (availableMeetingPoints.isNotEmpty()) {
+            activeProfile.supportedMeetingPoints.mapNotNull { item ->
+                availableMeetingPoints.find { it.id == item }?.id
+                    ?: availableMeetingPoints.find { it.name.equals(item, ignoreCase = true) }?.id
+            }.toSet()
+        } else {
+            activeProfile.supportedMeetingPoints.toSet()
+        }
         selectedPaymentMethods = activeProfile.effectivePaymentMethods.toSet()
         businessNameError = null
         descriptionError = null
@@ -299,122 +314,12 @@ fun SellerStoreProfileScreen(
                 )
             }
         },
-        bottomBar = {
-            if (isEditMode || showHeader) {
-                Surface(
-                    color = Color.White,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        if (isEditMode) {
-                            Button(
-                                onClick = {
-                                    showValidationErrors = true
-                                    val bnErr = FormValidators.validateStoreName(businessName)
-                                    val isCustomCat = selectedCategoryOption.equals("Otros", ignoreCase = true) || selectedCategoryOption.equals("Otro", ignoreCase = true)
-                                    val catErr = if (isCustomCat) {
-                                        FormValidators.validateCustomCategory(customCategoryText)
-                                    } else {
-                                        FormValidators.validateStoreCategory(selectedCategoryOption)
-                                    }
-                                    val descErr = FormValidators.validateStoreDescription(description)
-                                    val locErr = FormValidators.validateStoreLocation(location)
-                                    val mpErr = FormValidators.validateMeetingPoints(selectedMeetingPoints)
-                                    val pmErr = FormValidators.validatePaymentMethods(selectedPaymentMethods)
-
-                                    businessNameError = bnErr
-                                    categoryError = catErr
-                                    descriptionError = descErr
-                                    locationError = locErr
-                                    meetingPointsError = mpErr
-                                    paymentMethodsError = pmErr
-
-                                    if (bnErr != null || catErr != null || descErr != null || locErr != null || mpErr != null || pmErr != null) {
-                                        val firstError = bnErr ?: catErr ?: descErr ?: locErr ?: mpErr ?: pmErr ?: "Por favor corrige los errores del formulario"
-                                        Toast.makeText(context, firstError, Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-
-                                    onSave(
-                                        businessName.trim(),
-                                        businessStatus,
-                                        description.trim(),
-                                        effectiveCategory,
-                                        location.trim(),
-                                        openTime,
-                                        closeTime,
-                                        bannerUrl,
-                                        avatarUrl,
-                                        acceptingOrders,
-                                        selectedMeetingPoints.toList(),
-                                        selectedPaymentMethods.toList()
-                                    )
-                                    isEditMode = false
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                                shape = RoundedCornerShape(14.dp),
-                                enabled = !isSaving && !isUploadingBanner && !isUploadingAvatar,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                            ) {
-                                if (isSaving) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Guardando...")
-                                } else {
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Guardar Cambios", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                }
-                            }
-
-                            OutlinedButton(
-                                onClick = { resetFields() },
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                            ) {
-                                Text("Cancelar Edición", fontWeight = FontWeight.SemiBold)
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = onSignOut,
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                                border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_logout_custom),
-                                    contentDescription = null,
-                                    tint = Color(0xFFDC2626),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        },
         containerColor = Color(0xFFF8FAFC)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = innerPadding.calculateBottomPadding())
+                .padding(top = innerPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
         ) {
             // 1. Portada Completa Arriba (Full Width Hero Banner)
@@ -953,6 +858,16 @@ fun SellerStoreProfileScreen(
                                 .padding(18.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            val displayedMeetingPoints = remember(selectedMeetingPoints, availableMeetingPoints) {
+                                if (availableMeetingPoints.isNotEmpty()) {
+                                    selectedMeetingPoints.mapNotNull { pointId ->
+                                        availableMeetingPoints.find { it.id == pointId || it.name.equals(pointId, ignoreCase = true) }
+                                    }.distinctBy { it.id }
+                                } else {
+                                    emptyList()
+                                }
+                            }
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -966,14 +881,14 @@ fun SellerStoreProfileScreen(
                                     letterSpacing = 0.8.sp
                                 )
                                 Text(
-                                    text = "${selectedMeetingPoints.size} seleccionados",
+                                    text = "${displayedMeetingPoints.size} seleccionados",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF00A884)
                                 )
                             }
 
-                            if (selectedMeetingPoints.isEmpty()) {
+                            if (displayedMeetingPoints.isEmpty()) {
                                 Surface(
                                     color = Color(0xFFFEF2F2),
                                     shape = RoundedCornerShape(10.dp),
@@ -992,11 +907,10 @@ fun SellerStoreProfileScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    selectedMeetingPoints.forEach { pointId ->
-                                        val pt = availableMeetingPoints.find { it.id == pointId }
-                                        val label = pt?.name ?: pointId
-                                        val isExt = pt?.zoneType.equals("EXTERIOR", ignoreCase = true)
-                                        val details = listOfNotNull(pt?.pavilion, pt?.description).filter { it.isNotBlank() }.joinToString(" • ")
+                                    displayedMeetingPoints.forEach { pt ->
+                                        val label = pt.name
+                                        val isExt = pt.zoneType.equals("EXTERIOR", ignoreCase = true)
+                                        val details = listOfNotNull(pt.pavilion, pt.description).filter { it.isNotBlank() }.joinToString(" • ")
 
                                         Surface(
                                             color = Color(0xFFF8FAFC),
@@ -1637,8 +1551,85 @@ fun SellerStoreProfileScreen(
                 }
             }
 
-            if (!showHeader && !isEditMode) {
-                Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (isEditMode) {
+                Button(
+                    onClick = {
+                        showValidationErrors = true
+                        val bnErr = FormValidators.validateStoreName(businessName)
+                        val isCustomCat = selectedCategoryOption.equals("Otros", ignoreCase = true) || selectedCategoryOption.equals("Otro", ignoreCase = true)
+                        val catErr = if (isCustomCat) {
+                            FormValidators.validateCustomCategory(customCategoryText)
+                        } else {
+                            FormValidators.validateStoreCategory(selectedCategoryOption)
+                        }
+                        val descErr = FormValidators.validateStoreDescription(description)
+                        val locErr = FormValidators.validateStoreLocation(location)
+                        val mpErr = FormValidators.validateMeetingPoints(selectedMeetingPoints)
+                        val pmErr = FormValidators.validatePaymentMethods(selectedPaymentMethods)
+
+                        businessNameError = bnErr
+                        categoryError = catErr
+                        descriptionError = descErr
+                        locationError = locErr
+                        meetingPointsError = mpErr
+                        paymentMethodsError = pmErr
+
+                        if (bnErr != null || catErr != null || descErr != null || locErr != null || mpErr != null || pmErr != null) {
+                            val firstError = bnErr ?: catErr ?: descErr ?: locErr ?: mpErr ?: pmErr ?: "Por favor corrige los errores del formulario"
+                            Toast.makeText(context, firstError, Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        onSave(
+                            businessName.trim(),
+                            businessStatus,
+                            description.trim(),
+                            effectiveCategory,
+                            location.trim(),
+                            openTime,
+                            closeTime,
+                            bannerUrl,
+                            avatarUrl,
+                            acceptingOrders,
+                            selectedMeetingPoints.toList(),
+                            selectedPaymentMethods.toList()
+                        )
+                        isEditMode = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = !isSaving && !isUploadingBanner && !isUploadingAvatar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(48.dp)
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Guardando...")
+                    } else {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Guardar Cambios", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = { resetFields() },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(44.dp)
+                ) {
+                    Text("Cancelar Edición", fontWeight = FontWeight.SemiBold)
+                }
+            } else {
                 OutlinedButton(
                     onClick = onSignOut,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
@@ -1646,6 +1637,7 @@ fun SellerStoreProfileScreen(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
                         .height(48.dp)
                 ) {
                     Icon(
@@ -1657,35 +1649,22 @@ fun SellerStoreProfileScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
-
-                // Versión de la app y créditos de autoría
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 14.dp, bottom = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "CampusGO • Versión ${BuildConfig.VERSION_NAME}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF94A3B8),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Hecho con 💚 por Jhoe Cornelio y Aldo Torres",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF64748B),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
             }
+
+            // Versión de la app
+            Text(
+                text = "CampusGO - version 0.6.2-beta",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF94A3B8),
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.5.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(76.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
         }
     }
 }

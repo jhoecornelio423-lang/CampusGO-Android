@@ -19,6 +19,9 @@ val supabaseUrl: String = (localProperties.getProperty("SUPABASE_URL")
 val supabaseKey: String = (localProperties.getProperty("SUPABASE_KEY")
     ?: System.getenv("SUPABASE_KEY")
     ?: "sb_publishable_zstYiRQi8ysTq5WXUL2SNP_c1EKvmOE")
+val googleServerClientId: String = (localProperties.getProperty("GOOGLE_SERVER_CLIENT_ID")
+    ?: System.getenv("GOOGLE_SERVER_CLIENT_ID")
+    ?: "932068399848-ekb75dp64iot6ap496okojhgp4tkmt9k.apps.googleusercontent.com")
 
 android {
     namespace = "com.example.campusgo"
@@ -33,6 +36,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
+        buildConfigField("String", "GOOGLE_SERVER_CLIENT_ID", "\"$googleServerClientId\"")
     }
 
     buildTypes {
@@ -136,4 +140,10 @@ dependencies {
   // Firebase Cloud Messaging
   implementation(platform(libs.firebase.bom))
   implementation(libs.firebase.messaging)
+
+  // Google Sign-In via Credential Manager
+  implementation(libs.androidx.credentials)
+  implementation(libs.androidx.credentials.play.services.auth)
+  implementation(libs.googleid)
 }
+

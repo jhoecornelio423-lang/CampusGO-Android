@@ -337,30 +337,75 @@ class SellerDashboardViewModel(
     }
 
     fun acceptSubOrder(subOrderId: String) {
+        _uiState.update { state ->
+            state.copy(
+                processingSubOrderIds = state.processingSubOrderIds + subOrderId,
+                subOrders = state.subOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.ACEPTADO) else it
+                },
+                todayOrders = state.todayOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.ACEPTADO) else it
+                }
+            )
+        }
         viewModelScope.launch {
-            val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.ACEPTADO)
-            if (result.isFailure) {
-                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al aceptar el pedido.") }
-            } else {
-                loadProducts()
+            try {
+                val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.ACEPTADO)
+                if (result.isFailure) {
+                    _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al aceptar el pedido.") }
+                } else {
+                    loadProducts()
+                }
+            } finally {
+                _uiState.update { it.copy(processingSubOrderIds = it.processingSubOrderIds - subOrderId) }
             }
         }
     }
 
     fun startPreparation(subOrderId: String) {
+        _uiState.update { state ->
+            state.copy(
+                processingSubOrderIds = state.processingSubOrderIds + subOrderId,
+                subOrders = state.subOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.EN_PREPARACION) else it
+                },
+                todayOrders = state.todayOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.EN_PREPARACION) else it
+                }
+            )
+        }
         viewModelScope.launch {
-            val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.EN_PREPARACION)
-            if (result.isFailure) {
-                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al iniciar preparación.") }
+            try {
+                val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.EN_PREPARACION)
+                if (result.isFailure) {
+                    _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al iniciar preparación.") }
+                }
+            } finally {
+                _uiState.update { it.copy(processingSubOrderIds = it.processingSubOrderIds - subOrderId) }
             }
         }
     }
 
     fun markReady(subOrderId: String) {
+        _uiState.update { state ->
+            state.copy(
+                processingSubOrderIds = state.processingSubOrderIds + subOrderId,
+                subOrders = state.subOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.LISTO) else it
+                },
+                todayOrders = state.todayOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.LISTO) else it
+                }
+            )
+        }
         viewModelScope.launch {
-            val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.LISTO)
-            if (result.isFailure) {
-                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al marcar pedido listo.") }
+            try {
+                val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.LISTO)
+                if (result.isFailure) {
+                    _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al marcar pedido listo.") }
+                }
+            } finally {
+                _uiState.update { it.copy(processingSubOrderIds = it.processingSubOrderIds - subOrderId) }
             }
         }
     }
@@ -374,20 +419,25 @@ class SellerDashboardViewModel(
     }
 
     fun confirmRejection(subOrderId: String, reason: String) {
+        _uiState.update { it.copy(processingSubOrderIds = it.processingSubOrderIds + subOrderId) }
         viewModelScope.launch {
-            val curSub = _uiState.value.subOrders.firstOrNull { it.id == subOrderId }
-            val targetStatus = if (curSub != null && curSub.status != SubOrderStatus.PENDIENTE) {
-                SubOrderStatus.CANCELADO
-            } else {
-                SubOrderStatus.RECHAZADO
-            }
-            val result = orderRepository.updateSubOrderStatus(subOrderId, targetStatus, reason)
-            if (result.isFailure) {
-                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al procesar la cancelación.") }
-            } else {
-                dismissRejectionDialog()
-                loadProducts()
-                _uiState.update { it.copy(successMessage = if (targetStatus == SubOrderStatus.CANCELADO) "Pedido cancelado correctamente. Stock devuelto a tu puesto." else "Subpedido rechazado.") }
+            try {
+                val curSub = _uiState.value.subOrders.firstOrNull { it.id == subOrderId }
+                val targetStatus = if (curSub != null && curSub.status != SubOrderStatus.PENDIENTE) {
+                    SubOrderStatus.CANCELADO
+                } else {
+                    SubOrderStatus.RECHAZADO
+                }
+                val result = orderRepository.updateSubOrderStatus(subOrderId, targetStatus, reason)
+                if (result.isFailure) {
+                    _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al procesar la cancelación.") }
+                } else {
+                    dismissRejectionDialog()
+                    loadProducts()
+                    _uiState.update { it.copy(successMessage = if (targetStatus == SubOrderStatus.CANCELADO) "Pedido cancelado correctamente. Stock devuelto a tu puesto." else "Subpedido rechazado.") }
+                }
+            } finally {
+                _uiState.update { it.copy(processingSubOrderIds = it.processingSubOrderIds - subOrderId) }
             }
         }
     }
@@ -401,28 +451,40 @@ class SellerDashboardViewModel(
     }
 
     fun confirmDeliveryAndPayment(subOrderId: String) {
-        viewModelScope.launch {
-            val targetSub = _uiState.value.subOrders.find { it.id == subOrderId }
-                ?: _uiState.value.todayOrders.find { it.id == subOrderId }
-                ?: _uiState.value.selectedSubOrderForDelivery
-            val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.COMPLETADO)
-            if (result.isFailure) {
-                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al confirmar entrega y pago.") }
-            } else {
-                dismissDeliveryDialog()
-                // Al estilo inDrive: abrir inmediatamente la calificación para cerrar la venta
-                _uiState.update {
-                    it.copy(
-                        subOrderToRate = targetSub,
-                        successMessage = "¡Venta y entrega registrada! Califica al cliente para cerrar la venta."
-                    )
+        _uiState.update { state ->
+            state.copy(
+                processingSubOrderIds = state.processingSubOrderIds + subOrderId,
+                subOrders = state.subOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.COMPLETADO) else it
+                },
+                todayOrders = state.todayOrders.map {
+                    if (it.id == subOrderId) it.copy(status = SubOrderStatus.COMPLETADO) else it
                 }
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val result = orderRepository.updateSubOrderStatus(subOrderId, SubOrderStatus.COMPLETADO)
+                if (result.isFailure) {
+                    _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Error al confirmar entrega y pago.") }
+                } else {
+                    dismissDeliveryDialog()
+                    // Ya no se abre calificación del vendedor al comprador (Requerimiento 2)
+                    _uiState.update {
+                        it.copy(
+                            subOrderToRate = null,
+                            successMessage = "¡Venta y entrega registrada con éxito!"
+                        )
+                    }
+                }
+            } finally {
+                _uiState.update { it.copy(processingSubOrderIds = it.processingSubOrderIds - subOrderId) }
             }
         }
     }
 
     fun openRateBuyerDialog(subOrder: SubOrder) {
-        _uiState.update { it.copy(subOrderToRate = subOrder) }
+        // Obsoleto: Vendedor ya no califica al comprador
     }
 
     fun dismissRateBuyerDialog() {

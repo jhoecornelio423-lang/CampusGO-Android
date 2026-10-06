@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Schedule
@@ -34,7 +35,6 @@ import com.example.campusgo.R
 import com.example.campusgo.domain.model.PaymentMethod
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.SubOrderStatus
-import com.example.campusgo.domain.model.orderCodeDisplay
 import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.IncidentContextType
@@ -55,8 +55,6 @@ fun SellerOrderDetailDialog(
     onOpenDelivery: (SubOrder) -> Unit,
     onOpenRejection: (SubOrder) -> Unit,
     onOpenChat: ((SubOrder) -> Unit)? = null,
-    ratingGiven: Int? = null,
-    onRateBuyer: ((SubOrder) -> Unit)? = null,
     orderRepository: OrderRepository = koinInject()
 ) {
     val context = LocalContext.current
@@ -129,7 +127,7 @@ fun SellerOrderDetailDialog(
                             color = Color(0xFF16324F)
                         )
                         Text(
-                            text = "Orden ${subOrder.orderCodeDisplay}",
+                            text = "Cliente: ${subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario"}",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF64748B)
@@ -701,65 +699,38 @@ fun SellerOrderDetailDialog(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (ratingGiven != null && ratingGiven > 0) {
-                                Card(
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                                    border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(14.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text(
-                                                text = "Calificación al Cliente",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF92400E)
-                                            )
-                                            Text(
-                                                text = "Venta cerrada y calificada",
-                                                fontSize = 11.sp,
-                                                color = Color(0xFFB45309)
-                                            )
-                                        }
-                                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            for (star in 1..5) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Star,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp),
-                                                    tint = if (star <= ratingGiven) Color(0xFFF59E0B) else Color(0xFFCBD5E1)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (onRateBuyer != null) {
-                                Button(
-                                    onClick = {
-                                        onDismiss()
-                                        onRateBuyer(subOrder)
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
-                                    shape = RoundedCornerShape(14.dp),
+                            Card(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                                border = BorderStroke(1.dp, Color(0xFFC8E6C9)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(48.dp)
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Star,
+                                        imageVector = Icons.Default.CheckCircle,
                                         contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(22.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Calificar Cliente para Cerrar Venta ⭐", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Column {
+                                        Text(
+                                            text = "Venta Completada",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1B5E20)
+                                        )
+                                        Text(
+                                            text = "Pedido entregado y pago confirmado",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF2E7D32)
+                                        )
+                                    }
                                 }
                             }
 

@@ -126,6 +126,7 @@ fun AuthRoute(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showWelcome by rememberSaveable { mutableStateOf(true) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.resetCredentials()
@@ -244,7 +245,7 @@ fun AuthRoute(
                     onForgotPasswordClick = viewModel::openForgotPassword,
                     onTabSelected = viewModel::setLoginMode,
                     onSubmit = viewModel::submit,
-                    onGoogleSignIn = viewModel::signInWithGoogle,
+                    onGoogleSignIn = { viewModel.signInWithGoogle(context) },
                     onDismissError = viewModel::clearError,
                     onDismissInfo = viewModel::clearInfoMessage,
                     modifier = modifier
@@ -310,6 +311,12 @@ fun AuthScreen(
         emailTouched = false
         passwordTouched = false
         scrollState.scrollTo(0)
+    }
+
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage != null) {
+            scrollState.animateScrollTo(0)
+        }
     }
 
     var passwordVisible by remember { mutableStateOf(false) }
@@ -1287,8 +1294,10 @@ fun AuthScreen(
                     // Botón Continuar con Google
                     Surface(
                         onClick = {
-                            focusManager.clearFocus()
-                            onGoogleSignIn()
+                            if (!uiState.isLoading) {
+                                focusManager.clearFocus()
+                                onGoogleSignIn()
+                            }
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = Color.White,
@@ -1303,18 +1312,64 @@ fun AuthScreen(
                             horizontalArrangement = Arrangement.Center,
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_google_logo),
-                                contentDescription = "Google",
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Continuar con Google",
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1E293B)
-                            )
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFF00A884)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Conectando con Google...",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF64748B)
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_google_logo),
+                                    contentDescription = "Google",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Continuar con Google",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+                        }
+                    }
+
+                    if (uiState.errorMessage != null) {
+                        Surface(
+                            color = Color(0xFFFEF2F2),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = uiState.errorMessage.orEmpty(),
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = Color(0xFF991B1B),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
 

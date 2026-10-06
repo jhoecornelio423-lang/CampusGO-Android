@@ -25,3 +25,5 @@ emulator_screen.png
 .playwright-mcp/
 Errores.txt
 supabase/.temp/
+credenciales-GoogleCloud.txt
+*GoogleCloud*

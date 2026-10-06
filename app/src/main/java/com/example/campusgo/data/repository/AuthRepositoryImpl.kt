@@ -7,7 +7,9 @@ import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.domain.repository.AuthRepository
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.CoroutineScope
@@ -369,6 +371,79 @@ class AuthRepositoryImpl(
             startProfileMonitoring()
             Result.success(profile)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun signInWithGoogleIdToken(idToken: String): Result<UserProfile> {
+        return try {
+            android.util.Log.d("CampusGoGoogleAuth", "AuthRepositoryImpl: Invocando auth.signInWith(IDToken)...")
+            auth.signInWith(IDToken) {
+                this.idToken = idToken
+                this.provider = Google
+            }
+            val user = auth.currentUserOrNull()
+                ?: throw IllegalStateException("No se pudo iniciar sesión con Google")
+            android.util.Log.d("CampusGoGoogleAuth", "AuthRepositoryImpl: Sesión GoTrue establecida con éxito. user id=${user.id}, email=${user.email}")
+
+            val meta = user.userMetadata
+            val metaName = meta?.get("full_name")?.jsonPrimitive?.contentOrNull
+                ?: meta?.get("name")?.jsonPrimitive?.contentOrNull
+                ?: "Estudiante Universitario"
+            val metaPhone = meta?.get("phone")?.jsonPrimitive?.contentOrNull ?: ""
+            val metaCampus = meta?.get("campus")?.jsonPrimitive?.contentOrNull ?: "UCV - Lima Norte"
+
+            var profile = try {
+                fetchProfile(user.id)
+            } catch (e: Exception) {
+                android.util.Log.w("CampusGoGoogleAuth", "fetchProfile falló tras Google Auth, insertando user_profiles por defecto...", e)
+                val defaultProfile = UserProfile(
+                    id = user.id,
+                    fullName = metaName,
+                    phone = metaPhone,
+                    campus = metaCampus,
+                    role = UserRole.COMPRADOR,
+                    businessStatus = "ABIERTO",
+                    acceptingOrders = false
+                )
+                runCatching {
+                    postgrest.from("user_profiles").upsert(
+                        buildJsonObject {
+                            put("id", user.id)
+                            put("full_name", metaName)
+                            put("email", user.email ?: "")
+                            put("role", "comprador")
+                            put("campus", metaCampus)
+                            put("university", "UCV")
+                        }
+                    )
+                }.onFailure { upsertErr ->
+                    android.util.Log.e("CampusGoGoogleAuth", "Fallo al insertar user_profiles de respaldo", upsertErr)
+                }
+                defaultProfile
+            }
+
+            if (profile.isAccountSuspended || profile.role.isSuspended || profile.businessStatus.equals("SUSPENDIDO", ignoreCase = true)) {
+                val effectiveSuspendedProfile = profile.copy(
+                    role = if (profile.role == UserRole.EMPRENDEDOR || !profile.businessName.isNullOrBlank()) {
+                        UserRole.SUSPENDED
+                    } else {
+                        UserRole.SUSPENDED_BUYER
+                    }
+                )
+                _currentProfile.value = effectiveSuspendedProfile
+                _isAuthenticated.value = true
+                startProfileMonitoring()
+                return Result.success(effectiveSuspendedProfile)
+            }
+
+            _currentProfile.value = profile
+            _isAuthenticated.value = true
+            startProfileMonitoring()
+            android.util.Log.d("CampusGoGoogleAuth", "AuthRepositoryImpl: Perfil establecido correctamente. isAuthenticated=true")
+            Result.success(profile)
+        } catch (e: Exception) {
+            android.util.Log.e("CampusGoGoogleAuth", "AuthRepositoryImpl: Error en signInWithGoogleIdToken", e)
             Result.failure(e)
         }
     }

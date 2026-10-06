@@ -75,6 +75,7 @@ data class SellerDashboardUiState(
     val sellerProfile: com.example.campusgo.domain.model.UserProfile? = null,
     val availableMeetingPoints: List<CampusMeetingPoint> = emptyList(),
     val subOrders: List<SubOrder> = emptyList(),
+    val processingSubOrderIds: Set<String> = emptySet(),
     val todayOrders: List<SubOrder> = emptyList(),
     val pastDayGroups: List<DailyOrderGroup> = emptyList(),
     val expandedPastDates: Set<LocalDate> = emptySet(),

@@ -131,6 +131,32 @@ class OrderChatViewModel(
                 val readMessages = messageList.map {
                     if (!it.isFromMe && ActiveChatSessionManager.isAppInForeground) it.copy(isRead = true) else it
                 }
+
+                // Si otherUserId vino en blanco, inferirlo de cualquier mensaje recibido
+                val incoming = messageList.find { !it.isFromMe && it.senderId.isNotBlank() }
+                if (_uiState.value.otherUserId.isBlank() && incoming != null) {
+                    val resolvedOtherId = incoming.senderId
+                    _uiState.update { it.copy(otherUserId = resolvedOtherId) }
+                    ActiveChatSessionManager.activeOtherUserId = resolvedOtherId
+                    launch {
+                        authRepository.getUserProfile(resolvedOtherId).onSuccess { prof ->
+                            _uiState.update { state ->
+                                val updatedName = if (prof.role == UserRole.EMPRENDEDOR) {
+                                    prof.displayStoreName
+                                } else {
+                                    prof.fullName.ifBlank { state.otherUserName }
+                                }
+                                state.copy(
+                                    otherUserProfile = prof,
+                                    otherUserName = updatedName,
+                                    otherUserAvatarUrl = prof.avatarUrl ?: state.otherUserAvatarUrl,
+                                    isLoadingProfile = false
+                                )
+                            }
+                        }
+                    }
+                }
+
                 _uiState.update { state ->
                     // Preservar mensajes optimistas locales aún no confirmados remotamente
                     val unconfirmedLocals = state.messages.filter { it.isFromMe && readMessages.none { r -> r.content == it.content } }

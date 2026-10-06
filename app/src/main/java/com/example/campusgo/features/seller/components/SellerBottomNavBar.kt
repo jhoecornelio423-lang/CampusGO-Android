@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller.components
+package com.example.campusgo.features.seller.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -35,25 +35,33 @@ fun SellerBottomNavBar(
     val activeColor = Color(0xFF00A884)
     val inactiveColor = Color(0xFF64748B)
 
-    Surface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                spotColor = Color(0x1F16324F),
-                ambientColor = Color(0x2816324F),
-                clip = false
-            ),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        color = Color.White,
-        shadowElevation = 0.dp
+            .wrapContentHeight()
+            .background(Color.Transparent),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        Column(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .shadow(
+                    elevation = 6.dp,
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    spotColor = Color(0x1F16324F),
+                    ambientColor = Color(0x2816324F),
+                    clip = false
+                ),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 0.dp
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -123,6 +131,7 @@ fun SellerBottomNavBar(
             }
         }
     }
+}
 }
 
 @Composable

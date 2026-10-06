@@ -7,6 +7,18 @@ import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.domain.repository.AdminRepository
 import com.example.campusgo.domain.repository.AuthRepository
+import android.content.Context
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import com.example.campusgo.BuildConfig
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import android.util.Log
+import androidx.credentials.exceptions.NoCredentialException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -199,12 +211,131 @@ class AuthViewModel(
         _uiState.update { it.copy(infoMessage = null) }
     }
 
-    fun signInWithGoogle() {
-        _uiState.update {
-            it.copy(
-                infoMessage = "El inicio de sesión con Google estará disponible próximamente en tu campus.",
-                errorMessage = null
-            )
+    fun signInWithGoogle(context: Context) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            try {
+                Log.d("CampusGoGoogleAuth", "--- Iniciando proceso Google Sign-In ---")
+                Log.d("CampusGoGoogleAuth", "ServerClientId configurado: ${BuildConfig.GOOGLE_SERVER_CLIENT_ID}")
+                val credentialManager = CredentialManager.create(context)
+
+                // Intentar con GetSignInWithGoogleOption (diseñado para la pulsación explícita del botón)
+                val result = try {
+                    val signInOption = GetSignInWithGoogleOption.Builder(
+                        serverClientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
+                    ).build()
+                    val request = GetCredentialRequest.Builder()
+                        .addCredentialOption(signInOption)
+                        .build()
+                    Log.d("CampusGoGoogleAuth", "Solicitando credenciales con GetSignInWithGoogleOption...")
+                    credentialManager.getCredential(context = context, request = request)
+                } catch (e: NoCredentialException) {
+                    Log.w("CampusGoGoogleAuth", "NoCredentialException en GetSignInWithGoogleOption, intentando fallback con GetGoogleIdOption", e)
+                    val googleIdOption = GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(false)
+                        .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
+                        .setAutoSelectEnabled(false)
+                        .build()
+                    val fallbackRequest = GetCredentialRequest.Builder()
+                        .addCredentialOption(googleIdOption)
+                        .build()
+                    credentialManager.getCredential(context = context, request = fallbackRequest)
+                }
+
+                val credential = result.credential
+                Log.d("CampusGoGoogleAuth", "Respuesta recibida de CredentialManager. Tipo clase=${credential.javaClass.name}, customType=${(credential as? CustomCredential)?.type}")
+
+                val idToken: String? = when {
+                    credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL -> {
+                        try {
+                            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                            Log.d("CampusGoGoogleAuth", "Token parseado exitosamente via GoogleIdTokenCredential. Usuario: ${googleIdTokenCredential.id}")
+                            googleIdTokenCredential.idToken
+                        } catch (e: Exception) {
+                            Log.w("CampusGoGoogleAuth", "Error al parsear GoogleIdTokenCredential con createFrom, extrayendo directo del bundle", e)
+                            credential.data.getString("com.google.android.libraries.identity.googleid.BUNDLE_KEY_ID_TOKEN")
+                                ?: credential.data.getString("id_token")
+                        }
+                    }
+                    credential is CustomCredential -> {
+                        Log.w("CampusGoGoogleAuth", "CustomCredential tipo no estándar: ${credential.type}. Claves en bundle: ${credential.data.keySet()}")
+                        credential.data.getString("com.google.android.libraries.identity.googleid.BUNDLE_KEY_ID_TOKEN")
+                            ?: credential.data.getString("id_token")
+                    }
+                    else -> {
+                        Log.e("CampusGoGoogleAuth", "Credencial no reconocida: ${credential.javaClass.name}")
+                        null
+                    }
+                }
+
+                if (!idToken.isNullOrBlank()) {
+                    Log.d("CampusGoGoogleAuth", "ID Token obtenido (longitud ${idToken.length}). Enviando a Supabase...")
+                    authRepository.signInWithGoogleIdToken(idToken)
+                        .onSuccess { profile ->
+                            Log.d("CampusGoGoogleAuth", "¡Éxito total en Supabase! Perfil: ${profile.fullName}, Rol: ${profile.role}")
+                            _uiState.update {
+                                it.copy(isLoading = false, isSuccess = true, profile = profile)
+                            }
+                        }
+                        .onFailure { exception ->
+                            Log.e("CampusGoGoogleAuth", "Fallo al autenticar ID token en Supabase", exception)
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = parseAuthErrorMessage(exception, isLoginMode = true)
+                                )
+                            }
+                        }
+                } else {
+                    val msg = "No se pudo extraer el token de Google. Tipo recibido: ${(credential as? CustomCredential)?.type ?: credential.javaClass.simpleName}"
+                    Log.e("CampusGoGoogleAuth", msg)
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = msg)
+                    }
+                }
+            } catch (e: GetCredentialCancellationException) {
+                Log.w("CampusGoGoogleAuth", "Cancelación recibida de CredentialManager: ${e.message}", e)
+                val msg = e.message.orEmpty()
+                if (msg.contains("activity is cancelled", ignoreCase = true) || msg.contains("16", ignoreCase = true) || msg.contains("10", ignoreCase = true)) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Google rechazó la conexión (${e.message ?: "Cancelado por el sistema"}). Verifica en Google Cloud Console que tu cuenta de correo esté agregada en 'Usuarios de prueba' (Pantalla de consentimiento OAuth) y que el SHA-1 del APK coincida."
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Inicio de sesión con Google cancelado."
+                        )
+                    }
+                }
+            } catch (e: NoCredentialException) {
+                Log.e("CampusGoGoogleAuth", "NoCredentialException: ${e.message}", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "No se encontraron credenciales de Google en este dispositivo. Asegúrate de tener una cuenta de Google vinculada en los ajustes de tu teléfono."
+                    )
+                }
+            } catch (e: GetCredentialException) {
+                Log.e("CampusGoGoogleAuth", "GetCredentialException: ${e.message}", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error al conectar con Google: ${e.message ?: "Inténtalo de nuevo."}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("CampusGoGoogleAuth", "Excepción inesperada en signInWithGoogle: ${e.message}", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "No se pudo iniciar sesión con Google: ${e.message}"
+                    )
+                }
+            }
         }
     }
 

@@ -107,12 +107,10 @@ import com.example.campusgo.domain.model.Product
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.SubOrderStatus
 import com.example.campusgo.domain.model.UserProfile
-import com.example.campusgo.domain.model.orderCodeDisplay
 import com.example.campusgo.domain.model.verificationCode
 import androidx.compose.material.icons.filled.VerifiedUser
 import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.OfficialWarningBanner
-import com.example.campusgo.ui.components.RateExperienceBottomSheet
 import com.example.campusgo.ui.components.StoreStatusBadge
 import com.example.campusgo.ui.components.SubOrderCountdownTimerBadge
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
@@ -277,7 +275,6 @@ fun SellerDashboardScreen(
             uiState.selectedSubOrderForNoShow != null ||
             uiState.selectedProductForStockEdit != null ||
             uiState.selectedSubOrderForDetail != null ||
-            uiState.subOrderToRate != null ||
             showNotificationsSheet ||
             showDatePickerDialog ||
             activeChatSubOrder != null
@@ -430,7 +427,7 @@ fun SellerDashboardScreen(
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Orden ${subOrder.orderCodeDisplay} • ${subOrder.buyerName ?: "Comprador"}",
+                                text = "Cliente: ${subOrder.buyerName?.ifBlank { "Estudiante" } ?: "Estudiante"}",
                                 fontSize = 12.sp,
                                 color = Color(0xFF64748B),
                                 fontWeight = FontWeight.SemiBold
@@ -1375,7 +1372,7 @@ fun SellerDashboardScreen(
                                 color = Color(0xFF16324F)
                             )
                             Text(
-                                text = "Orden ${subOrder.orderCodeDisplay} • ${subOrder.buyerName ?: "Comprador"}",
+                                text = "Cliente: ${subOrder.buyerName?.ifBlank { "Estudiante" } ?: "Estudiante"}",
                                 fontSize = 12.sp,
                                 color = Color(0xFF64748B),
                                 fontWeight = FontWeight.SemiBold
@@ -1670,8 +1667,6 @@ fun SellerDashboardScreen(
             ?: (selectedSub.buyerId?.let { uiState.sellerReviewedOrders["${selectedSub.orderId}-$it"] })
         SellerOrderDetailDialog(
             subOrder = selectedSub,
-            ratingGiven = sellerRating,
-            onRateBuyer = { sub -> viewModel.openRateBuyerDialog(sub) },
             onDismiss = { viewModel.dismissSubOrderDetail() },
             onAccept = {
                 viewModel.acceptSubOrder(it)
@@ -1705,35 +1700,6 @@ fun SellerDashboardScreen(
                     subOrderStatus = subOrder.status,
                     otherUserAvatarUrl = subOrder.buyerAvatarUrl,
                     deliveryCode = subOrder.verificationCode
-                )
-            }
-        )
-    }
-
-    // Modal de Calificación al Comprador (Estilo inDrive / Rappi Bottom Sheet al cerrar venta)
-    if (uiState.subOrderToRate != null) {
-        val subOrder = uiState.subOrderToRate!!
-        val curProf = uiState.sellerProfile ?: profile
-        RateExperienceBottomSheet(
-            title = "¡Venta Completada! 🎉",
-            subtitle = "Cierra la venta calificando al estudiante",
-            targetName = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
-            targetAvatarUrl = subOrder.buyerAvatarUrl,
-            targetRoleLabel = "Estudiante / Comprador",
-            isStore = false,
-            promptText = "¿Cómo fue tu experiencia con el estudiante en la entrega?",
-            commentPlaceholder = "¿El estudiante fue puntual y amable en el punto de encuentro? (Opcional)",
-            submitButtonText = "Cerrar Venta y Calificar ⭐",
-            isSubmitting = uiState.isSubmittingReview,
-            onDismiss = { viewModel.dismissRateBuyerDialog() },
-            onSubmit = { rating, comment ->
-                viewModel.submitBuyerReview(
-                    sellerId = curProf.id,
-                    orderId = subOrder.orderId,
-                    buyerId = subOrder.buyerId ?: "",
-                    subOrderId = subOrder.id,
-                    rating = rating,
-                    comment = comment
                 )
             }
         )
@@ -2106,30 +2072,21 @@ fun SellerDashboardScreen(
                 }
                 }
             },
-            bottomBar = {
-                if (!isAnyModalOpen) {
-                    SellerBottomNavBar(
-                        selectedTab = uiState.selectedTab,
-                        onTabSelected = { tab -> viewModel.setSelectedTab(tab) },
-                        pendingOrdersCount = uiState.pendingCount,
-                        unreadChatCount = unreadChatCount
-                    )
-                }
-            },
             containerColor = Color(0xFFF8FAFC),
             modifier = if (backgroundBlurRadius > 0.dp) modifier.blur(backgroundBlurRadius) else modifier
         ) { innerPadding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(top = innerPadding.calculateTopPadding())
             ) {
                 when (uiState.selectedTab) {
                     SellerTab.PEDIDOS -> {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(16.dp),
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             AnimatedVisibility(
@@ -2376,7 +2333,8 @@ fun SellerDashboardScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 76.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
                         ) {
                             // 1. Bloque: Pedidos de la fecha seleccionada
                             if (displayOrders.isNotEmpty()) {
@@ -2408,11 +2366,9 @@ fun SellerDashboardScreen(
                                     }
                                 }
                                 items(visibleOrders, key = { it.id }) { subOrder ->
-                                    val sellerRating = uiState.sellerReviewedOrders[subOrder.id]
-                                        ?: uiState.sellerReviewedOrders[subOrder.orderId]
-                                        ?: (subOrder.buyerId?.let { uiState.sellerReviewedOrders["${subOrder.orderId}-$it"] })
                                     SellerSubOrderCard(
                                         subOrder = subOrder,
+                                        isProcessing = uiState.processingSubOrderIds.contains(subOrder.id),
                                         onAccept = { viewModel.acceptSubOrder(subOrder.id) },
                                         onStartPrep = { viewModel.startPreparation(subOrder.id) },
                                         onMarkReady = { viewModel.markReady(subOrder.id) },
@@ -2421,8 +2377,6 @@ fun SellerDashboardScreen(
                                         onOpenNoShow = { viewModel.openNoShowDialog(subOrder) },
                                         onExpired = { viewModel.onSubOrderExpired(subOrder.id) },
                                         onOpenDetail = { viewModel.openSubOrderDetail(subOrder) },
-                                        ratingGiven = sellerRating,
-                                        onRateBuyer = { viewModel.openRateBuyerDialog(subOrder) },
                                         buyerStrikes = subOrder.buyerId?.let { uiState.buyerStrikes[it] } ?: 0,
                                         onOpenChat = {
                                             activeChatSubOrder = subOrder
@@ -2559,7 +2513,8 @@ fun SellerDashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp)
+                            .padding(top = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // Pestaña Mis Productos
@@ -2621,7 +2576,8 @@ fun SellerDashboardScreen(
                         } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(bottom = 76.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
                             ) {
                                 items(uiState.products, key = { it.id }) { product ->
                                     val catName = uiState.categories.find { it.id == product.categoryId }?.name
@@ -2681,13 +2637,19 @@ fun SellerDashboardScreen(
                         onSelectChat = { summary ->
                             val matchingSub = uiState.subOrders.find { it.id == summary.subOrderId }
                             if (matchingSub != null) {
+                                val targetBuyerId = matchingSub.buyerId?.takeIf { it.isNotBlank() }
+                                    ?: summary.otherUserId.takeIf { it.isNotBlank() }
+                                    ?: ""
+                                val targetBuyerName = matchingSub.buyerName?.ifBlank {
+                                    summary.otherUserName.ifBlank { "Comprador" }
+                                } ?: summary.otherUserName.ifBlank { "Comprador" }
                                 activeChatSubOrder = matchingSub
                                 chatViewModel.initChat(
                                     subOrderId = matchingSub.id,
                                     currentUserId = curProf.id,
-                                    otherUserId = matchingSub.buyerId ?: "",
-                                    otherUserName = matchingSub.buyerName?.ifBlank { "Comprador" } ?: "Comprador",
-                                    meetingPoint = matchingSub.meetingPointName ?: "Punto por convenir",
+                                    otherUserId = targetBuyerId,
+                                    otherUserName = targetBuyerName,
+                                    meetingPoint = matchingSub.meetingPointName ?: summary.meetingPoint.ifBlank { "Punto por convenir" },
                                     subOrderStatus = matchingSub.status,
                                     otherUserAvatarUrl = summary.otherUserAvatarUrl ?: matchingSub.buyerAvatarUrl,
                                     deliveryCode = summary.deliveryCode
@@ -2739,6 +2701,15 @@ fun SellerDashboardScreen(
         }
     }
 
+    if (!isAnyModalOpen) {
+        SellerBottomNavBar(
+            selectedTab = uiState.selectedTab,
+            onTabSelected = { tab -> viewModel.setSelectedTab(tab) },
+            pendingOrdersCount = uiState.pendingCount,
+            unreadChatCount = unreadChatCount,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
 }
 }
 
@@ -2756,8 +2727,6 @@ fun SellerPastDayCard(
     onExpired: (String) -> Unit,
     onOpenDetail: (SubOrder) -> Unit = {},
     onOpenChat: ((SubOrder) -> Unit)? = null,
-    sellerReviewedOrders: Map<String, Int> = emptyMap(),
-    onRateBuyer: ((SubOrder) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -2826,11 +2795,9 @@ fun SellerPastDayCard(
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     group.orders.forEach { subOrder ->
-                        val sellerRating = sellerReviewedOrders[subOrder.id]
-                            ?: sellerReviewedOrders[subOrder.orderId]
-                            ?: (subOrder.buyerId?.let { sellerReviewedOrders["${subOrder.orderId}-$it"] })
                         SellerSubOrderCard(
                             subOrder = subOrder,
+                            isProcessing = false,
                             onAccept = { onAccept(subOrder.id) },
                             onStartPrep = { onStartPrep(subOrder.id) },
                             onMarkReady = { onMarkReady(subOrder.id) },
@@ -2839,8 +2806,6 @@ fun SellerPastDayCard(
                             onOpenNoShow = { onOpenNoShow(subOrder) },
                             onExpired = { onExpired(subOrder.id) },
                             onOpenDetail = { onOpenDetail(subOrder) },
-                            ratingGiven = sellerRating,
-                            onRateBuyer = if (onRateBuyer != null) { { onRateBuyer(subOrder) } } else null,
                             onOpenChat = if (onOpenChat != null && !subOrder.status.isFinal) { { onOpenChat(subOrder) } } else null
                         )
                     }
@@ -2904,9 +2869,8 @@ fun SellerSubOrderCard(
     onExpired: () -> Unit,
     onOpenDetail: (() -> Unit)? = null,
     onOpenChat: (() -> Unit)? = null,
-    ratingGiven: Int? = null,
-    onRateBuyer: (() -> Unit)? = null,
     buyerStrikes: Int = 0,
+    isProcessing: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var isExpiredState by remember(subOrder.id, subOrder.createdAt) {
@@ -2921,32 +2885,69 @@ fun SellerSubOrderCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Cabecera: ID del subpedido, Temporizador de 15 min y Badge de Estado
+            // 1. Cabecera: Avatar del Comprador, Nombre, PIN / Horario, Temporizador y Badge de Estado
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "Pedido ${subOrder.orderCodeDisplay}",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleSmall
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    CampusGoUserAvatar(
+                        avatarUrl = subOrder.buyerAvatarUrl,
+                        name = subOrder.buyerName,
+                        size = 40.dp
                     )
-                    Text(
-                        text = "Total: S/ %.2f".format(subOrder.subtotalAmount),
-                        color = Color(0xFF003366),
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.5.sp,
+                                color = Color(0xFF0F172A),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (buyerStrikes > 0) {
+                                StrikeBadge(strikes = buyerStrikes)
+                            }
+                        }
+                        // Indicador claro de entrega: PIN de entrega cuando está listo o completado
+                        if (subOrder.status == SubOrderStatus.LISTO ||
+                            subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA ||
+                            subOrder.status == SubOrderStatus.COMPLETADO) {
+                            Text(
+                                text = "PIN: #${subOrder.verificationCode}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0D9488)
+                            )
+                        } else if (!subOrder.scheduledTime.isNullOrBlank()) {
+                            Text(
+                                text = "Entrega: ${subOrder.scheduledTime}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
                 }
 
                 Row(
@@ -2967,22 +2968,112 @@ fun SellerSubOrderCard(
                 }
             }
 
-            // Punto de Entrega y Comprador (Banner Campus-Go)
-            if (!subOrder.meetingPointName.isNullOrBlank() || !subOrder.buyerName.isNullOrBlank()) {
+            // 2. Punto de Encuentro Acordado
+            if (!subOrder.meetingPointName.isNullOrBlank()) {
                 Surface(
-                    color = Color(0xFFF1F5F9),
-                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFF8FAFC),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(
-                            if (onOpenDetail != null) Modifier.clickable { onOpenDetail() }
-                            else Modifier
-                        )
+                        .then(if (onOpenDetail != null) Modifier.clickable { onOpenDetail() } else Modifier)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFFEE2E2),
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_location_custom),
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = subOrder.meetingPointName,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = Color(0xFF1E293B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        if (!subOrder.scheduledTime.isNullOrBlank() &&
+                            subOrder.status != SubOrderStatus.LISTO &&
+                            subOrder.status != SubOrderStatus.ESPERANDO_ENTREGA &&
+                            subOrder.status != SubOrderStatus.COMPLETADO) {
+                            Surface(
+                                color = Color(0xFFEFF6FF),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_alarm_custom),
+                                        contentDescription = null,
+                                        tint = Color(0xFF1D4ED8),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = subOrder.scheduledTime,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF1D4ED8)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Lista de Ítems del pedido (Con formato limpio y cantidades destacadas)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFAFAFA), RoundedCornerShape(10.dp))
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (subOrder.items.isEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "1x Subpedido Campus",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF334155)
+                        )
+                        Text(
+                            text = "S/ %.2f".format(subOrder.subtotalAmount),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                    }
+                } else {
+                    subOrder.items.forEach { item ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -2990,100 +3081,43 @@ fun SellerSubOrderCard(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.weight(1f, fill = false)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_location_custom),
-                                    contentDescription = null,
-                                    tint = Color(0xFFC8102E),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = subOrder.meetingPointName ?: "Punto de encuentro",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF003366)
-                                )
-                            }
-                            if (!subOrder.scheduledTime.isNullOrBlank()) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFE2E8F0),
+                                    modifier = Modifier.padding(vertical = 1.dp)
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_alarm_custom),
-                                        contentDescription = null,
-                                        tint = Color(0xFF003366),
-                                        modifier = Modifier.size(14.dp)
-                                    )
                                     Text(
-                                        text = subOrder.scheduledTime,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium
+                                        text = "${item.quantity}x",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF334155),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
-                            }
-                        }
-                        if (!subOrder.buyerName.isNullOrBlank()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(top = 2.dp)
-                            ) {
-                                CampusGoUserAvatar(
-                                    avatarUrl = subOrder.buyerAvatarUrl,
-                                    name = subOrder.buyerName,
-                                    size = 20.dp
-                                )
                                 Text(
-                                    text = "Comprador: ${subOrder.buyerName}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = item.productName,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                if (buyerStrikes > 0) {
-                                    StrikeBadge(strikes = buyerStrikes)
-                                }
                             }
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider()
-
-            // Lista de Ítems del subpedido
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (subOrder.items.isEmpty()) {
-                    Text(
-                        text = "• 1x Subpedido Campus (S/ %.2f)".format(subOrder.subtotalAmount),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    subOrder.items.forEach { item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "${item.quantity}x ${item.productName}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
                             Text(
                                 text = "S/ %.2f".format(item.subtotal),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
                             )
                         }
                     }
                 }
             }
 
-            HorizontalDivider()
-
-            // Medio de pago y Botones de Acción según el estado actual
+            // 4. Medio de pago y Total
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -3092,302 +3126,245 @@ fun SellerSubOrderCard(
                 val (pmBg, pmTint, pmLabel) = when (subOrder.paymentMethod) {
                     PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
                     PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                    PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                    else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), subOrder.paymentMethod?.name ?: "Efectivo")
+                    PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF334155), "Efectivo")
+                    else -> Triple(Color(0xFFF1F5F9), Color(0xFF334155), subOrder.paymentMethod?.name ?: "Efectivo")
                 }
                 Surface(
                     color = pmBg,
-                    shape = RoundedCornerShape(6.dp)
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        PaymentMethodLogo(method = subOrder.paymentMethod, size = 13.dp)
+                        PaymentMethodLogo(method = subOrder.paymentMethod, size = 14.dp)
                         Text(
                             text = pmLabel,
-                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = pmTint
                         )
                     }
                 }
 
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Total:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF64748B)
+                    )
+                    Text(
+                        text = "S/ %.2f".format(subOrder.subtotalAmount),
+                        color = Color(0xFF003366),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp
+                    )
+                }
+            }
+
+            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+
+            // 5. Botones de Acción (Con animación de carga inmediata para feedback sin demoras)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onOpenChat != null && !subOrder.status.isFinal) {
+                    FilledTonalIconButton(
+                        onClick = onOpenChat,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color(0xFFE6F4EA),
+                            contentColor = Color(0xFF00A884)
+                        ),
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_chat_custom),
+                            contentDescription = "Chat con comprador",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
                 when (subOrder.status) {
                     SubOrderStatus.PENDIENTE -> {
                         if (isExpiredState) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_alarm_custom),
-                                    contentDescription = null,
-                                    tint = Color(0xFFC8102E),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "Cancelado automáticamente por tiempo agotado (15 min)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFC8102E)
-                                )
-                            }
+                            Text(
+                                text = "Expirado (15 min)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFC8102E)
+                            )
                         } else {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (onOpenChat != null) {
-                                    FilledTonalIconButton(
-                                        onClick = onOpenChat,
-                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                            containerColor = Color(0xFFE6F4EA),
-                                            contentColor = Color(0xFF00A884)
-                                        ),
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
-                                    }
-                                }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(
                                     onClick = onOpenRejection,
+                                    enabled = !isProcessing,
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
-                                    Text("Rechazar")
+                                    Text("Rechazar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
                                 Button(
                                     onClick = onAccept,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                    enabled = !isProcessing,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
-                                    Text("Aceptar")
+                                    if (isProcessing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = Color.White
+                                        )
+                                    } else {
+                                        Text("Aceptar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
                     }
                     SubOrderStatus.ACEPTADO -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (onOpenChat != null) {
-                                FilledTonalIconButton(
-                                    onClick = onOpenChat,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = Color(0xFFE6F4EA),
-                                        contentColor = Color(0xFF00A884)
-                                    ),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
-                                }
-                            }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
                                 onClick = onOpenRejection,
+                                enabled = !isProcessing,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                Text("Cancelar", fontSize = 12.sp)
+                                Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Button(
                                 onClick = onStartPrep,
+                                enabled = !isProcessing,
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                             ) {
-                                Text("Iniciar Preparación", fontSize = 12.sp)
+                                if (isProcessing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text("Iniciar Preparación", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
                     SubOrderStatus.EN_PREPARACION -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (onOpenChat != null) {
-                                FilledTonalIconButton(
-                                    onClick = onOpenChat,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = Color(0xFFE6F4EA),
-                                        contentColor = Color(0xFF00A884)
-                                    ),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
-                                }
-                            }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
                                 onClick = onOpenRejection,
+                                enabled = !isProcessing,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                Text("Cancelar", fontSize = 12.sp)
+                                Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Button(
                                 onClick = onMarkReady,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                enabled = !isProcessing,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                             ) {
-                                Text("Marcar Listo", fontSize = 12.sp)
+                                if (isProcessing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text("Marcar Listo", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
                     SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (onOpenChat != null) {
-                                FilledTonalIconButton(
-                                    onClick = onOpenChat,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = Color(0xFFE6F4EA),
-                                        contentColor = Color(0xFF00A884)
-                                    ),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(painter = painterResource(id = R.drawable.ic_chat_custom), contentDescription = "Chat con comprador", modifier = Modifier.size(18.dp))
-                                }
-                            }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
                                 onClick = onOpenRejection,
+                                enabled = !isProcessing,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC8102E)),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                Text("Cancelar", fontSize = 12.sp)
+                                Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Button(
                                 onClick = onOpenDelivery,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B)),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                enabled = !isProcessing,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                             ) {
-                                Text("Confirmar Entrega", fontSize = 12.sp)
+                                if (isProcessing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text("Verificar Entrega (PIN)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
                     SubOrderStatus.COMPLETADO -> {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = Color(0xFF2E7D32),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = "Entregado y Cobrado",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF2E7D32)
-                                    )
-                                }
-                                if (ratingGiven != null && ratingGiven > 0) {
-                                    Row(
-                                        modifier = Modifier.padding(top = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "Calificación:",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF92400E)
-                                        )
-                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            for (star in 1..5) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Star,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(13.dp),
-                                                    tint = if (star <= ratingGiven) Color(0xFFF59E0B) else Color(0xFFCBD5E1)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                if (ratingGiven == null && onRateBuyer != null) {
-                                    OutlinedButton(
-                                        onClick = onRateBuyer,
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
-                                        border = BorderStroke(1.dp, Color(0xFFF59E0B)),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                        modifier = Modifier.height(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = null,
-                                            tint = Color(0xFFF59E0B),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Calificar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    SubOrderStatus.RECHAZADO -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF16A34A),
+                                modifier = Modifier.size(18.dp)
+                            )
                             Text(
-                                text = "Rechazado: ${subOrder.rejectionReason ?: "Sin motivo"}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFC8102E),
+                                text = "Entregado y Cobrado",
+                                style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f, fill = false)
+                                color = Color(0xFF16A34A)
                             )
                         }
                     }
+                    SubOrderStatus.RECHAZADO -> {
+                        Text(
+                            text = "Rechazado: ${subOrder.rejectionReason ?: "Sin motivo"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFC8102E),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     SubOrderStatus.NO_ENTREGADO -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PersonOff,
-                                    contentDescription = null,
-                                    tint = Color(0xFFC8102E),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "No entregado (Inasistencia)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFC8102E)
-                                )
-                            }
-                        }
+                        Text(
+                            text = "No entregado (Inasistencia)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFC8102E),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     else -> {
-                        Text(
-                            text = subOrder.status.name,
-                            style = MaterialTheme.typography.labelSmall
-                        )
+                        Text(text = subOrder.status.name, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -3397,11 +3374,11 @@ fun SellerSubOrderCard(
                     onClick = onOpenDetail,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF003366)),
-                    border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.4f)),
-                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(vertical = 6.dp)
                 ) {
-                    Text("Ver Detalle del Pedido", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text("Ver Detalle Completo", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }

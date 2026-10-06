@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.repository
+package com.example.campusgo.domain.repository
 
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.model.UserRole
@@ -10,6 +10,7 @@ interface AuthRepository {
     val isSessionChecking: StateFlow<Boolean>
 
     suspend fun signIn(email: String, password: String): Result<UserProfile>
+    suspend fun signInWithGoogleIdToken(idToken: String): Result<UserProfile>
     suspend fun signUp(
         email: String,
         password: String,

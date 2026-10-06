@@ -128,11 +128,32 @@ class ChatRepositoryImpl(
         }
 
         try {
-            if (isValidUUID(subOrderId) && isValidUUID(senderId) && isValidUUID(receiverId)) {
+            var effectiveReceiverId = receiverId
+            if (!isValidUUID(effectiveReceiverId) && isValidUUID(subOrderId)) {
+                val cachedMsg = list.find { it.senderId != senderId && isValidUUID(it.senderId) }
+                if (cachedMsg != null) {
+                    effectiveReceiverId = cachedMsg.senderId
+                } else {
+                    try {
+                        val subDto = postgrest["sub_orders"]
+                            .select { filter { eq("id", subOrderId) } }
+                            .decodeSingleOrNull<RemoteSubOrderDto>()
+                        if (subDto != null) {
+                            effectiveReceiverId = if (subDto.sellerId == senderId) {
+                                subDto.buyerId ?: ""
+                            } else {
+                                subDto.sellerId
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
+            if (isValidUUID(subOrderId) && isValidUUID(senderId) && isValidUUID(effectiveReceiverId)) {
                 val dto = InsertOrderMessageDto(
                     subOrderId = subOrderId,
                     senderId = senderId,
-                    receiverId = receiverId,
+                    receiverId = effectiveReceiverId,
                     content = trimmed
                 )
 

@@ -574,34 +574,21 @@ fun BuyerProfileScreen(
                     Text("Cerrar Sesión", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
 
-                // Versión de la app y créditos de autoría
-                Column(
+                // Versión de la app
+                Text(
+                    text = "CampusGO - version 0.6.2-beta",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF94A3B8),
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.5.sp,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 14.dp, bottom = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "CampusGO • Versión ${BuildConfig.VERSION_NAME}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF94A3B8),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Hecho con 💚 por Jhoe Cornelio y Aldo Torres",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF64748B),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                        .padding(top = 10.dp, bottom = 4.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
+            Spacer(modifier = Modifier.height(76.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
         }
     }
 

@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.ui.components
+package com.example.campusgo.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -14,6 +14,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -89,6 +90,7 @@ fun SlideCommit(
     errorLabel: String = "Error al procesar pedido",
     onDone: (() -> Unit)? = null,
     onError: ((String) -> Unit)? = null,
+    onErrorReset: (() -> Unit)? = null,
     isSubmitting: Boolean = false,
     hasError: Boolean = false,
     isDone: Boolean = false,
@@ -174,7 +176,12 @@ fun SlideCommit(
             .clip(trackShape)
             .background(baseTrackBrush)
             .border(BorderStroke(1.dp, trackBorderColor), trackShape)
-            .alpha(if (enabled) 1f else 0.45f),
+            .alpha(if (enabled) 1f else 0.45f)
+            .then(
+                if (hasError && onErrorReset != null) {
+                    Modifier.clickable { onErrorReset.invoke() }
+                } else Modifier
+            ),
         contentAlignment = Alignment.CenterStart
     ) {
         val containerWidthPx = constraints.maxWidth.toFloat()
@@ -215,6 +222,7 @@ fun SlideCommit(
                         stiffness = Spring.StiffnessMediumLow
                     )
                 )
+                onErrorReset?.invoke()
             }
         }
 

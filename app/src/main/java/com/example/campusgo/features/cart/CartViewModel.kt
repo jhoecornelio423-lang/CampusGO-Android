@@ -261,6 +261,10 @@ class CartViewModel(
         _uiState.update { it.copy(placedOrder = null, errorMessage = null) }
     }
 
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
     fun confirmOrder(buyerProfile: UserProfile) {
         val state = _uiState.value
         if (buyerProfile.role == UserRole.SUSPENDED_BUYER || buyerProfile.role == UserRole.SUSPENDED) {

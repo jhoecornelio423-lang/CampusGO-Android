@@ -111,6 +111,10 @@ fun CartScreen(
         }
     }
 
+    LaunchedEffect(currentStep) {
+        viewModel.clearError()
+    }
+
     // Manejo del botón Atrás de Android
     BackHandler(enabled = currentStep != CartCheckoutStep.PRODUCTS) {
         currentStep = when (currentStep) {
@@ -1766,8 +1770,20 @@ fun CartScreen(
                                                     Text(
                                                         text = uiState.errorMessage!!,
                                                         style = MaterialTheme.typography.bodySmall,
-                                                        color = Color(0xFF991B1B)
+                                                        color = Color(0xFF991B1B),
+                                                        modifier = Modifier.weight(1f)
                                                     )
+                                                    IconButton(
+                                                        onClick = { viewModel.clearError() },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Cerrar",
+                                                            tint = Color(0xFFDC2626),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -1847,6 +1863,7 @@ fun CartScreen(
                                                 enabled = uiState.canCheckout,
                                                 isSubmitting = uiState.isSubmitting,
                                                 hasError = uiState.errorMessage != null,
+                                                onErrorReset = { viewModel.clearError() },
                                                 isDone = uiState.placedOrder != null,
                                                 label = "Desliza para confirmar pedido",
                                                 doneLabel = "¡Pedido confirmado!",

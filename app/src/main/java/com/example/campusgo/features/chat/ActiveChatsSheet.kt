@@ -220,7 +220,7 @@ fun ActiveChatsSheet(
                         start = 16.dp,
                         end = 16.dp,
                         top = 12.dp,
-                        bottom = if (onClose == null) (96.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else 24.dp
+                        bottom = if (onClose == null) (76.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()) else 24.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {

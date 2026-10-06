@@ -1,5 +1,6 @@
 package com.example.campusgo.data.repository
 
+import android.util.Log
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.OrderStatus
 import com.example.campusgo.domain.model.PaymentMethod
@@ -76,6 +77,7 @@ data class RemoteSubOrderDto(
     @SerialName("meeting_point_id") val meetingPointId: String? = null,
     @SerialName("meeting_point_name") val meetingPointName: String? = null,
     @SerialName("scheduled_time") val scheduledTime: String? = null,
+    @SerialName("buyer_id") val buyerId: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
@@ -429,7 +431,7 @@ class OrderRepositoryImpl(
                 } catch (_: Exception) {}
             }
 
-            val buyerId = parentOrder?.buyerId
+            val buyerId = rso.buyerId ?: parentOrder?.buyerId
             if (buyerId != null && isValidUUID(buyerId) && (!profileNameCache.containsKey(buyerId) || !profileAvatarCache.containsKey(buyerId))) {
                 try {
                     val bPr = postgrest.from("profiles")
@@ -762,14 +764,17 @@ class OrderRepositoryImpl(
             try {
                 if (postgrest != null && isValidUUID(sellerId)) {
                     val remoteSubOrders = try {
-                        postgrest.from("sub_orders")
+                        val list = postgrest.from("sub_orders")
                             .select {
                                 filter {
                                     eq("seller_id", sellerId)
                                 }
                             }
                             .decodeList<RemoteSubOrderDto>()
-                    } catch (_: Exception) {
+                        Log.d("OrderRepo", "observeSubOrdersForSeller: fetched ${list.size} sub_orders for $sellerId")
+                        list
+                    } catch (e: Exception) {
+                        Log.e("OrderRepo", "observeSubOrdersForSeller error decoding sub_orders: ${e.message}", e)
                         emptyList()
                     }
 
@@ -781,7 +786,8 @@ class OrderRepositoryImpl(
                                 }
                             }
                             .decodeList<RemoteOrderDto>()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Log.e("OrderRepo", "observeSubOrdersForSeller error decoding legacy orders: ${e.message}", e)
                         emptyList()
                     }
 
@@ -864,7 +870,8 @@ class OrderRepositoryImpl(
                                 postgrest.from("orders")
                                     .select { filter { isIn("id", orderIdsNeedingParent) } }
                                     .decodeList<RemoteOrderDto>()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.e("OrderRepo", "Error decoding parent orders: ${e.message}", e)
                                 emptyList()
                             }
                             for (po in freshlyFetchedParentOrders) {
@@ -875,7 +882,7 @@ class OrderRepositoryImpl(
                         val remoteParentOrders = parentOrderIds.mapNotNull { cachedParentOrders[it] }
                         val parentOrdersMap = remoteParentOrders.associateBy { it.id }
 
-                        val missingBuyerIds = remoteParentOrders.map { it.buyerId }
+                        val missingBuyerIds = (remoteParentOrders.map { it.buyerId } + combinedSubOrders.mapNotNull { it.buyerId })
                             .filter { isValidUUID(it) && (!profileNameCache.containsKey(it) || !profilePhoneCache.containsKey(it) || !profileAvatarCache.containsKey(it)) }
                             .distinct()
                         if (missingBuyerIds.isNotEmpty()) {
@@ -907,7 +914,7 @@ class OrderRepositoryImpl(
                             }
                             val subStatus = mapRemoteStatusToSubOrderStatus(rso.status)
                             val parentOrder = parentOrdersMap[rso.orderId]
-                            val buyerId = parentOrder?.buyerId
+                            val buyerId = rso.buyerId ?: parentOrder?.buyerId
                             val buyerName = buyerId?.let { profileNameCache[it] } ?: ""
                             val buyerPhone = buyerId?.let { profilePhoneCache[it] } ?: ""
                             val buyerAvatar = buyerId?.let { profileAvatarCache[it] }
