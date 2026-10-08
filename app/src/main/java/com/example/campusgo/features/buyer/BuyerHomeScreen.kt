@@ -89,6 +89,7 @@ import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.campusgo.theme.LocalDarkTheme
 import com.example.campusgo.features.buyer.components.BuyerBottomNavTab
 import com.example.campusgo.features.buyer.components.CampusGoBottomNavBar
 import com.example.campusgo.features.buyer.components.BuyerFavoritesView
@@ -851,6 +852,7 @@ fun BuyerHomeScreen(
             .filter { store -> selectedStoreId == null || store.sellerId == selectedStoreId }
             .flatMap { store -> store.products.map { prod -> Pair(prod, store) } }
     }
+    val isDark = LocalDarkTheme.current
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -862,13 +864,13 @@ fun BuyerHomeScreen(
                             .shadow(
                                 elevation = 6.dp,
                                 shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                                spotColor = Color(0x1F16324F),
-                                ambientColor = Color(0x2816324F),
+                                spotColor = if (isDark) Color.Transparent else Color(0x1F16324F),
+                                ambientColor = if (isDark) Color.Transparent else Color(0x2816324F),
                                 clip = false
                             ),
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                         shadowElevation = 0.dp
                     ) {
                         Column(
@@ -904,7 +906,7 @@ fun BuyerHomeScreen(
                                             text = currentProfile.fullName.ifBlank { "Comprador" },
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp,
-                                            color = Color(0xFF16324F),
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -917,7 +919,7 @@ fun BuyerHomeScreen(
                                             text = buyerSubtitle,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF64748B),
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -939,8 +941,8 @@ fun BuyerHomeScreen(
                                                     showStrikesBottomSheet = true
                                                 },
                                                 shape = CircleShape,
-                                                color = Color(0xFFFFF7ED),
-                                                border = BorderStroke(1.dp, Color(0xFFFFD8BF)),
+                                                color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFFFF7ED),
+                                                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFFFD8BF)),
                                                 shadowElevation = 1.dp,
                                                 modifier = Modifier.fillMaxSize()
                                             ) {
@@ -985,8 +987,8 @@ fun BuyerHomeScreen(
                                                 showNotificationsDialog = true
                                             },
                                             shape = CircleShape,
-                                            color = if (hasPendingNotifications) Color(0xFFE8F7F2) else Color.White,
-                                            border = BorderStroke(1.dp, if (hasPendingNotifications) Color(0xFFCCFBF1) else Color(0xFFE2E8F0)),
+                                            color = if (hasPendingNotifications) (if (isDark) MaterialTheme.colorScheme.primaryContainer else Color(0xFFE8F7F2)) else (if (isDark) MaterialTheme.colorScheme.surface else Color.White),
+                                            border = BorderStroke(1.dp, if (hasPendingNotifications) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))),
                                             shadowElevation = 1.dp,
                                             modifier = Modifier.fillMaxSize()
                                         ) {
@@ -994,7 +996,7 @@ fun BuyerHomeScreen(
                                                 Icon(
                                                     imageVector = Icons.Outlined.Notifications,
                                                     contentDescription = "Notificaciones",
-                                                    tint = if (hasPendingNotifications) Color(0xFF00A884) else Color(0xFF16324F),
+                                                    tint = if (hasPendingNotifications) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else (if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F)),
                                                     modifier = Modifier.size(20.dp)
                                                 )
                                             }
@@ -1008,7 +1010,7 @@ fun BuyerHomeScreen(
                                                     .align(Alignment.TopEnd)
                                                     .offset(x = (-2).dp, y = 2.dp)
                                                     .background(Color(0xFFEF4444), CircleShape)
-                                                    .border(1.5.dp, Color.White, CircleShape)
+                                                    .border(1.5.dp, if (isDark) MaterialTheme.colorScheme.surface else Color.White, CircleShape)
                                             )
                                         }
                                     }
@@ -1053,12 +1055,12 @@ fun BuyerHomeScreen(
                                                 }
                                             }
                                         } else {
-                                            // Carrito vacío: botón circular blanco minimalista
+                                            // Carrito vacío: botón circular adaptativo
                                             Surface(
                                                 onClick = { showCartScreen = true },
                                                 shape = CircleShape,
-                                                color = Color.White,
-                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                                                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                                                 shadowElevation = 1.dp,
                                                 modifier = Modifier
                                                     .size(40.dp)
@@ -1068,7 +1070,7 @@ fun BuyerHomeScreen(
                                                     Icon(
                                                         painter = painterResource(id = R.drawable.ic_cart_custom),
                                                         contentDescription = "Mi Carrito",
-                                                        tint = Color(0xFF16324F),
+                                                        tint = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                 }
@@ -1086,7 +1088,7 @@ fun BuyerHomeScreen(
                                     Text(
                                         text = "¿Qué buscas hoy? (ej. café, postre)",
                                         fontSize = 13.sp,
-                                        color = Color(0xFF94A3B8)
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)
                                     )
                                 },
                                 leadingIcon = {
@@ -1103,7 +1105,7 @@ fun BuyerHomeScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Clear,
                                                 contentDescription = "Borrar búsqueda",
-                                                tint = Color(0xFF64748B),
+                                                tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1116,19 +1118,21 @@ fun BuyerHomeScreen(
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color(0xFFF1F5F9),
-                                    unfocusedContainerColor = Color(0xFFF8FAFC),
+                                    focusedContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
+                                    unfocusedContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
                                     focusedBorderColor = Color(0xFF00A884),
-                                    unfocusedBorderColor = Color(0xFFE2E8F0),
-                                    focusedTextColor = Color(0xFF16324F),
-                                    unfocusedTextColor = Color(0xFF16324F)
+                                    unfocusedBorderColor = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0),
+                                    focusedTextColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
+                                    unfocusedTextColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
+                                    focusedPlaceholderColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
+                                    unfocusedPlaceholderColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)
                                 )
                             )
                         }
                     }
                 }
             },
-            containerColor = Color(0xFFF8FAFC)
+            containerColor = MaterialTheme.colorScheme.background
         ) { innerPadding ->
             Box(
                 modifier = Modifier.fillMaxSize()
@@ -1452,8 +1456,8 @@ fun BuyerHomeScreen(
                         if (currentSelectedStore != null) {
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFB2E7DC)),
+                                color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFB2E7DC)),
                                 shadowElevation = 2.dp,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1487,7 +1491,7 @@ fun BuyerHomeScreen(
                                                         text = currentSelectedStore.sellerName,
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 14.sp,
-                                                        color = Color(0xFF16324F),
+                                                        color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis,
                                                         modifier = Modifier.weight(1f, fill = false)
@@ -1519,7 +1523,7 @@ fun BuyerHomeScreen(
                                                         Text(
                                                             text = "${currentSelectedStore.openTime} - ${currentSelectedStore.closeTime}",
                                                             fontSize = 11.sp,
-                                                            color = Color(0xFF64748B),
+                                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                                             maxLines = 1
                                                         )
                                                     }
@@ -1533,18 +1537,18 @@ fun BuyerHomeScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Clear,
                                                 contentDescription = "Quitar filtro",
-                                                tint = Color(0xFF94A3B8),
+                                                tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
                                     }
 
-                                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                                    HorizontalDivider(color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))
 
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color(0xFFE6F7F3))
+                                            .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3))
                                             .clickable { selectedStoreForProfile = currentSelectedStore }
                                             .padding(horizontal = 14.dp, vertical = 9.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1596,7 +1600,7 @@ fun BuyerHomeScreen(
                                 Text(
                                     text = "Cargando delicias universitarias...",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF64748B),
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1607,8 +1611,8 @@ fun BuyerHomeScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp),
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                             shadowElevation = 1.dp
                         ) {
                             Column(
@@ -1622,14 +1626,14 @@ fun BuyerHomeScreen(
                                     modifier = Modifier
                                         .size(60.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFF1F5F9)),
+                                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_store_custom),
                                         contentDescription = null,
                                         modifier = Modifier.size(30.dp),
-                                        tint = Color(0xFF94A3B8)
+                                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)
                                     )
                                 }
                                 val activeCategoryLabel = when (selectedCategoryFilter) {
@@ -1649,7 +1653,7 @@ fun BuyerHomeScreen(
                                     },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
-                                    color = Color(0xFF16324F),
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
@@ -1658,7 +1662,7 @@ fun BuyerHomeScreen(
                                         else -> "Intenta buscando por otro término o selecciona otra categoría o puesto."
                                     },
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                     textAlign = TextAlign.Center
                                 )
                                 Button(
@@ -1703,7 +1707,7 @@ fun BuyerHomeScreen(
                                     },
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (activeCategoryLabel != null) Color(0xFF00A884) else Color(0xFF64748B),
+                                    color = if (activeCategoryLabel != null) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)),
                                     letterSpacing = 0.8.sp
                                 )
                                 if (activeCategoryLabel != null) {
@@ -1711,7 +1715,7 @@ fun BuyerHomeScreen(
                                         text = "Catálogo exclusivo de $activeCategoryLabel",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF64748B)
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                     )
                                 }
                             }
@@ -1719,7 +1723,7 @@ fun BuyerHomeScreen(
                             if (activeCategoryLabel != null) {
                                 Surface(
                                     shape = RoundedCornerShape(20.dp),
-                                    color = Color(0xFFE6F7F3),
+                                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
                                     border = BorderStroke(1.dp, Color(0xFF00A884).copy(alpha = 0.35f)),
                                     modifier = Modifier.clickable { selectedCategoryFilter = "TODOS" }
                                 ) {
@@ -1747,7 +1751,7 @@ fun BuyerHomeScreen(
                                     text = "${allMatchingProducts.size} disponibles",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF94A3B8)
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)
                                 )
                             }
                         }

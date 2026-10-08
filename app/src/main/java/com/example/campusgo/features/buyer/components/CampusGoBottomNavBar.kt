@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.buyer.components
+package com.example.campusgo.features.buyer.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -36,7 +36,7 @@ fun CampusGoBottomNavBar(
     modifier: Modifier = Modifier
 ) {
     val activeColor = Color(0xFF00A884)
-    val inactiveColor = Color(0xFF64748B)
+    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = modifier
@@ -45,7 +45,7 @@ fun CampusGoBottomNavBar(
             .background(Color.Transparent),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Barra blanca curvada con bordes redondeados superiores y difuminado/sombra suave
+        // Barra curva con bordes redondeados superiores y difuminado/sombra suave adaptada a modo claro/oscuro
         // El único contorno visible es el redondeado, el exterior es 100% transparente
         Surface(
             modifier = Modifier
@@ -59,8 +59,8 @@ fun CampusGoBottomNavBar(
                     clip = false
                 ),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             shadowElevation = 0.dp
         ) {
             Column(

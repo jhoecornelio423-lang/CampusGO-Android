@@ -88,6 +88,8 @@ import com.example.campusgo.ui.components.compressImageUri
 import com.example.campusgo.ui.components.isSubOrderExpired
 import com.example.campusgo.ui.components.PaymentMethodLogo
 import com.example.campusgo.ui.components.PaymentMethodLogoByName
+import com.example.campusgo.ui.components.formatOrderTime
+import com.example.campusgo.theme.LocalDarkTheme
 import java.util.UUID
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -130,6 +132,7 @@ import com.example.campusgo.domain.model.SupportTicket
 import com.example.campusgo.features.chat.SupportChatBottomSheet
 import com.example.campusgo.ui.components.ActiveSupportTicketBanner
 import kotlinx.coroutines.launch
+import com.example.campusgo.theme.LocalDarkTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1667,6 +1670,7 @@ fun SellerDashboardScreen(
             ?: (selectedSub.buyerId?.let { uiState.sellerReviewedOrders["${selectedSub.orderId}-$it"] })
         SellerOrderDetailDialog(
             subOrder = selectedSub,
+            isProcessing = uiState.processingSubOrderIds.contains(selectedSub.id),
             onDismiss = { viewModel.dismissSubOrderDetail() },
             onAccept = {
                 viewModel.acceptSubOrder(it)
@@ -1915,7 +1919,8 @@ fun SellerDashboardScreen(
                             clip = false
                         ),
                     shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 0.dp
                 ) {
                     Row(
@@ -1950,7 +1955,7 @@ fun SellerDashboardScreen(
                                     text = storeDisplayName,
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -1958,7 +1963,7 @@ fun SellerDashboardScreen(
                                 Text(
                                     text = subtitle,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF64748B),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -1973,45 +1978,54 @@ fun SellerDashboardScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             // Toggle interactivo de Abrir/Cerrar Puesto (iOS pill switch style)
+                            val isDark = LocalDarkTheme.current
                             val thumbOffset by androidx.compose.animation.core.animateDpAsState(
                                 targetValue = if (uiState.isAcceptingOrders) 14.dp else 0.dp,
                                 animationSpec = androidx.compose.animation.core.tween(200),
                                 label = "stall_toggle"
                             )
+                            val toggleBg = if (isDark) {
+                                if (uiState.isAcceptingOrders) Color(0xFF004D3D).copy(alpha = 0.45f) else Color(0xFF450A0A).copy(alpha = 0.45f)
+                            } else {
+                                if (uiState.isAcceptingOrders) Color(0xFFE6F7F3) else Color(0xFFFEE2E2)
+                            }
+                            val toggleBorder = if (isDark) {
+                                if (uiState.isAcceptingOrders) Color(0xFF34D399).copy(alpha = 0.4f) else Color(0xFFF87171).copy(alpha = 0.4f)
+                            } else {
+                                if (uiState.isAcceptingOrders) Color(0xFF00A884).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f)
+                            }
+                            val toggleText = if (isDark) {
+                                if (uiState.isAcceptingOrders) Color(0xFF34D399) else Color(0xFFF87171)
+                            } else {
+                                if (uiState.isAcceptingOrders) Color(0xFF007A60) else Color(0xFFB91C1C)
+                            }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(if (uiState.isAcceptingOrders) Color(0xFFE6F7F3) else Color(0xFFFEE2E2))
-                                    .border(
-                                        1.dp,
-                                        if (uiState.isAcceptingOrders) Color(0xFF00A884).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f),
-                                        RoundedCornerShape(20.dp)
-                                    )
+                                    .background(toggleBg)
+                                    .border(1.dp, toggleBorder, RoundedCornerShape(20.dp))
                                     .clickable { viewModel.toggleAcceptingOrders(!uiState.isAcceptingOrders) }
                                     .padding(start = 9.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(7.dp)
-                                        .background(
-                                            if (uiState.isAcceptingOrders) Color(0xFF00A884) else Color(0xFFEF4444),
-                                            CircleShape
-                                        )
+                                        .background(toggleText, CircleShape)
                                 )
                                 Text(
                                     text = if (uiState.isAcceptingOrders) "Abierto" else "Cerrado",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (uiState.isAcceptingOrders) Color(0xFF007A60) else Color(0xFFB91C1C)
+                                    color = toggleText
                                 )
                                 Box(
                                     modifier = Modifier
                                         .width(30.dp)
                                         .height(18.dp)
                                         .background(
-                                            if (uiState.isAcceptingOrders) Color(0xFF00A884) else Color(0xFFCBD5E1),
+                                            if (uiState.isAcceptingOrders) (if (isDark) Color(0xFF00B589) else Color(0xFF00A884)) else (if (isDark) Color(0xFF30363D) else Color(0xFFCBD5E1)),
                                             RoundedCornerShape(9.dp)
                                         )
                                         .padding(2.dp),
@@ -2072,9 +2086,11 @@ fun SellerDashboardScreen(
                 }
                 }
             },
-            containerColor = Color(0xFFF8FAFC),
+            containerColor = MaterialTheme.colorScheme.background,
             modifier = if (backgroundBlurRadius > 0.dp) modifier.blur(backgroundBlurRadius) else modifier
         ) { innerPadding ->
+            val isDarkMode = LocalDarkTheme.current
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -2128,7 +2144,7 @@ fun SellerDashboardScreen(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_alarm_custom),
                                 contentDescription = null,
-                                tint = if (uiState.isViewingToday) Color(0xFF16324F) else Color(0xFF00A884),
+                                tint = if (uiState.isViewingToday) MaterialTheme.colorScheme.onBackground else Color(0xFF00A884),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -2136,7 +2152,7 @@ fun SellerDashboardScreen(
                                 text = if (uiState.isViewingToday) "Jornada de Hoy • $formattedSelectedDate" else "Historial • $formattedSelectedDate",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = if (uiState.isViewingToday) Color(0xFF16324F) else Color(0xFF00A884),
+                                color = if (uiState.isViewingToday) MaterialTheme.colorScheme.onBackground else Color(0xFF00A884),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -2179,10 +2195,10 @@ fun SellerDashboardScreen(
                             Surface(
                                 onClick = { showDatePickerDialog = true },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (!uiState.isViewingToday) Color(0xFF00A884) else Color(0xFFF8FAFC),
+                                color = if (!uiState.isViewingToday) Color(0xFF00A884) else MaterialTheme.colorScheme.surface,
                                 border = BorderStroke(
                                     1.dp,
-                                    if (!uiState.isViewingToday) Color(0xFF00A884) else Color(0xFFE2E8F0)
+                                    if (!uiState.isViewingToday) Color(0xFF00A884) else MaterialTheme.colorScheme.outlineVariant
                                 ),
                                 shadowElevation = if (!uiState.isViewingToday) 2.dp else 1.dp,
                                 modifier = Modifier.size(38.dp)
@@ -2191,7 +2207,7 @@ fun SellerDashboardScreen(
                                     Icon(
                                         imageVector = Icons.Default.CalendarMonth,
                                         contentDescription = "Seleccionar fecha de historial",
-                                        tint = if (!uiState.isViewingToday) Color.White else Color(0xFF16324F),
+                                        tint = if (!uiState.isViewingToday) Color.White else MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -2207,25 +2223,25 @@ fun SellerDashboardScreen(
                         MetricSummaryCard(
                             title = if (uiState.isViewingToday) "Ganancias Hoy" else "Ganancias",
                             value = "S/ %.2f".format(uiState.displayEarnings),
-                            color = Color(0xFF003366),
+                            color = if (isDarkMode) Color(0xFF38BDF8) else Color(0xFF003366),
                             modifier = Modifier.weight(1.3f)
                         )
                         MetricSummaryCard(
                             title = "Pendientes",
                             value = "${uiState.displayPendingCount}",
-                            color = Color(0xFFF57C00),
+                            color = if (isDarkMode) Color(0xFFFB923C) else Color(0xFFF57C00),
                             modifier = Modifier.weight(1f)
                         )
                         MetricSummaryCard(
                             title = "En Preparación",
                             value = "${uiState.displayInPrepCount}",
-                            color = Color(0xFF1976D2),
+                            color = if (isDarkMode) Color(0xFF60A5FA) else Color(0xFF1976D2),
                             modifier = Modifier.weight(1.25f)
                         )
                         MetricSummaryCard(
                             title = "Listos",
                             value = "${uiState.displayReadyCount}",
-                            color = Color(0xFF2E7D32),
+                            color = if (isDarkMode) Color(0xFF4ADE80) else Color(0xFF2E7D32),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -2253,8 +2269,16 @@ fun SellerDashboardScreen(
                                 onClick = { viewModel.setFilter(filter) },
                                 label = { Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF003366),
-                                    selectedLabelColor = Color.White
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary
                                 )
                             )
                         }
@@ -2276,7 +2300,8 @@ fun SellerDashboardScreen(
                     if (displayOrders.isEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -2315,7 +2340,7 @@ fun SellerDashboardScreen(
                                         onClick = { viewModel.resetToToday() },
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = Color(0xFF003366),
+                                            containerColor = MaterialTheme.colorScheme.primary,
                                             contentColor = Color.White
                                         )
                                     ) {
@@ -2527,11 +2552,11 @@ fun SellerDashboardScreen(
                                 text = "Productos en Venta (${uiState.products.size})",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF003366)
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Button(
                                 onClick = { viewModel.openAddProductDialog() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -2544,7 +2569,8 @@ fun SellerDashboardScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -2567,7 +2593,7 @@ fun SellerDashboardScreen(
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Button(
                                         onClick = { viewModel.openAddProductDialog() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                     ) {
                                         Text("Publicar Primer Producto")
                                     }
@@ -2823,7 +2849,8 @@ fun MetricSummaryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shape = RoundedCornerShape(10.dp),
         modifier = modifier
     ) {
@@ -2883,20 +2910,22 @@ fun SellerSubOrderCard(
         }
     }
 
+    val isDark = LocalDarkTheme.current
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 1. Cabecera: Avatar del Comprador, Nombre, PIN / Horario, Temporizador y Badge de Estado
+            // 1. Cabecera limpia: Código amigable del pedido, Horario de ingreso, Temporizador y Badge de Estado
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2904,49 +2933,29 @@ fun SellerSubOrderCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    CampusGoUserAvatar(
-                        avatarUrl = subOrder.buyerAvatarUrl,
-                        name = subOrder.buyerName,
-                        size = 40.dp
-                    )
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.5.sp,
-                                color = Color(0xFF0F172A),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (buyerStrikes > 0) {
-                                StrikeBadge(strikes = buyerStrikes)
-                            }
-                        }
-                        // Indicador claro de entrega: PIN de entrega cuando está listo o completado
-                        if (subOrder.status == SubOrderStatus.LISTO ||
-                            subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA ||
-                            subOrder.status == SubOrderStatus.COMPLETADO) {
-                            Text(
-                                text = "PIN: #${subOrder.verificationCode}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0D9488)
-                            )
-                        } else if (!subOrder.scheduledTime.isNullOrBlank()) {
-                            Text(
-                                text = "Entrega: ${subOrder.scheduledTime}",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
-                            )
-                        }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "Pedido #${subOrder.orderId.takeLast(4).uppercase()}",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 12.5.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+
+                    val orderTime = formatOrderTime(subOrder.createdAt)
+                    if (orderTime.isNotBlank()) {
+                        Text(
+                            text = "• $orderTime",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
@@ -2968,80 +2977,125 @@ fun SellerSubOrderCard(
                 }
             }
 
-            // 2. Punto de Encuentro Acordado
-            if (!subOrder.meetingPointName.isNullOrBlank()) {
-                Surface(
-                    color = Color(0xFFF8FAFC),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (onOpenDetail != null) Modifier.clickable { onOpenDetail() } else Modifier)
+            // 2. Información del Cliente y Punto de Encuentro Integrado
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    CampusGoUserAvatar(
+                        avatarUrl = subOrder.buyerAvatarUrl,
+                        name = subOrder.buyerName,
+                        size = 40.dp
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color(0xFFFEE2E2),
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_location_custom),
-                                        contentDescription = null,
-                                        tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                }
-                            }
                             Text(
-                                text = subOrder.meetingPointName,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                color = Color(0xFF1E293B),
+                                text = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.5.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-
-                        if (!subOrder.scheduledTime.isNullOrBlank() &&
-                            subOrder.status != SubOrderStatus.LISTO &&
-                            subOrder.status != SubOrderStatus.ESPERANDO_ENTREGA &&
-                            subOrder.status != SubOrderStatus.COMPLETADO) {
-                            Surface(
-                                color = Color(0xFFEFF6FF),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_alarm_custom),
-                                        contentDescription = null,
-                                        tint = Color(0xFF1D4ED8),
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Text(
-                                        text = subOrder.scheduledTime,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF1D4ED8)
-                                    )
-                                }
+                            if (buyerStrikes > 0) {
+                                StrikeBadge(strikes = buyerStrikes)
                             }
                         }
+
+                        // Punto de encuentro y horario acordado
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_location_custom),
+                                contentDescription = null,
+                                tint = Color(0xFF00A884),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = subOrder.meetingPointName?.ifBlank { "Campus Universitario" } ?: "Campus Universitario",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (!subOrder.scheduledTime.isNullOrBlank()) {
+                                Text(
+                                    text = "• ⏰ ${subOrder.scheduledTime}",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // PIN de entrega destacado si está listo o completado
+                if (subOrder.status == SubOrderStatus.LISTO ||
+                    subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA ||
+                    subOrder.status == SubOrderStatus.COMPLETADO) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFECFDF5),
+                        border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "PIN ENTREGA",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF047857),
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                text = "#${subOrder.verificationCode}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp,
+                                color = Color(0xFF065F46)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Nota especial del comprador (si existe)
+            if (!subOrder.notes.isNullOrBlank()) {
+                Surface(
+                    color = if (isDark) Color(0xFF451A03).copy(alpha = 0.5f) else Color(0xFFFFFBEB),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF78350F) else Color(0xFFFDE68A)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("💬", fontSize = 13.sp)
+                        Text(
+                            text = "Nota: ${subOrder.notes}",
+                            fontSize = 12.sp,
+                            color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E),
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -3050,7 +3104,8 @@ fun SellerSubOrderCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFAFAFA), RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -3063,13 +3118,13 @@ fun SellerSubOrderCard(
                             text = "1x Subpedido Campus",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF334155)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "S/ %.2f".format(subOrder.subtotalAmount),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 } else {
@@ -3086,14 +3141,13 @@ fun SellerSubOrderCard(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFE2E8F0),
-                                    modifier = Modifier.padding(vertical = 1.dp)
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                 ) {
                                     Text(
                                         text = "${item.quantity}x",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Color(0xFF334155),
+                                        color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -3101,7 +3155,7 @@ fun SellerSubOrderCard(
                                     text = item.productName,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF1E293B),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -3110,7 +3164,7 @@ fun SellerSubOrderCard(
                                 text = "S/ %.2f".format(item.subtotal),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -3124,10 +3178,10 @@ fun SellerSubOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val (pmBg, pmTint, pmLabel) = when (subOrder.paymentMethod) {
-                    PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                    PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                    PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF334155), "Efectivo")
-                    else -> Triple(Color(0xFFF1F5F9), Color(0xFF334155), subOrder.paymentMethod?.name ?: "Efectivo")
+                    PaymentMethod.YAPE -> Triple(if (isDark) Color(0xFF7B1FA2).copy(alpha = 0.25f) else Color(0xFFF3E5F5), if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A), "Yape")
+                    PaymentMethod.PLIN -> Triple(if (isDark) Color(0xFF00796B).copy(alpha = 0.25f) else Color(0xFFE0F2F1), if (isDark) Color(0xFF80CBC4) else Color(0xFF00796B), "Plin")
+                    PaymentMethod.EFECTIVO -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Efectivo")
+                    else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, subOrder.paymentMethod?.name ?: "Efectivo")
                 }
                 Surface(
                     color = pmBg,
@@ -3154,20 +3208,20 @@ fun SellerSubOrderCard(
                 ) {
                     Text(
                         text = "Total:",
-                        fontSize = 12.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "S/ %.2f".format(subOrder.subtotalAmount),
-                        color = Color(0xFF003366),
+                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF003366),
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp
+                        fontSize = 16.5.sp
                     )
                 }
             }
 
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
             // 5. Botones de Acción (Con animación de carga inmediata para feedback sin demoras)
             Row(
@@ -3370,15 +3424,20 @@ fun SellerSubOrderCard(
             }
 
             if (onOpenDetail != null) {
-                OutlinedButton(
-                    onClick = onOpenDetail,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF003366)),
-                    border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.3f)),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(vertical = 6.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenDetail() }
+                        .padding(top = 2.dp, bottom = 2.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Ver Detalle Completo", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(
+                        text = "Ver detalle del pedido ›",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp,
+                        color = Color(0xFF003366)
+                    )
                 }
             }
         }
@@ -3387,29 +3446,59 @@ fun SellerSubOrderCard(
 
 @Composable
 fun StatusBadge(status: SubOrderStatus) {
+    val isDark = LocalDarkTheme.current
     val (backgroundColor, textColor, label) = when (status) {
-        SubOrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
-        SubOrderStatus.ACEPTADO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "Aceptado")
-        SubOrderStatus.EN_PREPARACION -> Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "En Preparación")
-        SubOrderStatus.LISTO -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Listo para Entrega")
-        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Esperando Entrega")
-        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), "Completado")
-        SubOrderStatus.RECHAZADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
-        SubOrderStatus.CANCELADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelado")
-        SubOrderStatus.NO_ENTREGADO -> Triple(Color(0xFFECEFF1), Color(0xFF455A64), "No entregado")
+        SubOrderStatus.PENDIENTE ->
+            if (isDark) Triple(Color(0xFF78350F).copy(alpha = 0.35f), Color(0xFFFBBF24), "Pendiente")
+            else Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
+        SubOrderStatus.ACEPTADO ->
+            if (isDark) Triple(Color(0xFF1E3A8A).copy(alpha = 0.35f), Color(0xFF60A5FA), "Aceptado")
+            else Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "Aceptado")
+        SubOrderStatus.EN_PREPARACION ->
+            if (isDark) Triple(Color(0xFF581C87).copy(alpha = 0.35f), Color(0xFFC084FC), "En Preparación")
+            else Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "En Preparación")
+        SubOrderStatus.LISTO ->
+            if (isDark) Triple(Color(0xFF064E3B).copy(alpha = 0.45f), Color(0xFF34D399), "Listo para Entrega")
+            else Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Listo para Entrega")
+        SubOrderStatus.ESPERANDO_ENTREGA ->
+            if (isDark) Triple(Color(0xFF064E3B).copy(alpha = 0.45f), Color(0xFF34D399), "Esperando Entrega")
+            else Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Esperando Entrega")
+        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO ->
+            if (isDark) Triple(Color(0xFF004D3D).copy(alpha = 0.45f), Color(0xFF10B981), "Completado")
+            else Triple(Color(0xFFE0F2F1), Color(0xFF00695C), "Completado")
+        SubOrderStatus.RECHAZADO ->
+            if (isDark) Triple(Color(0xFF450A0A).copy(alpha = 0.5f), Color(0xFFF87171), "Rechazado")
+            else Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
+        SubOrderStatus.CANCELADO ->
+            if (isDark) Triple(Color(0xFF450A0A).copy(alpha = 0.5f), Color(0xFFF87171), "Cancelado")
+            else Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelado")
+        SubOrderStatus.NO_ENTREGADO ->
+            if (isDark) Triple(Color(0xFF27272A), Color(0xFF94A3B8), "No entregado")
+            else Triple(Color(0xFFECEFF1), Color(0xFF455A64), "No entregado")
     }
 
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(20.dp),
+        border = if (isDark) BorderStroke(0.75.dp, textColor.copy(alpha = 0.35f)) else null
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = textColor
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(textColor, CircleShape)
+            )
+            Text(
+                text = label,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+        }
     }
 }
 
@@ -3423,10 +3512,13 @@ fun ProductCard(
     modifier: Modifier = Modifier
 ) {
     val isOutOfStock = product.stock <= 0
+    val isDark = LocalDarkTheme.current
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -3460,13 +3552,13 @@ fun ProductCard(
                         Icon(
                             painter = painterResource(id = catTheme.iconResId),
                             contentDescription = null,
-                            tint = Color(0xFF003366),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
                             text = categoryName,
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -3475,6 +3567,7 @@ fun ProductCard(
                     text = product.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
                 if (!product.description.isNullOrBlank()) {
@@ -3493,16 +3586,16 @@ fun ProductCard(
                     Text(
                         text = "S/ %.2f".format(product.price),
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF003366),
+                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF003366),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Surface(
                         onClick = onEditStock,
                         shape = RoundedCornerShape(6.dp),
-                        color = if (isOutOfStock) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(
+                        color = if (isOutOfStock) (if (isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFFEBEE)) else MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(
                             1.dp,
-                            if (isOutOfStock) Color(0xFFC8102E).copy(alpha = 0.5f) else Color.LightGray
+                            if (isOutOfStock) Color(0xFFEF4444) else MaterialTheme.colorScheme.outlineVariant
                         )
                     ) {
                         Row(
@@ -3514,13 +3607,13 @@ fun ProductCard(
                                 text = "Stock: ${product.stock}",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isOutOfStock) Color(0xFFC8102E) else MaterialTheme.colorScheme.onSurface
+                                color = if (isOutOfStock) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface
                             )
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_edit_product_custom),
                                 contentDescription = "Editar Stock",
                                 modifier = Modifier.size(12.dp),
-                                tint = Color(0xFF003366)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -3538,7 +3631,7 @@ fun ProductCard(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_edit_product_custom),
                         contentDescription = "Editar producto completo",
-                        tint = Color(0xFF003366),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -3549,9 +3642,9 @@ fun ProductCard(
                     else -> "Pausado"
                 }
                 val statusColor = when {
-                    isOutOfStock -> Color(0xFFC8102E)
-                    product.isActive -> Color(0xFF2E7D32)
-                    else -> Color(0xFFD97706)
+                    isOutOfStock -> Color(0xFFEF4444)
+                    product.isActive -> if (isDark) Color(0xFF4ADE80) else Color(0xFF2E7D32)
+                    else -> if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
                 }
                 Text(
                     text = statusText,

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.draw.alpha
 import com.example.campusgo.domain.model.PaymentMethod
@@ -455,10 +456,17 @@ fun SubOrderCountdownTimerBadge(
     val seconds = totalSeconds % 60
     val formattedTime = "%02d:%02d".format(minutes, seconds)
 
+    val isDark = com.example.campusgo.theme.LocalDarkTheme.current
     val (bgCol, textCol, borderCol) = when {
-        totalSeconds == 0L -> Triple(Color(0xFFFEF2F2), Color(0xFFDC2626), Color(0xFFFECACA))
-        totalSeconds <= 300 -> Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), Color(0xFFFFEDD5))
-        else -> Triple(Color(0xFFEFF6FF), Color(0xFF1D4ED8), Color(0xFFDBEAFE))
+        totalSeconds == 0L ->
+            if (isDark) Triple(Color(0xFF450A0A).copy(alpha = 0.6f), Color(0xFFF87171), Color(0xFF991B1B).copy(alpha = 0.5f))
+            else Triple(Color(0xFFFEF2F2), Color(0xFFDC2626), Color(0xFFFECACA))
+        totalSeconds <= 300 ->
+            if (isDark) Triple(Color(0xFF431407).copy(alpha = 0.6f), Color(0xFFFB923C), Color(0xFF9A3412).copy(alpha = 0.5f))
+            else Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), Color(0xFFFFEDD5))
+        else ->
+            if (isDark) Triple(Color(0xFF082F49).copy(alpha = 0.6f), Color(0xFF38BDF8), Color(0xFF0369A1).copy(alpha = 0.5f))
+            else Triple(Color(0xFFEFF6FF), Color(0xFF1D4ED8), Color(0xFFDBEAFE))
     }
 
     val alphaAnim by if (totalSeconds in 1..300) {
@@ -506,17 +514,22 @@ fun StoreStatusBadge(
     acceptingOrders: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val isDark = com.example.campusgo.theme.LocalDarkTheme.current
     val normStatus = (status ?: if (acceptingOrders) "ABIERTO" else "CERRADO").uppercase()
 
     val (bgCol, textCol, label) = when {
         !acceptingOrders || normStatus == "CERRADO" ->
-            Triple(Color(0xFFF4F6F8), Color(0xFF64748B), "Cerrado")
+            if (isDark) Triple(Color(0xFF21262D), Color(0xFF8B949E), "Cerrado")
+            else Triple(Color(0xFFF4F6F8), Color(0xFF64748B), "Cerrado")
         normStatus == "SATURADO" ->
-            Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "Saturado (Demoras)")
+            if (isDark) Triple(Color(0xFF78350F).copy(alpha = 0.35f), Color(0xFFFBBF24), "Saturado (Demoras)")
+            else Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "Saturado (Demoras)")
         normStatus == "PAUSADO" ->
-            Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), "Pausado")
+            if (isDark) Triple(Color(0xFF7C2D12).copy(alpha = 0.35f), Color(0xFFFB923C), "Pausado")
+            else Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), "Pausado")
         else ->
-            Triple(Color(0xFFE6F6F3), Color(0xFF16A085), "Abierto")
+            if (isDark) Triple(Color(0xFF004D3D).copy(alpha = 0.45f), Color(0xFF34D399), "Abierto")
+            else Triple(Color(0xFFE6F6F3), Color(0xFF16A085), "Abierto")
     }
 
     Row(
@@ -524,6 +537,7 @@ fun StoreStatusBadge(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bgCol)
+            .let { if (isDark) it.border(0.75.dp, textCol.copy(alpha = 0.35f), RoundedCornerShape(6.dp)) else it }
             .padding(horizontal = 7.dp, vertical = 3.dp)
     ) {
         Box(
@@ -724,16 +738,19 @@ fun PaymentMethodLogoByName(
  * Constantes y estilos profesionales para ventanas emergentes / diálogos en CampusGO.
  */
 val CampusGoDialogShape = RoundedCornerShape(24.dp)
-val CampusGoDialogContainerColor = Color.White
+val CampusGoDialogContainerColor: Color
+    @Composable
+    get() = MaterialTheme.colorScheme.surface
 val CampusGoDialogTonalElevation = 6.dp
 
 /**
  * Modificador estándar para ventanas emergentes que aplica recorte suave y borde sutil
  * otorgando un acabado profesional de tarjeta flotante.
  */
+@Composable
 fun Modifier.campusGoDialogStyle(
     shape: Shape = CampusGoDialogShape,
-    borderColor: Color = Color(0xFFE2E8F0)
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant
 ): Modifier = this
     .clip(shape)
     .border(1.dp, borderColor, shape)
@@ -763,6 +780,35 @@ fun formatAccountCreationDate(isoDate: String?): String {
     }
     return isoDate.take(10)
 }
+
+fun formatOrderTime(isoDate: String?): String {
+    if (isoDate.isNullOrBlank()) return ""
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+    for (pattern in patterns) {
+        try {
+            val sdf = SimpleDateFormat(pattern, Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = sdf.parse(isoDate)
+            if (date != null) {
+                val outFormat = SimpleDateFormat("h:mm a", Locale.forLanguageTag("es-PE")).apply {
+                    timeZone = TimeZone.getTimeZone("America/Lima")
+                }
+                return outFormat.format(date).uppercase()
+            }
+        } catch (_: Exception) {}
+    }
+    return ""
+}
+
 
 @Composable
 fun SetDarkScreenStatusBar(isDark: Boolean = true) {

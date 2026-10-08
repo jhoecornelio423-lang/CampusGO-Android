@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -21,6 +23,7 @@ import com.example.campusgo.core.notification.AppNotificationRouter
 import com.example.campusgo.core.notification.CampusGoFirebaseMessagingService
 import com.example.campusgo.core.notification.CampusGoPushService
 import com.example.campusgo.theme.CampusGOTheme
+import com.example.campusgo.theme.ThemeManager
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +45,14 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(newBase: android.content.Context) {
+        val isDark = ThemeManager.isDarkModeSync(newBase)
         val configuration = android.content.res.Configuration(newBase.resources.configuration)
-        configuration.uiMode = android.content.res.Configuration.UI_MODE_NIGHT_NO or
+        val targetNightMode = if (isDark) {
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        } else {
+            android.content.res.Configuration.UI_MODE_NIGHT_NO
+        }
+        configuration.uiMode = targetNightMode or
                 (configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv())
         val context = newBase.createConfigurationContext(configuration)
         super.attachBaseContext(context)
@@ -51,6 +60,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        ThemeManager.init(this)
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
@@ -108,11 +118,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val pendingRoute = AppNotificationRouter.pendingRoute.collectAsState().value
+            val isDarkMode by ThemeManager.isDarkMode.collectAsState()
 
-            CampusGOTheme {
+            SideEffect {
+                androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !isDarkMode
+                    isAppearanceLightNavigationBars = !isDarkMode
+                }
+            }
+
+            CampusGOTheme(darkTheme = isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = androidx.compose.ui.graphics.Color.White
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     MainNavigation(
                         pendingRoute = pendingRoute,

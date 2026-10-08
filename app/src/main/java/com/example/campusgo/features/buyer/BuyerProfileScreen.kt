@@ -18,8 +18,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.ThemeManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -121,8 +125,8 @@ fun BuyerProfileScreen(
                         clip = false
                     ),
                 shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shadowElevation = 0.dp
             ) {
                 TopAppBar(
@@ -130,7 +134,7 @@ fun BuyerProfileScreen(
                         Text(
                             text = if (isEditMode) "Editar Mi Perfil" else "Mi Perfil",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     navigationIcon = {
@@ -139,7 +143,7 @@ fun BuyerProfileScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Atrás",
-                                    tint = Color(0xFF16324F)
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         } else if (onNavigateBack != null) {
@@ -147,7 +151,7 @@ fun BuyerProfileScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Atrás",
-                                    tint = Color(0xFF16324F)
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -180,7 +184,7 @@ fun BuyerProfileScreen(
                 )
             }
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -193,8 +197,8 @@ fun BuyerProfileScreen(
         ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shadowElevation = 1.5.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -263,12 +267,16 @@ fun BuyerProfileScreen(
                             text = fullName,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
+                        val isDark = LocalDarkTheme.current
+                        val badgeBg = if (isDark) Color(0xFF004D3D).copy(alpha = 0.45f) else Color(0xFFE8F5E9)
+                        val badgeText = if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32)
                         Surface(
-                            color = Color(0xFFE8F5E9),
-                            shape = RoundedCornerShape(20.dp)
+                            color = badgeBg,
+                            shape = RoundedCornerShape(20.dp),
+                            border = if (isDark) BorderStroke(0.75.dp, badgeText.copy(alpha = 0.35f)) else null
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -277,7 +285,7 @@ fun BuyerProfileScreen(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_school_cap),
                                     contentDescription = null,
-                                    tint = Color(0xFF2E7D32),
+                                    tint = badgeText,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -285,7 +293,7 @@ fun BuyerProfileScreen(
                                     text = "Estudiante / Comprador CampusGO",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2E7D32)
+                                    color = badgeText
                                 )
                             }
                         }
@@ -295,8 +303,8 @@ fun BuyerProfileScreen(
 
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shadowElevation = 1.5.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -310,7 +318,7 @@ fun BuyerProfileScreen(
                         text = "INFORMACIÓN DE LA CUENTA",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 0.8.sp
                     )
 
@@ -320,19 +328,19 @@ fun BuyerProfileScreen(
                             label = "Nombre Completo",
                             value = fullName.ifBlank { "No registrado" }
                         )
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ProfileDetailRow(
                             iconPainter = painterResource(id = R.drawable.ic_phone_custom),
                             label = "Teléfono",
                             value = phone.ifBlank { "No registrado" }
                         )
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ProfileDetailRow(
                             iconPainter = painterResource(id = R.drawable.ic_location_custom),
                             label = "Campus Universitario",
                             value = "Campus $campus"
                         )
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ProfileDetailRow(
                             iconPainter = painterResource(id = R.drawable.ic_account_created_custom),
                             label = "Fecha de Creación de Cuenta",
@@ -414,8 +422,8 @@ fun BuyerProfileScreen(
             if (!isEditMode) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 1.5.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -426,10 +434,44 @@ fun BuyerProfileScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
+                            text = "PREFERENCIAS Y AJUSTES",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 0.8.sp
+                        )
+
+                        // 0. Modo Oscuro
+                        val isDarkMode by ThemeManager.isDarkMode.collectAsState()
+                        ProfileInfoNavigationRow(
+                            icon = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                            iconTint = if (isDarkMode) Color(0xFFF4B942) else Color(0xFF6366F1),
+                            iconBg = if (isDarkMode) Color(0xFF334155) else Color(0xFFEEF2FF),
+                            title = "Modo Oscuro",
+                            subtitle = if (isDarkMode) "Activado • Tema nocturno visual" else "Desactivado • Tema claro visual",
+                            showChevron = false,
+                            trailing = {
+                                Switch(
+                                    checked = isDarkMode,
+                                    onCheckedChange = { ThemeManager.setDarkMode(context, it) },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Color(0xFF00A884),
+                                        uncheckedThumbColor = Color(0xFF94A3B8),
+                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                )
+                            },
+                            onClick = { ThemeManager.toggleDarkMode(context) }
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                        Text(
                             text = "MÁS INFORMACIÓN",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
 
@@ -443,7 +485,7 @@ fun BuyerProfileScreen(
                             onClick = { selectedInfoType = ProfileInfoType.TERMS }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         // 2. Políticas de privacidad
                         ProfileInfoNavigationRow(
@@ -455,7 +497,7 @@ fun BuyerProfileScreen(
                             onClick = { selectedInfoType = ProfileInfoType.PRIVACY }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         // 3. Botón de Ayuda
                         ProfileInfoNavigationRow(
@@ -467,7 +509,7 @@ fun BuyerProfileScreen(
                             onClick = { selectedInfoType = ProfileInfoType.HELP }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         // 4. Quiero ser aliado Campus GO
                         ProfileInfoNavigationRow(
@@ -481,7 +523,7 @@ fun BuyerProfileScreen(
                             }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         // 5. Sistema de Strikes / Avisos y Moderación
                         val strikeCount = warnings.size
@@ -625,10 +667,13 @@ private fun ProfileInfoNavigationRow(
     iconBg: Color,
     title: String,
     subtitle: String,
-    trailing: @Composable (() -> Unit)? = null,
+    showChevron: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
+    val effectiveBg = if (isDark) iconTint.copy(alpha = 0.18f) else iconBg
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -639,7 +684,7 @@ private fun ProfileInfoNavigationRow(
     ) {
         Surface(
             shape = CircleShape,
-            color = iconBg,
+            color = effectiveBg,
             modifier = Modifier.size(38.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -666,24 +711,28 @@ private fun ProfileInfoNavigationRow(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF16324F)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF64748B)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (trailing != null) {
             trailing()
-            Spacer(modifier = Modifier.width(6.dp))
+            if (showChevron) {
+                Spacer(modifier = Modifier.width(6.dp))
+            }
         }
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = Color(0xFF94A3B8),
-            modifier = Modifier.size(20.dp)
-        )
+        if (showChevron) {
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 

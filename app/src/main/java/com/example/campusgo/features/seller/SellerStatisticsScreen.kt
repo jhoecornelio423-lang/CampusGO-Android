@@ -55,6 +55,7 @@ import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.SubOrderStatus
 import com.example.campusgo.domain.model.TopProductStat
 import com.example.campusgo.domain.model.UserProfile
+import com.example.campusgo.theme.LocalDarkTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -105,10 +106,12 @@ fun SellerStatisticsScreen(
     val hourlyStats = activeStats.hourlyDistribution
     val meetingPointStats = activeStats.topMeetingPoints
 
+    val isDark = LocalDarkTheme.current
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 76.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -124,7 +127,7 @@ fun SellerStatisticsScreen(
                     text = "Periodo:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 StatsTimeRange.values().forEach { range ->
                     val isSelected = selectedRange == range
@@ -141,8 +144,16 @@ fun SellerStatisticsScreen(
                         },
                         label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF003366),
-                            selectedLabelColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant,
+                            selectedBorderColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -154,8 +165,8 @@ fun SellerStatisticsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(3.dp),
-                    color = Color(0xFF003366),
-                    trackColor = Color(0xFFE2E8F0)
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
         }
@@ -218,8 +229,8 @@ fun SellerStatisticsScreen(
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -233,11 +244,11 @@ fun SellerStatisticsScreen(
                         text = "DESGLOSE DE PEDIDOS",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366),
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = 0.5.sp
                     )
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     OrderStatusProgressBar(
                         label = "Entregados y Cobrados",
@@ -265,8 +276,8 @@ fun SellerStatisticsScreen(
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -280,17 +291,17 @@ fun SellerStatisticsScreen(
                         text = "PRODUCTOS MÁS VENDIDOS",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366),
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = 0.5.sp
                     )
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     if (topProducts.isEmpty()) {
                         Text(
                             text = "Aún no se han completado ventas en este periodo.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     } else {
@@ -308,7 +319,7 @@ fun SellerStatisticsScreen(
                                     ) {
                                         Surface(
                                             shape = CircleShape,
-                                            color = when (index) {
+                                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else when (index) {
                                                 0 -> Color(0xFFFEF3C7)
                                                 1 -> Color(0xFFE2E8F0)
                                                 2 -> Color(0xFFFFEDD5)
@@ -321,7 +332,7 @@ fun SellerStatisticsScreen(
                                                     text = "#${index + 1}",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = when (index) {
+                                                    color = if (isDark) MaterialTheme.colorScheme.onSurface else when (index) {
                                                         0 -> Color(0xFFB45309)
                                                         1 -> Color(0xFF475569)
                                                         2 -> Color(0xFF9A3412)
@@ -334,7 +345,7 @@ fun SellerStatisticsScreen(
                                             text = item.productName,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1E293B)
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
@@ -342,7 +353,7 @@ fun SellerStatisticsScreen(
                                             text = "${item.unitsSold} uds.",
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF003366)
+                                            color = if (isDark) Color(0xFF38BDF8) else Color(0xFF003366)
                                         )
                                         Text(
                                             text = "S/ %.2f".format(item.totalAmount),
@@ -358,7 +369,7 @@ fun SellerStatisticsScreen(
                                         .height(6.dp)
                                         .clip(RoundedCornerShape(3.dp)),
                                     color = Color(0xFF00A884),
-                                    trackColor = Color(0xFFE2E8F0)
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                             }
                         }
@@ -371,8 +382,8 @@ fun SellerStatisticsScreen(
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -386,11 +397,11 @@ fun SellerStatisticsScreen(
                         text = "HORARIOS DE MAYOR DEMANDA",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366),
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = 0.5.sp
                     )
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     val slotLabels = mapOf(
                         "morning" to Pair("Mañana (08:00 - 12:00)", Color(0xFF0284C7)),
@@ -410,7 +421,7 @@ fun SellerStatisticsScreen(
                                 Text(
                                     text = slotLabel,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF334155)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "${stat.orderCount} pedidos",
@@ -426,7 +437,7 @@ fun SellerStatisticsScreen(
                                     .height(6.dp)
                                     .clip(RoundedCornerShape(3.dp)),
                                 color = color,
-                                trackColor = Color(0xFFF1F5F9)
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         }
                     }
@@ -439,8 +450,8 @@ fun SellerStatisticsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -454,11 +465,11 @@ fun SellerStatisticsScreen(
                             text = "PUNTOS DE ENTREGA MÁS FRECUENTES",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 0.5.sp
                         )
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         val maxPoints = meetingPointStats.maxOfOrNull { it.deliveryCount }?.takeIf { it > 0 } ?: 1
                         meetingPointStats.forEach { stat ->
@@ -471,13 +482,13 @@ fun SellerStatisticsScreen(
                                         text = stat.pointName,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF1E293B)
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "${stat.deliveryCount} entregas",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF003366)
+                                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF003366)
                                     )
                                 }
                                 LinearProgressIndicator(
@@ -487,7 +498,7 @@ fun SellerStatisticsScreen(
                                         .height(6.dp)
                                         .clip(RoundedCornerShape(3.dp)),
                                     color = Color(0xFF0284C7),
-                                    trackColor = Color(0xFFF1F5F9)
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                             }
                         }
@@ -508,9 +519,11 @@ private fun StatCard(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = cardColor,
+        color = if (isDark) MaterialTheme.colorScheme.surface else cardColor,
+        border = if (isDark) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
         modifier = modifier
     ) {
         Column(
@@ -526,7 +539,7 @@ private fun StatCard(
                     text = title,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569)
+                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569)
                 )
                 Icon(
                     imageVector = icon,
@@ -539,12 +552,12 @@ private fun StatCard(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF0F172A)
+                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0F172A)
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF64748B),
+                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                 fontSize = 10.sp
             )
         }
@@ -567,7 +580,7 @@ private fun OrderStatusProgressBar(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF334155)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "$count (${(fraction * 100).toInt()}%)",
@@ -583,7 +596,7 @@ private fun OrderStatusProgressBar(
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
             color = color,
-            trackColor = Color(0xFFF1F5F9)
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
     }
 }

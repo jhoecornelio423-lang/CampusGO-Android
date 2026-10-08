@@ -74,6 +74,7 @@ import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.ui.components.PaymentMethodLogo
 import com.example.campusgo.ui.components.getPaymentMethodLogoRes
 import com.example.campusgo.ui.components.SlideCommit
+import com.example.campusgo.theme.LocalDarkTheme
 import org.koin.androidx.compose.koinViewModel
 
 enum class CartCheckoutStep {
@@ -93,6 +94,7 @@ fun CartScreen(
     modifier: Modifier = Modifier,
     viewModel: CartViewModel = koinViewModel()
 ) {
+    val isDark = LocalDarkTheme.current
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var disabledPaymentNotice by remember { mutableStateOf<String?>(null) }
@@ -238,14 +240,14 @@ fun CartScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White,
-                        scrolledContainerColor = Color.White,
-                        titleContentColor = Color(0xFF16324F),
-                        navigationIconContentColor = Color(0xFF16324F)
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     title = {
                         Text(
@@ -255,7 +257,7 @@ fun CartScreen(
                                 CartCheckoutStep.PAYMENT -> "Método de Pago"
                             },
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     navigationIcon = {
@@ -302,7 +304,8 @@ fun CartScreen(
                         Text(
                             text = "Tu carrito está vacío",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Explora los puestos de tu campus y agrega tus antojos favoritos en una sola compra.",
@@ -323,7 +326,7 @@ fun CartScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.background)
                         .padding(innerPadding)
                 ) {
                     val canProceedToPayment = uiState.canProceedToPayment
@@ -1012,12 +1015,12 @@ fun CartScreen(
                                                         Surface(
                                                             onClick = { viewModel.selectTimeSlot(slot) },
                                                             shape = RoundedCornerShape(10.dp),
-                                                            color = if (isSelected) Color(0xFF00A884) else Color.White,
+                                                            color = if (isSelected) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White),
                                                             border = BorderStroke(
                                                                 width = if (isSelected) 1.5.dp else 1.dp,
-                                                                color = if (isSelected) Color(0xFF00A884) else Color(0xFFCBD5E1)
+                                                                color = if (isSelected) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1))
                                                             ),
-                                                            shadowElevation = if (isSelected) 2.dp else 0.5.dp,
+                                                            shadowElevation = if (isDark) 0.dp else (if (isSelected) 2.dp else 0.5.dp),
                                                             modifier = Modifier.height(36.dp)
                                                         ) {
                                                             Row(
@@ -1037,7 +1040,7 @@ fun CartScreen(
                                                                     text = slot,
                                                                     style = MaterialTheme.typography.labelMedium,
                                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                                    color = if (isSelected) Color.White else Color(0xFF334155)
+                                                                    color = if (isSelected) Color.White else (if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF334155))
                                                                 )
                                                             }
                                                         }
@@ -1153,8 +1156,8 @@ fun CartScreen(
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(16.dp),
-                                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))
                                         ) {
                                             Column(modifier = Modifier.fillMaxWidth()) {
                                                 val chevronRotation by animateFloatAsState(
@@ -1545,16 +1548,16 @@ fun CartScreen(
                                                                                 },
                                                                                 shape = RoundedCornerShape(10.dp),
                                                                                 color = when {
-                                                                                    !isAvailable -> Color(0xFFF1F5F9)
+                                                                                    !isAvailable -> if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else Color(0xFFF1F5F9)
                                                                                     isSelected -> containerColor
-                                                                                    else -> Color.White
+                                                                                    else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White
                                                                                 },
                                                                                 border = BorderStroke(
                                                                                     width = if (isSelected) 1.5.dp else 1.dp,
                                                                                     color = when {
-                                                                                        !isAvailable -> Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                                                                        !isAvailable -> if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) else Color(0xFFCBD5E1).copy(alpha = 0.6f)
                                                                                         isSelected -> containerColor
-                                                                                        else -> Color(0xFFCBD5E1)
+                                                                                        else -> if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1)
                                                                                     }
                                                                                 ),
                                                                                 modifier = Modifier.weight(1f)
@@ -1577,9 +1580,9 @@ fun CartScreen(
                                                                                         style = MaterialTheme.typography.labelMedium,
                                                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                                                                         color = when {
-                                                                                            !isAvailable -> Color(0xFF94A3B8)
+                                                                                            !isAvailable -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color(0xFF94A3B8)
                                                                                             isSelected -> Color.White
-                                                                                            else -> Color(0xFF1E293B)
+                                                                                            else -> if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                                                                                         },
                                                                                         maxLines = 1
                                                                                     )
@@ -1624,20 +1627,20 @@ fun CartScreen(
                                                                 },
                                                                 shape = RoundedCornerShape(10.dp),
                                                                 color = when {
-                                                                    !isAvailable -> Color(0xFFF1F5F9)
+                                                                    !isAvailable -> if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else Color(0xFFF1F5F9)
                                                                     isSelected -> containerColor
-                                                                    else -> Color.White
+                                                                    else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White
                                                                 },
                                                                 border = BorderStroke(
                                                                     width = if (isSelected) 1.5.dp else 1.dp,
                                                                     color = when {
-                                                                        !isAvailable -> Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                                                        !isAvailable -> if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) else Color(0xFFCBD5E1).copy(alpha = 0.6f)
                                                                         isSelected -> containerColor
-                                                                        else -> Color(0xFFCBD5E1)
+                                                                        else -> if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1)
                                                                     }
                                                                 ),
                                                                 modifier = Modifier.weight(1f)
-                                                            ) {
+                                                             ) {
                                                                 Row(
                                                                     modifier = Modifier
                                                                         .fillMaxWidth()
@@ -1656,9 +1659,9 @@ fun CartScreen(
                                                                         style = MaterialTheme.typography.labelMedium,
                                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                                                         color = when {
-                                                                            !isAvailable -> Color(0xFF94A3B8)
+                                                                            !isAvailable -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color(0xFF94A3B8)
                                                                             isSelected -> Color.White
-                                                                            else -> Color(0xFF1E293B)
+                                                                            else -> if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                                                                         },
                                                                         maxLines = 1
                                                                     )
@@ -1908,8 +1911,9 @@ private fun CartStepIndicator(
     onStepClick: (CartCheckoutStep) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     Surface(
-        color = Color.White,
+        color = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
         modifier = modifier.fillMaxWidth()
     ) {
@@ -1942,7 +1946,7 @@ private fun CartStepIndicator(
                         .padding(horizontal = 2.dp)
                         .background(
                             if (currentStep == CartCheckoutStep.DELIVERY || currentStep == CartCheckoutStep.PAYMENT) Color(0xFF00A884)
-                            else Color(0xFFE2E8F0),
+                            else if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0),
                             shape = CircleShape
                         )
                 )
@@ -1968,7 +1972,7 @@ private fun CartStepIndicator(
                         .padding(horizontal = 2.dp)
                         .background(
                             if (currentStep == CartCheckoutStep.PAYMENT) Color(0xFF00A884)
-                            else Color(0xFFE2E8F0),
+                            else if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0),
                             shape = CircleShape
                         )
                 )
@@ -1989,7 +1993,7 @@ private fun CartStepIndicator(
                 )
             }
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFF1F5F9),
                 thickness = 1.dp
             )
         }
@@ -2005,19 +2009,20 @@ private fun CartStepChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = when {
             isActive -> Color(0xFF00A884)
-            isDone -> Color(0xFFE8F7F2)
-            else -> Color(0xFFF8FAFC)
+            isDone -> if (isDark) Color(0xFF004D3D) else Color(0xFFE8F7F2)
+            else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC)
         },
         border = BorderStroke(
             width = 1.dp,
             color = when {
                 isActive -> Color(0xFF00A884)
-                isDone -> Color(0xFFB2DFDB)
-                else -> Color(0xFFE2E8F0)
+                isDone -> if (isDark) Color(0xFF00B589) else Color(0xFFB2DFDB)
+                else -> if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
             }
         ),
         onClick = onClick,
@@ -2034,9 +2039,9 @@ private fun CartStepChip(
                     .clip(CircleShape)
                     .background(
                         when {
-                            isActive -> Color.White
+                            isActive -> if (isDark) MaterialTheme.colorScheme.surface else Color.White
                             isDone -> Color(0xFF00A884)
-                            else -> Color(0xFFCBD5E1)
+                            else -> if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1)
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -2051,7 +2056,7 @@ private fun CartStepChip(
                 } else {
                     Text(
                         text = "$stepNumber",
-                        color = if (isActive) Color(0xFF00A884) else Color.White,
+                        color = if (isActive) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.onSurface else Color.White),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
@@ -2070,7 +2075,7 @@ private fun CartStepChip(
                 color = when {
                     isActive -> Color.White
                     isDone -> Color(0xFF00A884)
-                    else -> Color(0xFF64748B)
+                    else -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                 },
                 fontSize = 12.sp
             )
@@ -2085,15 +2090,16 @@ private fun CartModeToggleButton(
     label: String,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = if (selected) Color(0xFF00A884) else Color.White,
+        color = if (selected) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
-            color = if (selected) Color(0xFF00A884) else Color(0xFFCBD5E1)
+            color = if (selected) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1))
         ),
-        shadowElevation = if (selected) 2.5.dp else 0.5.dp,
+        shadowElevation = if (isDark) 0.dp else (if (selected) 2.5.dp else 0.5.dp),
         modifier = modifier.height(42.dp)
     ) {
         Row(
@@ -2116,7 +2122,7 @@ private fun CartModeToggleButton(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                color = if (selected) Color.White else Color(0xFF334155),
+                color = if (selected) Color.White else (if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF334155)),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
