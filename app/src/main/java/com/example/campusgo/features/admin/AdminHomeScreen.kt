@@ -57,6 +57,8 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Search
@@ -65,6 +67,7 @@ import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.example.campusgo.theme.ThemeManager
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,6 +117,8 @@ fun AdminHomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var activeSupportTicket by remember { mutableStateOf<SupportTicket?>(null) }
     var enlargedPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var showAdminProfileDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(pendingRoute) {
         when (val route = pendingRoute) {
@@ -149,7 +154,8 @@ fun AdminHomeScreen(
         }
     }
 
-    val isAnyModalOpen = uiState.showCreateMeetingPointDialog ||
+    val isAnyModalOpen = showAdminProfileDialog ||
+            uiState.showCreateMeetingPointDialog ||
             uiState.selectedApplicationForRejection != null ||
             uiState.selectedSellerForSuspension != null ||
             uiState.selectedBuyerForSuspension != null ||
@@ -587,6 +593,155 @@ fun AdminHomeScreen(
         )
     }
 
+    if (showAdminProfileDialog) {
+        val isDarkMode by ThemeManager.isDarkMode.collectAsState()
+        AlertDialog(
+            onDismissRequest = { showAdminProfileDialog = false },
+            shape = CampusGoDialogShape,
+            containerColor = CampusGoDialogContainerColor,
+            tonalElevation = CampusGoDialogTonalElevation,
+            modifier = Modifier.campusGoDialogStyle(),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CampusGoBusinessAvatar(
+                        avatarUrl = profile.avatarUrl,
+                        storeName = profile.fullName,
+                        size = 46.dp
+                    )
+                    Column {
+                        Text(
+                            text = profile.fullName,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Administrador de Campus • ${profile.campus}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "TELÉFONO DE CONTACTO",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = profile.phone.ifBlank { "Sin número registrado" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    Text(
+                        text = "PREFERENCIAS DE LA APP",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.8.sp
+                    )
+
+                    // Switch interactivo de Modo Oscuro para el Administrador
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { ThemeManager.toggleDarkMode(context) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isDarkMode) Color(0xFF334155) else Color(0xFFEEF2FF),
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                        contentDescription = null,
+                                        tint = if (isDarkMode) Color(0xFFF4B942) else Color(0xFF6366F1),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = "Modo Oscuro",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isDarkMode) "Activado • Tema nocturno" else "Desactivado • Tema claro",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = isDarkMode,
+                            onCheckedChange = { ThemeManager.setDarkMode(context, it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF00A884),
+                                uncheckedThumbColor = Color(0xFF94A3B8),
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showAdminProfileDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                ) {
+                    Text("Cerrar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAdminProfileDialog = false
+                        onSignOut()
+                    }
+                ) {
+                    Text("Cerrar Sesión", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -621,13 +776,19 @@ fun AdminHomeScreen(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
+                    val isDarkMode by ThemeManager.isDarkMode.collectAsState()
                     TopAppBar(
                         title = {
-                            Column {
+                            Column(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { showAdminProfileDialog = true }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
                                 Text(
                                     text = "Panel de Administración",
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF003366)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Campus ${profile.campus} • ${profile.fullName}",
@@ -637,6 +798,13 @@ fun AdminHomeScreen(
                             }
                         },
                         actions = {
+                            IconButton(onClick = { ThemeManager.toggleDarkMode(context) }) {
+                                Icon(
+                                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                    contentDescription = if (isDarkMode) "Cambiar a modo claro" else "Cambiar a modo oscuro",
+                                    tint = if (isDarkMode) Color(0xFFF4B942) else Color(0xFF003366)
+                                )
+                            }
                             IconButton(
                                 onClick = { viewModel.refresh() },
                                 enabled = !uiState.isLoading
@@ -645,15 +813,22 @@ fun AdminHomeScreen(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp),
                                         strokeWidth = 2.dp,
-                                        color = Color(0xFF003366)
+                                        color = if (isDarkMode) Color(0xFF70F7D7) else Color(0xFF003366)
                                     )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
                                         contentDescription = "Actualizar datos",
-                                        tint = Color(0xFF003366)
+                                        tint = if (isDarkMode) Color(0xFF70F7D7) else Color(0xFF003366)
                                     )
                                 }
+                            }
+                            IconButton(onClick = { showAdminProfileDialog = true }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_nav_profile_custom),
+                                    contentDescription = "Perfil del Administrador",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                             IconButton(onClick = onSignOut) {
                                 Icon(
@@ -2978,22 +3153,37 @@ fun AdminLiquidGlassDock(
                 )
                 .clip(RoundedCornerShape(32.dp))
                 .background(
-                    // Liquid Glass Translucent Frosted (vidrio líquido claro translúcido)
+                    // Liquid Glass Translucent Frosted (vidrio líquido claro / oscuro translúcido)
                     brush = Brush.verticalGradient(
-                        listOf(
-                            Color(0xCCFFFFFF), // Cristal líquido frosted con alta transparencia
-                            Color(0xAAFFFFFF)  // Base translúcida satinada
-                        )
+                        if (ThemeManager.isDarkMode.collectAsState().value) {
+                            listOf(
+                                Color(0xE61E293B),
+                                Color(0xD90F172A)
+                            )
+                        } else {
+                            listOf(
+                                Color(0xCCFFFFFF),
+                                Color(0xAAFFFFFF)
+                            )
+                        }
                     )
                 )
                 .border(
                     width = 1.3.dp,
                     brush = Brush.verticalGradient(
-                        listOf(
-                            Color(0xF0FFFFFF), // Reflejo especular blanco puro en borde superior
-                            Color(0x80FFFFFF), // Difusión intermedia del cristal
-                            Color(0x30FFFFFF)  // Borde inferior sutil
-                        )
+                        if (ThemeManager.isDarkMode.collectAsState().value) {
+                            listOf(
+                                Color(0x8064748B),
+                                Color(0x40475569),
+                                Color(0x20334155)
+                            )
+                        } else {
+                            listOf(
+                                Color(0xF0FFFFFF),
+                                Color(0x80FFFFFF),
+                                Color(0x30FFFFFF)
+                            )
+                        }
                     ),
                     shape = RoundedCornerShape(32.dp)
                 )
@@ -3004,11 +3194,19 @@ fun AdminLiquidGlassDock(
                     .matchParentSize()
                     .background(
                         brush = Brush.verticalGradient(
-                            listOf(
-                                Color(0x66FFFFFF),
-                                Color(0x1AFFFFFF),
-                                Color.Transparent
-                            )
+                            if (ThemeManager.isDarkMode.collectAsState().value) {
+                                listOf(
+                                    Color(0x33CBD5E1),
+                                    Color(0x0F94A3B8),
+                                    Color.Transparent
+                                )
+                            } else {
+                                listOf(
+                                    Color(0x66FFFFFF),
+                                    Color(0x1AFFFFFF),
+                                    Color.Transparent
+                                )
+                            }
                         )
                     )
             )
@@ -3082,10 +3280,11 @@ private fun AdminDockItem(
                     )
                 } else {
                     Brush.verticalGradient(
-                        listOf(
-                            Color(0x14000000), // Vidrio reposado suave
-                            Color(0x08000000)
-                        )
+                        if (ThemeManager.isDarkMode.collectAsState().value) {
+                            listOf(Color(0x20FFFFFF), Color(0x0CFFFFFF))
+                        } else {
+                            listOf(Color(0x14000000), Color(0x08000000))
+                        }
                     )
                 }
             )
@@ -3112,7 +3311,12 @@ private fun AdminDockItem(
                 .fillMaxSize()
                 .padding(vertical = 4.dp)
         ) {
-            val iconTint = if (isSelected) Color(0xFF003366) else Color(0xFF475569)
+            val isDarkMode = ThemeManager.isDarkMode.collectAsState().value
+            val iconTint = if (isSelected) {
+                if (isDarkMode) Color(0xFF70F7D7) else Color(0xFF003366)
+            } else {
+                if (isDarkMode) Color(0xFF94A3B8) else Color(0xFF475569)
+            }
             val iconModifier = Modifier.size(20.dp)
 
             Box(contentAlignment = Alignment.Center) {
@@ -3147,7 +3351,7 @@ private fun AdminDockItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = item.label,
-                    color = Color(0xFF003366),
+                    color = iconTint,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1

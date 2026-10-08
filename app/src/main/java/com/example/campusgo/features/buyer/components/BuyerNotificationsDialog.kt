@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.verificationCode
+import com.example.campusgo.theme.LocalDarkTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,7 @@ fun BuyerNotificationsDialog(
     onNavigateToOrders: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val totalCount = readyOrders.size + preparingOrders.size
     val configuration = LocalConfiguration.current
@@ -45,7 +47,7 @@ fun BuyerNotificationsDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
@@ -58,7 +60,10 @@ fun BuyerNotificationsDialog(
                     modifier = Modifier
                         .width(42.dp)
                         .height(4.5.dp)
-                        .background(Color(0xFFCBD5E1), CircleShape)
+                        .background(
+                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1),
+                            CircleShape
+                        )
                 )
             }
         },
@@ -84,14 +89,14 @@ fun BuyerNotificationsDialog(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFE6F7F3),
+                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
                         modifier = Modifier.size(42.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Outlined.NotificationsActive,
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -101,13 +106,13 @@ fun BuyerNotificationsDialog(
                             text = "Notificaciones",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 19.sp,
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = if (totalCount > 0) "$totalCount aviso${if (totalCount > 1) "s" else ""} activo${if (totalCount > 1) "s" else ""}" else "Bandeja al día",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (totalCount > 0) Color(0xFF00A884) else Color(0xFF64748B)
+                            color = if (totalCount > 0) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -116,19 +121,19 @@ fun BuyerNotificationsDialog(
                     onClick = onDismiss,
                     modifier = Modifier
                         .size(36.dp)
-                        .background(Color(0xFFF1F5F9), CircleShape)
+                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Cerrar",
-                        tint = Color(0xFF475569),
+                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
             HorizontalDivider(
-                color = Color(0xFFE2E8F0),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 1.dp,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -144,14 +149,14 @@ fun BuyerNotificationsDialog(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFFE6F7F3),
+                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
                         modifier = Modifier.size(76.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Outlined.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                                 modifier = Modifier.size(40.dp)
                             )
                         }
@@ -161,13 +166,13 @@ fun BuyerNotificationsDialog(
                         text = "¡Estás al día!",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
                         text = "No tienes notificaciones pendientes. Te avisaremos aquí y en tiempo real cuando tus pedidos entren en preparación o estén listos para entrega.",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         lineHeight = 19.sp
                     )
@@ -177,7 +182,7 @@ fun BuyerNotificationsDialog(
                     Button(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier
                             .fillMaxWidth(0.55f)
                             .height(42.dp)
@@ -282,11 +287,12 @@ private fun ReadyOrderCard(
     subOrder: SubOrder,
     onAction: () -> Unit
 ) {
+    val isDark = LocalDarkTheme.current
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White),
+        border = BorderStroke(1.dp, if (isDark) Color(0xFF166534).copy(alpha = 0.5f) else Color(0xFFBBF7D0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -301,7 +307,7 @@ private fun ReadyOrderCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFFDCFCE7)
+                    color = if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -317,7 +323,7 @@ private fun ReadyOrderCard(
                             text = "¡Listo para Recoger!",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF15803D)
+                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)
                         )
                     }
                 }
@@ -326,7 +332,7 @@ private fun ReadyOrderCard(
                     text = "Orden #${order.id.takeLast(5).uppercase()}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF94A3B8)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -337,14 +343,14 @@ private fun ReadyOrderCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFFF1F5F9),
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
                     modifier = Modifier.size(34.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Outlined.Store,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -354,12 +360,12 @@ private fun ReadyOrderCard(
                         text = subOrder.sellerName.ifBlank { "Puesto de comida" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.5.sp,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Tu pedido ya fue preparado y está esperando por ti",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -369,8 +375,8 @@ private fun ReadyOrderCard(
             if (meetPt.isNotBlank()) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -381,19 +387,19 @@ private fun ReadyOrderCard(
                         Icon(
                             imageVector = Icons.Outlined.LocationOn,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "Entrega en:",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = meetPt,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00A884)
+                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)
                         )
                     }
                 }
@@ -402,8 +408,8 @@ private fun ReadyOrderCard(
             // Código de verificación destacado
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF0FDF4),
-                border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+                color = if (isDark) Color(0xFF132E1B) else Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, if (isDark) Color(0xFF166534) else Color(0xFF86EFAC)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -416,14 +422,14 @@ private fun ReadyOrderCard(
                             text = "CÓDIGO DE RECOJO",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF166534),
+                            color = if (isDark) Color(0xFF4ADE80) else Color(0xFF166534),
                             letterSpacing = 0.5.sp
                         )
                         Text(
                             text = "#${subOrder.verificationCode}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF15803D),
+                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D),
                             letterSpacing = 1.sp
                         )
                     }
@@ -432,7 +438,7 @@ private fun ReadyOrderCard(
                         text = "Muestra al vendedor",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF166534)
+                        color = if (isDark) Color(0xFF4ADE80) else Color(0xFF166534)
                     )
                 }
             }
@@ -440,7 +446,7 @@ private fun ReadyOrderCard(
             // Botón de acción hacia Mis Pedidos
             Button(
                 onClick = onAction,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -472,11 +478,12 @@ private fun PreparingOrderCard(
     subOrder: SubOrder,
     onAction: () -> Unit
 ) {
+    val isDark = LocalDarkTheme.current
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White),
+        border = BorderStroke(1.dp, if (isDark) Color(0xFF0369A1).copy(alpha = 0.5f) else Color(0xFFBAE6FD)),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -490,7 +497,7 @@ private fun PreparingOrderCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFFE0F2FE)
+                    color = if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -501,7 +508,7 @@ private fun PreparingOrderCard(
                             text = "👨‍🍳 En Preparación",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0369A1)
+                            color = if (isDark) Color(0xFF7DD3FC) else Color(0xFF0369A1)
                         )
                     }
                 }
@@ -510,7 +517,7 @@ private fun PreparingOrderCard(
                     text = "Orden #${order.id.takeLast(5).uppercase()}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF94A3B8)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -520,14 +527,14 @@ private fun PreparingOrderCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFFF1F5F9),
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
                     modifier = Modifier.size(34.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Outlined.Store,
                             contentDescription = null,
-                            tint = Color(0xFF0284C7),
+                            tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -537,12 +544,12 @@ private fun PreparingOrderCard(
                         text = subOrder.sellerName.ifBlank { "Puesto de comida" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.5.sp,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "El puesto está preparando tu orden. Te avisaremos cuando esté lista.",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -551,8 +558,8 @@ private fun PreparingOrderCard(
             if (meetPt.isNotBlank()) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -563,19 +570,19 @@ private fun PreparingOrderCard(
                         Icon(
                             imageVector = Icons.Outlined.LocationOn,
                             contentDescription = null,
-                            tint = Color(0xFF0284C7),
+                            tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "Entrega en:",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = meetPt,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0284C7)
+                            color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
                         )
                     }
                 }
@@ -583,8 +590,8 @@ private fun PreparingOrderCard(
 
             OutlinedButton(
                 onClick = onAction,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0284C7)),
-                border = BorderStroke(1.dp, Color(0xFF0284C7)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)),
+                border = BorderStroke(1.dp, if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()

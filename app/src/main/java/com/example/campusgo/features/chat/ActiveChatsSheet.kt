@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import com.example.campusgo.theme.LocalDarkTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.example.campusgo.core.notification.CampusGoNotificationHelper
@@ -87,9 +88,11 @@ fun ActiveChatsSheet(
         }
     }
 
+    val isDark = LocalDarkTheme.current
+
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF8FAFC)
+        color = if (isDark) MaterialTheme.colorScheme.background else Color(0xFFF8FAFC)
     ) {
         Column(
             modifier = Modifier
@@ -104,13 +107,13 @@ fun ActiveChatsSheet(
                         .shadow(
                             elevation = 6.dp,
                             shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                            spotColor = Color(0x1F16324F),
-                            ambientColor = Color(0x2816324F),
+                            spotColor = if (isDark) Color.Black else Color(0x1F16324F),
+                            ambientColor = if (isDark) Color.Black else Color(0x2816324F),
                             clip = false
                         ),
                     shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                     shadowElevation = 0.dp
                 ) {
                 Row(
@@ -127,7 +130,7 @@ fun ActiveChatsSheet(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Regresar",
-                                    tint = Color(0xFF1E293B)
+                                    tint = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
@@ -138,7 +141,7 @@ fun ActiveChatsSheet(
                             text = "Chats de Pedidos Activos",
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp,
-                            color = Color(0xFF1E293B)
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                         )
                     }
                     Row(
@@ -148,13 +151,13 @@ fun ActiveChatsSheet(
                         val totalActive = chats.size + visibleSupportTickets.size
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF1F5F9)
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                         ) {
                             Text(
                                 text = "$totalActive activo${if (totalActive != 1) "s" else ""}",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp,
-                                color = Color(0xFF475569),
+                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
@@ -187,13 +190,13 @@ fun ActiveChatsSheet(
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE2E8F0)),
+                                .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE2E8F0)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF64748B),
                                 modifier = Modifier.size(32.dp)
                             )
                         }
@@ -201,12 +204,12 @@ fun ActiveChatsSheet(
                             text = "No tienes chats activos",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFF1E293B)
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                         )
                         Text(
                             text = "Los chats de coordinación se habilitan automáticamente cuando tienes un pedido en curso o un caso de soporte con la administración.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF64748B),
+                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                             textAlign = TextAlign.Center
                         )
                     }
@@ -250,14 +253,20 @@ private fun SupportTicketChatItemCard(
     ticket: SupportTicket,
     onClick: () -> Unit
 ) {
+    val isDark = LocalDarkTheme.current
     val isResolved = !ticket.isOpen || ticket.status.equals("RESUELTO", true) || ticket.status.equals("SANCIONADO", true)
 
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, if (isResolved) Color(0xFFE2E8F0) else Color(0xFFBFDBFE)),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) MaterialTheme.colorScheme.outlineVariant else if (isResolved) Color(0xFFE2E8F0) else Color(0xFFBFDBFE)
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -268,7 +277,7 @@ private fun SupportTicketChatItemCard(
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color(0xFF003366),
+                color = if (isDark) Color(0xFF1E293B) else Color(0xFF003366),
                 border = BorderStroke(1.5.dp, Color(0xFFFBBF24)),
                 modifier = Modifier.size(46.dp)
             ) {
@@ -299,13 +308,13 @@ private fun SupportTicketChatItemCard(
                             text = "Administración CampusGO",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Color(0xFF003366),
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF003366),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF003366)
+                            color = if (isDark) Color(0xFF1E293B) else Color(0xFF003366)
                         ) {
                             Text(
                                 text = "ADMIN",
@@ -320,9 +329,10 @@ private fun SupportTicketChatItemCard(
                     // Estado del ticket
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = when {
-                            isResolved -> Color(0xFFDCFCE7)
-                            else -> Color(0xFFDBEAFE)
+                        color = if (isDark) {
+                            if (isResolved) Color(0xFF064E3B) else Color(0xFF1E3A8A)
+                        } else {
+                            if (isResolved) Color(0xFFDCFCE7) else Color(0xFFDBEAFE)
                         }
                     ) {
                         val statusLabel = if (isResolved) "RESUELTO" else "EN ATENCIÓN"
@@ -330,7 +340,11 @@ private fun SupportTicketChatItemCard(
                             text = statusLabel,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isResolved) Color(0xFF166534) else Color(0xFF1E40AF),
+                            color = if (isDark) {
+                                if (isResolved) Color(0xFF6EE7B7) else Color(0xFF93C5FD)
+                            } else {
+                                if (isResolved) Color(0xFF166534) else Color(0xFF1E40AF)
+                            },
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
@@ -343,7 +357,7 @@ private fun SupportTicketChatItemCard(
                     text = "Mesa de Mediación Institucional",
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B),
+                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -354,7 +368,7 @@ private fun SupportTicketChatItemCard(
                     text = formattedSubject,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF003366),
+                    color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -368,11 +382,19 @@ private fun ActiveChatItemCard(
     chat: ActiveChatSummary,
     onClick: () -> Unit
 ) {
+    val isDark = LocalDarkTheme.current
+
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -404,7 +426,7 @@ private fun ActiveChatItemCard(
                             text = chat.otherUserName.ifBlank { "Contacto de Pedido" },
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Color(0xFF1E293B),
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -427,7 +449,7 @@ private fun ActiveChatItemCard(
                         text = "S/ %.2f".format(chat.subtotal),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = Color(0xFF003366)
+                        color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)
                     )
                 }
 
@@ -440,8 +462,8 @@ private fun ActiveChatItemCard(
                 val deliveryTag = "Código #$codeDisplay"
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFFF1F5F9),
-                    border = BorderStroke(0.5.dp, Color(0xFFCBD5E1)),
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
+                    border = BorderStroke(0.5.dp, if (isDark) MaterialTheme.colorScheme.outline else Color(0xFFCBD5E1)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -452,7 +474,7 @@ private fun ActiveChatItemCard(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_orders_bag),
                             contentDescription = null,
-                            tint = Color(0xFF003366),
+                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
@@ -463,7 +485,7 @@ private fun ActiveChatItemCard(
                             },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E293B),
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -484,7 +506,7 @@ private fun ActiveChatItemCard(
                     Text(
                         text = chat.meetingPoint.ifBlank { "Punto por convenir" },
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B),
+                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -499,10 +521,18 @@ private fun ActiveChatItemCard(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = when (chat.status) {
-                            SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> Color(0xFFE8F5E9)
-                            SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION -> Color(0xFFE0F2FE)
-                            else -> Color(0xFFF1F5F9)
+                        color = if (isDark) {
+                            when (chat.status) {
+                                SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> Color(0xFF064E3B)
+                                SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION -> Color(0xFF0C4A6E)
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        } else {
+                            when (chat.status) {
+                                SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> Color(0xFFE8F5E9)
+                                SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION -> Color(0xFFE0F2FE)
+                                else -> Color(0xFFF1F5F9)
+                            }
                         }
                     ) {
                         Text(
@@ -516,10 +546,18 @@ private fun ActiveChatItemCard(
                             },
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = when (chat.status) {
-                                SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> Color(0xFF2E7D32)
-                                SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION -> Color(0xFF0284C7)
-                                else -> Color(0xFF475569)
+                            color = if (isDark) {
+                                when (chat.status) {
+                                    SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> Color(0xFF6EE7B7)
+                                    SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION -> Color(0xFF7DD3FC)
+                                    else -> Color(0xFF94A3B8)
+                                }
+                            } else {
+                                when (chat.status) {
+                                    SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA -> Color(0xFF2E7D32)
+                                    SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION -> Color(0xFF0284C7)
+                                    else -> Color(0xFF475569)
+                                }
                             },
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -533,12 +571,12 @@ private fun ActiveChatItemCard(
                             text = "Abrir Chat",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00A884)
+                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)
                         )
                         Icon(
                             painter = painterResource(id = R.drawable.ic_chat_custom),
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                             modifier = Modifier.size(14.dp)
                         )
                     }

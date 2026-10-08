@@ -43,6 +43,7 @@ import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.ui.components.IncidentContextType
 import com.example.campusgo.ui.components.ReportIncidentDialog
 import kotlinx.coroutines.launch
+import com.example.campusgo.theme.LocalDarkTheme
 import org.koin.compose.koinInject
 
 /**
@@ -57,6 +58,7 @@ fun OrderSummaryReceiptScreen(
     onNavigateBack: () -> Unit,
     orderRepository: OrderRepository = koinInject()
 ) {
+    val isDark = LocalDarkTheme.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var showReportDialog by remember { mutableStateOf(false) }
@@ -74,8 +76,9 @@ fun OrderSummaryReceiptScreen(
             .then(if (backgroundBlurRadius > 0.dp) Modifier.blur(backgroundBlurRadius) else Modifier),
         topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 2.dp,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = if (isDark) 0.dp else 2.dp,
+                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color.Transparent),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -91,30 +94,31 @@ fun OrderSummaryReceiptScreen(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cerrar",
-                            tint = Color(0xFF1E293B)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Text(
                         text = "Comprobante de Pedido",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFF1E293B)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     IconButton(onClick = onNavigateToTracking) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                             contentDescription = "Seguimiento",
-                            tint = Color(0xFF003366)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
             }
         },
-        containerColor = Color(0xFFF1F5F9),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = if (isDark) 0.dp else 8.dp,
+                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color.Transparent),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -126,7 +130,7 @@ fun OrderSummaryReceiptScreen(
                 ) {
                     Button(
                         onClick = onNavigateToTracking,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -192,7 +196,7 @@ fun OrderSummaryReceiptScreen(
                     ) {
                         Text(
                             text = "Volver al Catálogo",
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -210,9 +214,10 @@ fun OrderSummaryReceiptScreen(
         ) {
             // Tarjeta de Éxito y Código de Boleta
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -226,13 +231,13 @@ fun OrderSummaryReceiptScreen(
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE8F5E9)),
+                            .background(if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFE8F5E9)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF2E7D32),
+                            tint = if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32),
                             modifier = Modifier.size(40.dp)
                         )
                     }
@@ -240,18 +245,18 @@ fun OrderSummaryReceiptScreen(
                         text = "¡Pedido Confirmado!",
                         fontWeight = FontWeight.ExtraBold,
                         style = MaterialTheme.typography.titleLarge,
-                        color = Color(0xFF1E293B)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Entrega en: ${order.meetingPointName.ifBlank { "Campus Universitario" }}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Color(0xFF003366)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Los emprendedores fueron notificados y prepararán tu pedido para la hora indicada.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -259,9 +264,10 @@ fun OrderSummaryReceiptScreen(
 
             // Datos de Entrega
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -274,7 +280,7 @@ fun OrderSummaryReceiptScreen(
                         text = "DATOS DE ENTREGA EN CAMPUS",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF94A3B8)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -289,24 +295,24 @@ fun OrderSummaryReceiptScreen(
                             Text(
                                 text = "Punto de Encuentro",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = order.meetingPointName.ifBlank { "Campus Universitario" },
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
-                                color = Color(0xFF1E293B)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFF1F5F9))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_alarm_custom),
                             contentDescription = null,
-                            tint = Color(0xFF003366),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -314,13 +320,13 @@ fun OrderSummaryReceiptScreen(
                             Text(
                                 text = "Horario Acordado",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = order.scheduledTime.ifBlank { "Entrega Inmediata" },
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
-                                color = Color(0xFF1E293B)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -329,9 +335,10 @@ fun OrderSummaryReceiptScreen(
 
             // Desglose de Productos por Puesto / Emprendimiento
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -349,21 +356,21 @@ fun OrderSummaryReceiptScreen(
                             text = "DESGLOSE POR EMPRENDIMIENTO",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF94A3B8)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "${order.subOrders.size} Puesto(s)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     order.subOrders.forEachIndexed { index, subOrder ->
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -379,7 +386,7 @@ fun OrderSummaryReceiptScreen(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_store_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFF003366),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -387,18 +394,18 @@ fun OrderSummaryReceiptScreen(
                                             text = subOrder.sellerName.ifBlank { "Emprendedor #${index + 1}" },
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 14.sp,
-                                            color = Color(0xFF1E293B)
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Text(
                                         text = "S/ %.2f".format(subOrder.subtotalAmount),
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Color(0xFF003366),
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontSize = 14.sp
                                     )
                                 }
 
-                                HorizontalDivider(color = Color(0xFFE2E8F0))
+                                HorizontalDivider(color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))
 
                                 subOrder.items.forEach { item ->
                                     Row(
@@ -409,19 +416,19 @@ fun OrderSummaryReceiptScreen(
                                         Text(
                                             text = "${item.quantity}x ${item.productName}",
                                             fontSize = 13.sp,
-                                            color = Color(0xFF475569),
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(
                                             text = "S/ %.2f".format(item.subtotal),
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF1E293B)
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
 
-                                HorizontalDivider(color = Color(0xFFE2E8F0))
+                                HorizontalDivider(color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -433,14 +440,14 @@ fun OrderSummaryReceiptScreen(
                                     Text(
                                         text = "📍 $ptText",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF003366),
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
                                     Text(
                                         text = "💳 $pmText",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF475569),
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -448,7 +455,7 @@ fun OrderSummaryReceiptScreen(
                         }
                     }
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFF1F5F9))
 
                     // Resumen Total
                     Row(
@@ -460,11 +467,12 @@ fun OrderSummaryReceiptScreen(
                             text = "TOTAL A PAGAR",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 16.sp,
-                            color = Color(0xFF1E293B)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "S/ %.2f".format(order.totalAmount),
                             fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 20.sp,
                         )
                     }

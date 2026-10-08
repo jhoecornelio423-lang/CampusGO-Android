@@ -35,12 +35,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dangerous
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.ThemeManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -126,6 +130,8 @@ fun SellerStoreProfileScreen(
     BackHandler(enabled = !showReportDialog && !showEnlargedPhoto && !isEditMode && showHeader) {
         onNavigateBack()
     }
+
+    val isDark = LocalDarkTheme.current
 
     var selectedMeetingPoints by remember(activeProfile.id, activeProfile.supportedMeetingPoints, availableMeetingPoints) {
         val sanitized = if (availableMeetingPoints.isNotEmpty()) {
@@ -273,7 +279,7 @@ fun SellerStoreProfileScreen(
                         Text(
                             text = if (isEditMode) "Editar Mi Puesto" else "Mi Puesto Comercial",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     navigationIcon = {
@@ -287,7 +293,7 @@ fun SellerStoreProfileScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Atrás",
-                                tint = Color(0xFF003366)
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     },
@@ -309,12 +315,12 @@ fun SellerStoreProfileScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
             }
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -462,8 +468,8 @@ fun SellerStoreProfileScreen(
                     // Tarjeta de fondo blanco
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 2.dp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -495,12 +501,12 @@ fun SellerStoreProfileScreen(
                                     text = businessName.ifBlank { "Nombre del Puesto" },
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Responsable: ${activeProfile.fullName}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF64748B)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -512,8 +518,9 @@ fun SellerStoreProfileScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Surface(
-                                        color = Color(0xFFE6F6F3),
-                                        shape = RoundedCornerShape(8.dp)
+                                        color = if (isDark) Color(0xFF004D3D).copy(alpha = 0.45f) else Color(0xFFE6F6F3),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = if (isDark) BorderStroke(0.75.dp, Color(0xFF34D399).copy(alpha = 0.35f)) else null
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -523,13 +530,13 @@ fun SellerStoreProfileScreen(
                                             Icon(
                                                 painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
                                                 contentDescription = null,
-                                                tint = Color(0xFF0D5C4C),
+                                                tint = if (isDark) Color(0xFF34D399) else Color(0xFF0D5C4C),
                                                 modifier = Modifier.size(13.dp)
                                             )
                                             Text(
                                                 text = "Emprendedor Autorizado",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = Color(0xFF0D5C4C),
+                                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0D5C4C),
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.sp
                                             )
@@ -537,8 +544,9 @@ fun SellerStoreProfileScreen(
                                     }
 
                                     Surface(
-                                        color = Color(0xFFFEF3C7),
-                                        shape = RoundedCornerShape(8.dp)
+                                        color = if (isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFEF3C7),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = if (isDark) BorderStroke(0.75.dp, Color(0xFFFBBF24).copy(alpha = 0.35f)) else null
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -548,14 +556,14 @@ fun SellerStoreProfileScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Star,
                                                 contentDescription = null,
-                                                tint = Color(0xFFD97706),
+                                                tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                                                 modifier = Modifier.size(13.dp)
                                             )
                                             Text(
                                                 text = "%.1f".format(activeProfile.ratingAverage),
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF92400E)
+                                                color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
                                             )
                                         }
                                     }
@@ -573,9 +581,9 @@ fun SellerStoreProfileScreen(
                                 ) {
                                     // Etiqueta de la categoría
                                     Surface(
-                                        color = Color(0xFFF1F5F9),
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
                                         shape = RoundedCornerShape(8.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -585,14 +593,14 @@ fun SellerStoreProfileScreen(
                                             Icon(
                                                 painter = painterResource(id = R.drawable.ic_category_custom),
                                                 contentDescription = null,
-                                                tint = Color(0xFF475569),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(12.dp)
                                             )
                                             Text(
                                                 text = effectiveCategory.ifBlank { activeProfile.businessCategory?.takeIf { it.isNotBlank() } ?: "Comidas y Menús" },
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF334155)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
                                     }
@@ -601,15 +609,15 @@ fun SellerStoreProfileScreen(
                                     val availableMethods = listOf("EFECTIVO", "YAPE", "PLIN")
                                     selectedPaymentMethods.sortedBy { availableMethods.indexOf(it) }.forEach { method ->
                                         val (bg, tint, label) = when (method) {
-                                            "YAPE" -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                                            "PLIN" -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                                            "EFECTIVO" -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                                            else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), method)
+                                            "YAPE" -> if (isDark) Triple(Color(0xFF7B1FA2).copy(alpha = 0.25f), Color(0xFFCE93D8), "Yape") else Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
+                                            "PLIN" -> if (isDark) Triple(Color(0xFF00897B).copy(alpha = 0.25f), Color(0xFF80CBC4), "Plin") else Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
+                                            "EFECTIVO" -> if (isDark) Triple(Color(0xFF0284C7).copy(alpha = 0.2f), Color(0xFF7DD3FC), "Efectivo") else Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
+                                            else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, method)
                                         }
                                         Surface(
                                             color = bg,
                                             shape = RoundedCornerShape(8.dp),
-                                            border = BorderStroke(1.dp, tint.copy(alpha = 0.25f))
+                                            border = BorderStroke(1.dp, tint.copy(alpha = if (isDark) 0.4f else 0.25f))
                                         ) {
                                             Row(
                                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
@@ -650,9 +658,9 @@ fun SellerStoreProfileScreen(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            border = BorderStroke(3.5.dp, Color.White),
+                            border = BorderStroke(3.5.dp, MaterialTheme.colorScheme.surface),
                             shadowElevation = 6.dp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.size(92.dp)
                         ) {
                             CampusGoBusinessAvatar(
@@ -729,12 +737,12 @@ fun SellerStoreProfileScreen(
                         }
                     }
 
-                    // Información del Puesto (Blanco Nítido con Toggle Abierto/Cerrado)
+                    // Información del Puesto (Limpio y sin redundancias)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 1.5.dp
                     ) {
                         Column(
@@ -743,103 +751,27 @@ fun SellerStoreProfileScreen(
                                 .padding(18.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "INFORMACIÓN DEL PUESTO",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF64748B),
-                                    letterSpacing = 0.8.sp
-                                )
-
-                                // Toggle interactivo de Abrir/Cerrar Puesto
-                                val thumbOffset by animateDpAsState(
-                                    targetValue = if (acceptingOrders) 14.dp else 0.dp,
-                                    animationSpec = tween(200),
-                                    label = "stall_toggle_profile"
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(if (acceptingOrders) Color(0xFFE6F7F3) else Color(0xFFFEE2E2))
-                                        .border(
-                                            1.dp,
-                                            if (acceptingOrders) Color(0xFF00A884).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f),
-                                            RoundedCornerShape(20.dp)
-                                        )
-                                        .clickable {
-                                            val newAccepting = !acceptingOrders
-                                            acceptingOrders = newAccepting
-                                            businessStatus = if (newAccepting) "ABIERTO" else "CERRADO"
-                                            onToggleAcceptingOrders?.invoke(newAccepting)
-                                        }
-                                        .padding(start = 9.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(7.dp)
-                                            .background(
-                                                if (acceptingOrders) Color(0xFF00A884) else Color(0xFFEF4444),
-                                                CircleShape
-                                            )
-                                    )
-                                    Text(
-                                        text = if (acceptingOrders) "Abierto" else "Cerrado",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (acceptingOrders) Color(0xFF007A60) else Color(0xFFB91C1C)
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .width(30.dp)
-                                            .height(18.dp)
-                                            .background(
-                                                if (acceptingOrders) Color(0xFF00A884) else Color(0xFFCBD5E1),
-                                                RoundedCornerShape(9.dp)
-                                            )
-                                            .padding(2.dp),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .offset(x = thumbOffset)
-                                                .size(14.dp)
-                                                .background(Color.White, CircleShape)
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = "INFORMACIÓN DEL PUESTO",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 0.8.sp
+                            )
 
                             SellerProfileDetailRow(
                                 label = "Descripción",
                                 value = description.ifBlank { "Sin descripción detallada registrada." }
                             )
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
-                            SellerProfileDetailRow(
-                                label = "Calificación promedio",
-                                value = "⭐ %.1f de 5.0 estrellas".format(activeProfile.ratingAverage)
-                            )
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             SellerProfileDetailRow(
                                 label = "Ubicación en campus",
                                 value = location.ifBlank { "Campus ${activeProfile.campus}" }
                             )
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             SellerProfileDetailRow(
                                 label = "Horario de atención",
                                 value = "$openTime - $closeTime"
-                            )
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
-                            SellerProfileDetailRow(
-                                label = "Recepción de pedidos",
-                                value = if (acceptingOrders) "Abierto • Aceptando pedidos activamente" else "Cerrado • Pedidos desactivados",
-                                valueColor = if (acceptingOrders) Color(0xFF007A60) else Color(0xFFB91C1C)
                             )
                         }
                     }
@@ -848,8 +780,8 @@ fun SellerStoreProfileScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 1.5.dp
                     ) {
                         Column(
@@ -877,28 +809,28 @@ fun SellerStoreProfileScreen(
                                     text = "PUNTOS DE ENTREGA HABILITADOS",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF64748B),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     letterSpacing = 0.8.sp
                                 )
                                 Text(
                                     text = "${displayedMeetingPoints.size} seleccionados",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF00A884)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
                             if (displayedMeetingPoints.isEmpty()) {
                                 Surface(
-                                    color = Color(0xFFFEF2F2),
+                                    color = if (isDark) Color(0xFF450A0A).copy(alpha = 0.5f) else Color(0xFFFEF2F2),
                                     shape = RoundedCornerShape(10.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                    border = BorderStroke(1.dp, if (isDark) Color(0xFF991B1B).copy(alpha = 0.5f) else Color(0xFFFECACA)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = "No has seleccionado puntos de entrega. Tus compradores no podrán programar entregas hasta que habilites al menos un punto.",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF991B1B),
+                                        color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B),
                                         modifier = Modifier.padding(12.dp)
                                     )
                                 }
@@ -913,9 +845,9 @@ fun SellerStoreProfileScreen(
                                         val details = listOfNotNull(pt.pavilion, pt.description).filter { it.isNotBlank() }.joinToString(" • ")
 
                                         Surface(
-                                            color = Color(0xFFF8FAFC),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
                                             shape = RoundedCornerShape(12.dp),
-                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Row(
@@ -932,14 +864,22 @@ fun SellerStoreProfileScreen(
                                                 ) {
                                                     Surface(
                                                         shape = CircleShape,
-                                                        color = if (isExt) Color(0xFFE8F5E9) else Color(0xFFEDE7F6),
+                                                        color = if (isDark) {
+                                                            if (isExt) Color(0xFF004D3D).copy(alpha = 0.4f) else Color(0xFF31104B).copy(alpha = 0.4f)
+                                                        } else {
+                                                            if (isExt) Color(0xFFE8F5E9) else Color(0xFFEDE7F6)
+                                                        },
                                                         modifier = Modifier.size(32.dp)
                                                     ) {
                                                         Box(contentAlignment = Alignment.Center) {
                                                             Icon(
                                                                 painter = painterResource(id = R.drawable.ic_location_custom),
                                                                 contentDescription = null,
-                                                                tint = if (isExt) Color(0xFF2E7D32) else Color(0xFF512DA8),
+                                                                tint = if (isDark) {
+                                                                    if (isExt) Color(0xFF34D399) else Color(0xFFC084FC)
+                                                                } else {
+                                                                    if (isExt) Color(0xFF2E7D32) else Color(0xFF512DA8)
+                                                                },
                                                                 modifier = Modifier.size(16.dp)
                                                             )
                                                         }
@@ -949,26 +889,26 @@ fun SellerStoreProfileScreen(
                                                             text = label,
                                                             fontSize = 13.sp,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFF1E293B)
+                                                            color = MaterialTheme.colorScheme.onSurface
                                                         )
                                                         if (details.isNotBlank()) {
                                                             Text(
                                                                 text = details,
                                                                 fontSize = 11.5.sp,
-                                                                color = Color(0xFF64748B)
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                                             )
                                                         }
                                                     }
                                                 }
                                                 Surface(
-                                                    color = if (isExt) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                    color = if (isExt) Color(0xFF00A884).copy(alpha = 0.15f) else Color(0xFF3B82F6).copy(alpha = 0.15f),
                                                     shape = RoundedCornerShape(6.dp)
                                                 ) {
                                                     Text(
                                                         text = if (isExt) "Exterior" else "Interior",
                                                         fontSize = 10.5.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = if (isExt) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                        color = if (isExt) Color(0xFF10B981) else Color(0xFF60A5FA),
                                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                                     )
                                                 }
@@ -983,8 +923,8 @@ fun SellerStoreProfileScreen(
                     // Sección: MÁS INFORMACIÓN (Términos, Privacidad, Ayuda y Strikes)
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 1.5.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -995,10 +935,44 @@ fun SellerStoreProfileScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Text(
+                                text = "PREFERENCIAS Y AJUSTES",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 0.8.sp
+                            )
+
+                            // 0. Modo Oscuro
+                            val isDarkMode by ThemeManager.isDarkMode.collectAsState()
+                            ProfileInfoNavigationRow(
+                                icon = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                iconTint = if (isDarkMode) Color(0xFFF4B942) else Color(0xFF6366F1),
+                                iconBg = if (isDarkMode) Color(0xFF334155) else Color(0xFFEEF2FF),
+                                title = "Modo Oscuro",
+                                subtitle = if (isDarkMode) "Activado • Tema nocturno visual" else "Desactivado • Tema claro visual",
+                                showChevron = false,
+                                trailing = {
+                                    Switch(
+                                        checked = isDarkMode,
+                                        onCheckedChange = { ThemeManager.setDarkMode(context, it) },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = Color(0xFF00A884),
+                                            uncheckedThumbColor = Color(0xFF94A3B8),
+                                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                    )
+                                },
+                                onClick = { ThemeManager.toggleDarkMode(context) }
+                            )
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Text(
                                 text = "MÁS INFORMACIÓN",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 letterSpacing = 0.8.sp
                             )
 
@@ -1012,7 +986,7 @@ fun SellerStoreProfileScreen(
                                 onClick = { selectedInfoType = ProfileInfoType.TERMS }
                             )
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             // 2. Políticas de privacidad
                             ProfileInfoNavigationRow(
@@ -1024,7 +998,7 @@ fun SellerStoreProfileScreen(
                                 onClick = { selectedInfoType = ProfileInfoType.PRIVACY }
                             )
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             // 3. Botón de Ayuda
                             ProfileInfoNavigationRow(
@@ -1036,7 +1010,7 @@ fun SellerStoreProfileScreen(
                                 onClick = { selectedInfoType = ProfileInfoType.HELP }
                             )
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             // 4. Sistema de Strikes / Avisos y Moderación
                             val strikeCount = warnings.size
@@ -1057,7 +1031,7 @@ fun SellerStoreProfileScreen(
                                 onClick = { showNotificationsSheet = true }
                             )
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             // 5. Botón de Reportar Incidencia / Soporte
                             ProfileInfoNavigationRow(
@@ -1075,8 +1049,8 @@ fun SellerStoreProfileScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 1.5.dp
                 ) {
                     Column(
@@ -1089,7 +1063,7 @@ fun SellerStoreProfileScreen(
                             text = "ESTADO OPERATIVO DEL PUESTO",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
 
@@ -1113,8 +1087,8 @@ fun SellerStoreProfileScreen(
                                     },
                                     modifier = Modifier.weight(1f),
                                     colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = if (isSelected) Color(0xFF003366) else Color.Transparent,
-                                        contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                     ),
                                     contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
                                 ) {
@@ -1125,19 +1099,21 @@ fun SellerStoreProfileScreen(
 
                         if (businessStatus == "SATURADO") {
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFEF3C7)
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
                                     text = "Modo Saturado: Los compradores verán un aviso de alta demanda indicando que su pedido puede tardar un poco más.",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFFB45309),
+                                    color = if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309),
                                     modifier = Modifier.padding(10.dp)
                                 )
                             }
                         }
 
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         OutlinedTextField(
                             value = businessName,
@@ -1289,8 +1265,8 @@ fun SellerStoreProfileScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 1.5.dp
                 ) {
                     Column(
@@ -1303,13 +1279,13 @@ fun SellerStoreProfileScreen(
                             text = "PUNTOS DE ENTREGA AUTORIZADOS *",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
                         Text(
                             text = "Marca únicamente los puntos donde realmente puedes entregar pedidos. Solo estos puntos aparecerán al comprador al realizar su pedido:",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
                         if (meetingPointsError != null) {
@@ -1343,11 +1319,13 @@ fun SellerStoreProfileScreen(
                                     val isChecked = selectedMeetingPoints.contains(point.id)
                                     val isExterior = point.zoneType == "EXTERIOR"
                                     Surface(
-                                        color = if (isChecked) Color(0xFFF0FDF4) else MaterialTheme.colorScheme.surface,
+                                        color = if (isChecked) {
+                                            if (isDark) Color(0xFF004D3D).copy(alpha = 0.35f) else Color(0xFFF0FDF4)
+                                        } else MaterialTheme.colorScheme.surface,
                                         shape = RoundedCornerShape(10.dp),
                                         border = BorderStroke(
                                             1.dp,
-                                            if (isChecked) Color(0xFF86EFAC) else MaterialTheme.colorScheme.outlineVariant
+                                            if (isChecked) (if (isDark) Color(0xFF34D399).copy(alpha = 0.5f) else Color(0xFF86EFAC)) else MaterialTheme.colorScheme.outlineVariant
                                         ),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1380,7 +1358,7 @@ fun SellerStoreProfileScreen(
                                                         meetingPointsError = FormValidators.validateMeetingPoints(updated)
                                                     }
                                                 },
-                                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFF003366))
+                                                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Column(modifier = Modifier.weight(1f)) {
@@ -1427,8 +1405,8 @@ fun SellerStoreProfileScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 1.5.dp
                 ) {
                     Column(
@@ -1441,13 +1419,13 @@ fun SellerStoreProfileScreen(
                             text = "MÉTODOS DE PAGO ACEPTADOS *",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
                         Text(
                             text = "Selecciona qué formas de pago aceptas de tus clientes (debes mantener al menos una activa):",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
                         if (paymentMethodsError != null) {
@@ -1479,17 +1457,17 @@ fun SellerStoreProfileScreen(
                             paymentOptions.forEach { (code, label, desc) ->
                                 val isChecked = selectedPaymentMethods.contains(code)
                                 val (bgTint, textTint) = when (code) {
-                                    "YAPE" -> Color(0xFFF3E5F5) to Color(0xFF6A1B9A)
-                                    "PLIN" -> Color(0xFFE0F2F1) to Color(0xFF00796B)
-                                    else -> Color(0xFFF1F5F9) to Color(0xFF003366)
+                                    "YAPE" -> if (isDark) Color(0xFF7B1FA2).copy(alpha = 0.25f) to Color(0xFFCE93D8) else Color(0xFFF3E5F5) to Color(0xFF6A1B9A)
+                                    "PLIN" -> if (isDark) Color(0xFF00897B).copy(alpha = 0.25f) to Color(0xFF80CBC4) else Color(0xFFE0F2F1) to Color(0xFF00796B)
+                                    else -> if (isDark) Color(0xFF0284C7).copy(alpha = 0.2f) to Color(0xFF7DD3FC) else Color(0xFFF1F5F9) to Color(0xFF003366)
                                 }
 
                                 Surface(
-                                    color = if (isChecked) bgTint.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
+                                    color = if (isChecked) bgTint.copy(alpha = if (isDark) 0.5f else 0.5f) else MaterialTheme.colorScheme.surface,
                                     shape = RoundedCornerShape(10.dp),
                                     border = BorderStroke(
                                         1.dp,
-                                        if (isChecked) textTint.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
+                                        if (isChecked) textTint.copy(alpha = if (isDark) 0.6f else 0.5f) else MaterialTheme.colorScheme.outlineVariant
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1722,10 +1700,13 @@ private fun ProfileInfoNavigationRow(
     iconBg: Color,
     title: String,
     subtitle: String,
+    showChevron: Boolean = true,
     trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
+    val effectiveBg = if (isDark) iconTint.copy(alpha = 0.18f) else iconBg
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1736,7 +1717,7 @@ private fun ProfileInfoNavigationRow(
     ) {
         Surface(
             shape = CircleShape,
-            color = iconBg,
+            color = effectiveBg,
             modifier = Modifier.size(38.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -1763,24 +1744,28 @@ private fun ProfileInfoNavigationRow(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF16324F)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF64748B)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (trailing != null) {
             trailing()
-            Spacer(modifier = Modifier.width(6.dp))
+            if (showChevron) {
+                Spacer(modifier = Modifier.width(6.dp))
+            }
         }
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = Color(0xFF94A3B8),
-            modifier = Modifier.size(20.dp)
-        )
+        if (showChevron) {
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
@@ -1788,7 +1773,7 @@ private fun ProfileInfoNavigationRow(
 private fun SellerProfileDetailRow(
     label: String,
     value: String,
-    valueColor: Color = Color(0xFF1E293B),
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -1799,7 +1784,7 @@ private fun SellerProfileDetailRow(
             text = label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF64748B),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 0.5.sp
         )
         Text(

@@ -36,6 +36,7 @@ import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.features.buyer.StoreCatalogGroup
+import com.example.campusgo.theme.LocalDarkTheme
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +54,7 @@ fun BuyerFavoritesView(
     onExploreCatalog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     // 1. Productos Favoritos guardados
     val favoriteItems = remember(allProducts, favoriteProductIds) {
         allProducts.filter { (product, _) ->
@@ -119,15 +121,15 @@ fun BuyerFavoritesView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 6.dp,
+                        elevation = if (isDark) 0.dp else 6.dp,
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
                         spotColor = Color(0x1F16324F),
                         ambientColor = Color(0x2816324F),
                         clip = false
                     ),
                 shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                 shadowElevation = 0.dp
             ) {
                 TopAppBar(
@@ -137,12 +139,12 @@ fun BuyerFavoritesView(
                                 text = "Mis Favoritos",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp,
-                                color = Color(0xFF16324F)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "${favoriteItems.size} guardados • ${storesList.size} puestos del campus",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
@@ -150,7 +152,7 @@ fun BuyerFavoritesView(
                 )
             }
         },
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
         Column(
@@ -195,7 +197,7 @@ fun BuyerFavoritesView(
                             text = "PRODUCTOS FAVORITOS (${favoriteItems.size})",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
                     }
@@ -215,9 +217,9 @@ fun BuyerFavoritesView(
                     // Tarjeta compacta informativa cuando aún no hay productos en favoritos
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
-                        shadowElevation = 1.dp,
+                        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFEEF2F6)),
+                        shadowElevation = if (isDark) 0.dp else 1.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -229,7 +231,7 @@ fun BuyerFavoritesView(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFFEF2F2),
+                                color = if (isDark) Color(0xFF2D1515) else Color(0xFFFEF2F2),
                                 modifier = Modifier.size(46.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -246,12 +248,12 @@ fun BuyerFavoritesView(
                                     text = "Guarda tus productos preferidos",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = Color(0xFF16324F)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Toca el corazón ❤️ en cualquier producto del menú para encontrarlo aquí al instante.",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 16.sp
                                 )
                             }
@@ -333,7 +335,7 @@ fun BuyerFavoritesView(
                                 text = "PUESTOS DEL CAMPUS (${storesList.size})",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 letterSpacing = 0.8.sp
                             )
                         }
@@ -342,7 +344,7 @@ fun BuyerFavoritesView(
                             text = "Toca para ver puesto",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF94A3B8)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -373,9 +375,9 @@ fun BuyerFavoritesView(
                                         shape = CircleShape,
                                         border = BorderStroke(
                                             width = 2.dp,
-                                            color = if (isOpen) Color(0xFF00A884) else Color(0xFFCBD5E1)
+                                            color = if (isOpen) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1))
                                         ),
-                                        shadowElevation = 2.dp,
+                                        shadowElevation = if (isDark) 0.dp else 2.dp,
                                         modifier = Modifier.size(56.dp)
                                     ) {
                                         CampusGoBusinessAvatar(
@@ -390,7 +392,7 @@ fun BuyerFavoritesView(
                                         modifier = Modifier
                                             .size(15.dp)
                                             .clip(CircleShape)
-                                            .background(Color.White)
+                                            .background(if (isDark) MaterialTheme.colorScheme.surface else Color.White)
                                             .padding(2.dp)
                                             .align(Alignment.BottomEnd)
                                     ) {
@@ -413,7 +415,7 @@ fun BuyerFavoritesView(
                                     text = store.sellerName,
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Center
@@ -425,7 +427,7 @@ fun BuyerFavoritesView(
                                     else "Cerrado",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (isOpen) Color(0xFF16A34A) else Color(0xFF94A3B8)
+                                    color = if (isOpen) Color(0xFF16A34A) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -462,7 +464,7 @@ fun BuyerFavoritesView(
                             text = "LO MÁS PEDIDO POR MÍ",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
                     }
@@ -481,9 +483,9 @@ fun BuyerFavoritesView(
                     // Tarjeta cuando aún no hay historial de compras
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
-                        shadowElevation = 1.dp,
+                        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFEEF2F6)),
+                        shadowElevation = if (isDark) 0.dp else 1.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -498,7 +500,7 @@ fun BuyerFavoritesView(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color(0xFFF0F9FF),
+                                    color = if (isDark) Color(0xFF0C2B47) else Color(0xFFF0F9FF),
                                     modifier = Modifier.size(44.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -515,12 +517,12 @@ fun BuyerFavoritesView(
                                         text = "Tus compras frecuentes aquí",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = Color(0xFF16324F)
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "Cuando realices pedidos en los puestos del campus, aquí verás tus productos favoritos repetidos para volver a pedirlos con un solo toque.",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         lineHeight = 16.sp
                                     )
                                 }

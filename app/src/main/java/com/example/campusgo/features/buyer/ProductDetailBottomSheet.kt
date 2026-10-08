@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import com.example.campusgo.theme.LocalDarkTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +45,7 @@ fun ProductDetailBottomSheet(
     onStoreClick: (() -> Unit)? = null,
     onAddToCart: (product: Product, quantity: Int, specialInstructions: String?) -> Unit
 ) {
+    val isDark = LocalDarkTheme.current
     val modalBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var quantity by remember { mutableIntStateOf(if (product.stock > 0) 1 else 0) }
     var specialInstructions by remember { mutableStateOf("") }
@@ -106,7 +108,7 @@ fun ProductDetailBottomSheet(
                                     Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable { onStoreClick() }
-                                        .background(Color(0xFFE6F7F3))
+                                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 } else Modifier
                             )
@@ -114,7 +116,7 @@ fun ProductDetailBottomSheet(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_store_custom),
                             contentDescription = null,
-                            tint = if (onStoreClick != null) Color(0xFF00A884) else Color(0xFF16324F),
+                            tint = if (onStoreClick != null) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -122,7 +124,7 @@ fun ProductDetailBottomSheet(
                             text = storeName,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (onStoreClick != null) Color(0xFF00A884) else Color(0xFF16324F),
+                            color = if (onStoreClick != null) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -131,7 +133,7 @@ fun ProductDetailBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = "Ver Puesto",
-                                tint = Color(0xFF00A884),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -179,18 +181,27 @@ fun ProductDetailBottomSheet(
                             text = "S/ %.2f".format(product.price),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF00A884)
+                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)
                         )
+                        val isLowStock = product.stock <= 3
                         Surface(
-                            color = if (product.stock <= 3) Color(0xFFFFEBEE) else Color(0xFFE8F5E9),
+                            color = if (isDark) {
+                                if (isLowStock) Color(0xFF450A0A) else Color(0xFF064E3B)
+                            } else {
+                                if (isLowStock) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
+                            },
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = if (product.stock <= 3) "¡Solo quedan ${product.stock}!" else "Stock disponible: ${product.stock}",
+                                text = if (isLowStock) "¡Solo quedan ${product.stock}!" else "Stock disponible: ${product.stock}",
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (product.stock <= 3) Color(0xFFC8102E) else Color(0xFF2E7D32)
+                                color = if (isDark) {
+                                    if (isLowStock) Color(0xFFFCA5A5) else Color(0xFF6EE7B7)
+                                } else {
+                                    if (isLowStock) Color(0xFFC8102E) else Color(0xFF2E7D32)
+                                }
                             )
                         }
                     }
@@ -210,7 +221,7 @@ fun ProductDetailBottomSheet(
                 // Advertencia si el puesto está cerrado o en pausa
                 if (!isStoreAvailable) {
                     Surface(
-                        color = Color(0xFFFFF3E0),
+                        color = if (isDark) Color(0xFF431407) else Color(0xFFFFF3E0),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -221,7 +232,7 @@ fun ProductDetailBottomSheet(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_warning_custom),
                                 contentDescription = null,
-                                tint = Color(0xFFE65100),
+                                tint = if (isDark) Color(0xFFFB923C) else Color(0xFFE65100),
                                 modifier = Modifier.size(22.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -231,7 +242,7 @@ fun ProductDetailBottomSheet(
                                 else
                                     "Este puesto se encuentra cerrado actualmente.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFE65100),
+                                color = if (isDark) Color(0xFFFDBA74) else Color(0xFFE65100),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -244,7 +255,7 @@ fun ProductDetailBottomSheet(
                         text = "Instrucciones especiales para el puesto",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "¿Deseas sin cremas, calentito, con cubiertos descartables? Indícaselo al emprendedor.",
@@ -273,7 +284,7 @@ fun ProductDetailBottomSheet(
                         text = "Cantidad",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -291,7 +302,7 @@ fun ProductDetailBottomSheet(
                             text = "$quantity",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = if (product.stock > 0) Color(0xFF00A884) else Color(0xFF9E9E9E)
+                            color = if (product.stock > 0) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else Color(0xFF9E9E9E)
                         )
 
                         FilledTonalIconButton(
@@ -330,9 +341,9 @@ fun ProductDetailBottomSheet(
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00A884),
-                    disabledContainerColor = Color(0xFFEEEEEE),
-                    disabledContentColor = Color(0xFF9E9E9E)
+                    containerColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                    disabledContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEEEEEE),
+                    disabledContentColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF9E9E9E)
                 )
             ) {
                 Row(

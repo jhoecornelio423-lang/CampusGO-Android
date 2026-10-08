@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.seller.components
+package com.example.campusgo.features.seller.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -31,6 +31,7 @@ import com.example.campusgo.domain.model.PaymentMethod
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.orderCodeDisplay
 import com.example.campusgo.domain.model.verificationCode
+import com.example.campusgo.theme.LocalDarkTheme
 import com.example.campusgo.ui.components.CodeSlotStatus
 import com.example.campusgo.ui.components.CodeSlots
 import com.example.campusgo.ui.components.PaymentMethodLogo
@@ -43,6 +44,7 @@ fun SellerDeliveryConfirmationBottomSheet(
     onConfirm: (subOrderId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var inputCode by remember { mutableStateOf("") }
@@ -65,7 +67,7 @@ fun SellerDeliveryConfirmationBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -77,7 +79,10 @@ fun SellerDeliveryConfirmationBottomSheet(
                     modifier = Modifier
                         .width(42.dp)
                         .height(4.5.dp)
-                        .background(Color(0xFFCBD5E1), CircleShape)
+                        .background(
+                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1),
+                            CircleShape
+                        )
                 )
             }
         }
@@ -102,14 +107,14 @@ fun SellerDeliveryConfirmationBottomSheet(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFE6F7F3),
+                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
                         modifier = Modifier.size(42.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.VerifiedUser,
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -119,7 +124,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                             text = "Confirmar Entrega y Cobro",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -128,18 +133,18 @@ fun SellerDeliveryConfirmationBottomSheet(
                             Text(
                                 text = "Orden ${subOrder.orderCodeDisplay}",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            Text("•", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                            Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
                                 text = "S/ %.2f".format(subOrder.subtotalAmount),
                                 fontSize = 12.sp,
-                                color = Color(0xFF00A884),
+                                color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                                 fontWeight = FontWeight.ExtraBold
                             )
                             subOrder.paymentMethod?.let { pm ->
-                                Text("•", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                                Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 PaymentMethodLogo(method = pm, size = 13.dp)
                             }
                         }
@@ -150,19 +155,19 @@ fun SellerDeliveryConfirmationBottomSheet(
                     onClick = onDismiss,
                     modifier = Modifier
                         .size(34.dp)
-                        .background(Color(0xFFF1F5F9), CircleShape)
+                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Cerrar",
-                        tint = Color(0xFF475569),
+                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
 
             HorizontalDivider(
-                color = Color(0xFFE2E8F0),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 1.dp,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -179,9 +184,9 @@ fun SellerDeliveryConfirmationBottomSheet(
                 // Tarjeta central interactiva de CodeSlots
                 Card(
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                    colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White),
+                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -195,7 +200,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                             text = "Solicita al estudiante su PIN de 4 dígitos",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
 
@@ -210,7 +215,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                             height = 54.dp,
                             gap = 8.dp,
                             radius = 12.dp,
-                            accentColor = Color(0xFF00A884),
+                            accentColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
                             dangerColor = Color(0xFFEF4444),
                             successColor = Color(0xFF16A34A)
                         )
@@ -235,7 +240,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                                     text = "Código PIN verificado correctamente",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF15803D)
+                                    color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)
                                 )
                             }
                         }
@@ -272,8 +277,8 @@ fun SellerDeliveryConfirmationBottomSheet(
                     enabled = canConfirm,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00A884),
-                        disabledContainerColor = Color(0xFFE2E8F0)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE2E8F0)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -287,7 +292,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = if (canConfirm) Color.White else Color(0xFF94A3B8)
+                            tint = if (canConfirm) Color.White else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8))
                         )
                         Text(
                             text = if (isCodeValid) "Confirmar y Cobrar S/ %.2f".format(subOrder.subtotalAmount)
@@ -295,7 +300,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                                    else "Ingresa el PIN de 4 dígitos",
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (canConfirm) Color.White else Color(0xFF94A3B8)
+                            color = if (canConfirm) Color.White else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8))
                         )
                     }
                 }
@@ -313,8 +318,8 @@ fun SellerDeliveryConfirmationBottomSheet(
                         checked = bypassCode,
                         onCheckedChange = { bypassCode = it },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF00A884),
-                            uncheckedColor = Color(0xFF94A3B8)
+                            checkedColor = MaterialTheme.colorScheme.primary,
+                            uncheckedColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)
                         ),
                         modifier = Modifier.size(24.dp)
                     )
@@ -322,7 +327,7 @@ fun SellerDeliveryConfirmationBottomSheet(
                     Text(
                         text = "¿Comprador sin celular? Confirmar sin código",
                         fontSize = 12.sp,
-                        color = if (bypassCode) Color(0xFF00A884) else Color(0xFF64748B),
+                        color = if (bypassCode) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (bypassCode) FontWeight.Bold else FontWeight.Medium
                     )
                 }

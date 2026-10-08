@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.model
+package com.example.campusgo.domain.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -54,4 +54,7 @@ val SubOrder.verificationCode: String
  * Coincide 100% con el código que ve el comprador en su recibo y seguimiento.
  */
 val SubOrder.orderCodeDisplay: String
-    get() = "#${orderId.takeLast(6).uppercase()}"
+    get() = "#${orderId.takeLast(4).uppercase()}"
+
+val SubOrder.friendlyTitle: String
+    get() = "Pedido #${orderId.takeLast(4).uppercase()}"

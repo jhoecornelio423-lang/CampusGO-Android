@@ -83,6 +83,7 @@ import com.example.campusgo.ui.components.CampusGoDialogShape
 import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
 import com.example.campusgo.ui.components.isSubOrderExpired
 import com.example.campusgo.ui.components.campusGoDialogStyle
+import com.example.campusgo.theme.LocalDarkTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -97,6 +98,7 @@ fun OrderTrackingScreen(
     viewModel: OrderTrackingViewModel = koinViewModel(),
     orderRepository: OrderRepository = koinInject()
 ) {
+    val isDark = LocalDarkTheme.current
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = 0) { 2 }
@@ -426,8 +428,8 @@ fun OrderTrackingScreen(
                             clip = false
                         ),
                     shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                     shadowElevation = 0.dp
                 ) {
                     Column {
@@ -436,7 +438,7 @@ fun OrderTrackingScreen(
                                 Text(
                                     text = "Mis Pedidos Campus Go",
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF003366)
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF003366)
                                 )
                             },
                             navigationIcon = {
@@ -444,7 +446,8 @@ fun OrderTrackingScreen(
                                     IconButton(onClick = onNavigateBack) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Volver"
+                                            contentDescription = "Volver",
+                                            tint = if (isDark) MaterialTheme.colorScheme.onSurface else LocalContentColor.current
                                         )
                                     }
                                 }
@@ -454,7 +457,7 @@ fun OrderTrackingScreen(
                         PrimaryTabRow(
                             selectedTabIndex = pagerState.currentPage,
                             containerColor = Color.Transparent,
-                            contentColor = Color(0xFF003366)
+                            contentColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)
                         ) {
                             Tab(
                                 selected = pagerState.currentPage == 0,
@@ -714,6 +717,7 @@ fun BuyerOrderCard(
     modifier: Modifier = Modifier
 ) {
     var showSellerChatPicker by remember { mutableStateOf(false) }
+    val isDark = LocalDarkTheme.current
 
     LaunchedEffect(showSellerChatPicker) {
         onChatPickerVisibilityChanged?.invoke(showSellerChatPicker)
@@ -722,7 +726,14 @@ fun BuyerOrderCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -742,7 +753,6 @@ fun BuyerOrderCard(
                 OrderStatus.EN_PROCESO -> "Pedido en Preparación"
                 OrderStatus.PARCIALMENTE_ACEPTADA -> "Pedido en Curso"
                 OrderStatus.PENDIENTE -> "Pedido Solicitado"
-                else -> "Seguimiento de Pedido"
             }
 
             Row(
@@ -750,18 +760,37 @@ fun BuyerOrderCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = orderFriendlyTitle,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF003366).copy(alpha = 0.08f)
+                        ) {
+                            Text(
+                                text = "Orden #${order.id.takeLast(4).uppercase()}",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 12.sp,
+                                color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                        Text(
+                            text = orderFriendlyTitle,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0F172A)
+                        )
+                    }
+
                     if (hasCancelledSubOrders) {
                         Text(
                             text = "Total a pagar: S/ %.2f".format(effectiveToPay),
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF003366),
-                            fontSize = 18.sp
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 17.sp
                         )
                         Text(
                             text = "Total original: S/ %.2f (S/ %.2f cancelado)".format(originalSum, cancelledSum),
@@ -773,8 +802,8 @@ fun BuyerOrderCard(
                         Text(
                             text = "Total: S/ %.2f".format(originalSum),
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF003366),
-                            fontSize = 18.sp
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 17.sp
                         )
                     }
                 }
@@ -784,7 +813,7 @@ fun BuyerOrderCard(
             // Alerta si la orden fue Parcialmente Aceptada por rechazo de algún puesto
             if (order.status == OrderStatus.PARCIALMENTE_ACEPTADA) {
                 Surface(
-                    color = Color(0xFFFFF3E0),
+                    color = if (isDark) Color(0xFF451A03).copy(alpha = 0.4f) else Color(0xFFFFF3E0),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -796,19 +825,21 @@ fun BuyerOrderCard(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_info_custom),
                             contentDescription = null,
-                            tint = Color(0xFFE65100),
+                            tint = Color(0xFFF59E0B),
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = "Un puesto no pudo atender su parte. El total se recalculó automáticamente y no pagarás por los ítems cancelados.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFE65100)
+                            color = if (isDark) Color(0xFFFCD34D) else Color(0xFFE65100)
                         )
                     }
                 }
             }
 
-            HorizontalDivider()
+            HorizontalDivider(
+                color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+            )
 
             // Desglose de Subpedidos en Vivo
             Text(
@@ -1000,16 +1031,16 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFE8F5E9).copy(alpha = 0.45f),
-                                contentColor = Color(0xFF00796B)
+                                containerColor = if (isDark) Color(0xFF004D3D).copy(alpha = 0.4f) else Color(0xFFE8F5E9).copy(alpha = 0.45f),
+                                contentColor = if (isDark) Color(0xFF34D399) else Color(0xFF00796B)
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF00A884).copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF059669) else Color(0xFF00A884).copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = "Chat",
-                                tint = Color(0xFF00A884),
+                                tint = if (isDark) Color(0xFF34D399) else Color(0xFF00A884),
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1031,16 +1062,16 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFEFF6FF).copy(alpha = 0.45f),
-                                contentColor = Color(0xFF003366)
+                                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEFF6FF).copy(alpha = 0.45f),
+                                contentColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFF003366).copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Repetir",
-                                tint = Color(0xFF003366),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1064,21 +1095,21 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (canCancel) Color(0xFFFFEBEE).copy(alpha = 0.45f) else Color(0xFFF1F5F9).copy(alpha = 0.4f),
-                                contentColor = if (canCancel) Color(0xFFC8102E) else Color(0xFF94A3B8),
-                                disabledContainerColor = Color(0xFFF1F5F9).copy(alpha = 0.4f),
-                                disabledContentColor = Color(0xFF94A3B8)
+                                containerColor = if (canCancel) (if (isDark) Color(0xFF450A0A).copy(alpha = 0.4f) else Color(0xFFFFEBEE).copy(alpha = 0.45f)) else (if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9).copy(alpha = 0.4f)),
+                                contentColor = if (canCancel) (if (isDark) Color(0xFFF87171) else Color(0xFFC8102E)) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)),
+                                disabledContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9).copy(alpha = 0.4f),
+                                disabledContentColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color(0xFF94A3B8)
                             ),
                             border = BorderStroke(
                                 1.dp,
-                                if (canCancel) Color(0xFFC8102E).copy(alpha = 0.5f) else Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                if (canCancel) (if (isDark) Color(0xFFDC2626) else Color(0xFFC8102E).copy(alpha = 0.5f)) else (if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1).copy(alpha = 0.6f))
                             ),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cancelar",
-                                tint = if (canCancel) Color(0xFFC8102E) else Color(0xFF94A3B8),
+                                tint = if (canCancel) (if (isDark) Color(0xFFF87171) else Color(0xFFC8102E)) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8)),
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1100,16 +1131,16 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFF1F5F9).copy(alpha = 0.5f),
-                                contentColor = Color(0xFF003366)
+                                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9).copy(alpha = 0.5f),
+                                contentColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF003366)
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.45f)),
+                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFF003366).copy(alpha = 0.45f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                 contentDescription = "Detalle",
-                                tint = Color(0xFF003366),
+                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1136,15 +1167,17 @@ fun SubOrderTrackingItem(
     onRate: (() -> Unit)? = null,
     onOpenChat: (() -> Unit)? = null
 ) {
+    val isDark = LocalDarkTheme.current
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -1155,7 +1188,8 @@ fun SubOrderTrackingItem(
                 Text(
                     text = subOrder.sellerName.ifEmpty { "Emprendimiento Campus Go" },
                     fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyMedium
+                    fontSize = 14.sp,
+                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1163,14 +1197,14 @@ fun SubOrderTrackingItem(
                 ) {
                     val subPm = subOrder.paymentMethod ?: PaymentMethod.EFECTIVO
                     val (subPmBg, subPmColor, subPmName) = when (subPm) {
-                        PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                        PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                        PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                        else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), subPm.name)
+                        PaymentMethod.YAPE -> Triple(if (isDark) Color(0xFF4A154B).copy(alpha = 0.5f) else Color(0xFFF3E5F5), if (isDark) Color(0xFFE879F9) else Color(0xFF6A1B9A), "Yape")
+                        PaymentMethod.PLIN -> Triple(if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFE0F2F1), if (isDark) Color(0xFF5EEAD4) else Color(0xFF00796B), "Plin")
+                        PaymentMethod.EFECTIVO -> Triple(if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF1F5F9), if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF003366), "Efectivo")
+                        else -> Triple(if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF1F5F9), if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF003366), subPm.name)
                     }
                     Surface(
                         color = subPmBg,
-                        shape = RoundedCornerShape(4.dp)
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -1189,7 +1223,7 @@ fun SubOrderTrackingItem(
                     Text(
                         text = "S/ %.2f".format(subOrder.subtotalAmount),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -1203,19 +1237,60 @@ fun SubOrderTrackingItem(
                 )
             }
 
-            // Lista compacta de productos
-            subOrder.items.forEach { item ->
-                Text(
-                    text = "• ${item.quantity}x ${item.productName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // Lista compacta y limpia de productos con badge de cantidad
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8FAFC), RoundedCornerShape(8.dp))
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                subOrder.items.forEach { item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF003366).copy(alpha = 0.08f)
+                            ) {
+                                Text(
+                                    text = "${item.quantity}x",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                )
+                            }
+                            Text(
+                                text = item.productName,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF334155),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = "S/ %.2f".format(item.subtotal),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569)
+                        )
+                    }
+                }
             }
 
             // Stepper / Estado en vivo del subpedido
             if (subOrder.status == SubOrderStatus.NO_ENTREGADO) {
                 Surface(
-                    color = Color(0xFFFFEBEE),
+                    color = if (isDark) Color(0xFF450A0A).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
                     shape = RoundedCornerShape(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1224,18 +1299,18 @@ fun SubOrderTrackingItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFC8102E), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                         Text(
                             text = "No entregado (Inasistencia reportada)",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFC8102E),
+                            color = if (isDark) Color(0xFFFCA5A5) else Color(0xFFC8102E),
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             } else if (subOrder.status == SubOrderStatus.RECHAZADO || subOrder.status == SubOrderStatus.CANCELADO) {
                 Surface(
-                    color = Color(0xFFFFEBEE),
+                    color = if (isDark) Color(0xFF450A0A).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
                     shape = RoundedCornerShape(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1244,11 +1319,11 @@ fun SubOrderTrackingItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFC8102E), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                         Text(
                             text = "No disponible: ${subOrder.rejectionReason ?: "Sin insumos"}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFC8102E),
+                            color = if (isDark) Color(0xFFFCA5A5) else Color(0xFFC8102E),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1264,9 +1339,17 @@ fun SubOrderTrackingItem(
                 subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA) {
                 val isReady = subOrder.status == SubOrderStatus.LISTO || subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA
                 Surface(
-                    color = if (isReady) Color(0xFFE0F2F1) else Color(0xFFF1F5F9),
+                    color = if (isDark) {
+                        if (isReady) Color(0xFF064E3B).copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface
+                    } else {
+                        if (isReady) Color(0xFFE0F2F1) else Color(0xFFF1F5F9)
+                    },
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, if (isReady) Color(0xFF80CBC4) else Color(0xFFCBD5E1)),
+                    border = BorderStroke(1.dp, if (isDark) {
+                        if (isReady) Color(0xFF059669) else MaterialTheme.colorScheme.outlineVariant
+                    } else {
+                        if (isReady) Color(0xFF80CBC4) else Color(0xFFCBD5E1)
+                    }),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -1284,7 +1367,7 @@ fun SubOrderTrackingItem(
                             Icon(
                                 imageVector = Icons.Default.VerifiedUser,
                                 contentDescription = null,
-                                tint = if (isReady) Color(0xFF00796B) else Color(0xFF003366),
+                                tint = if (isReady) (if (isDark) Color(0xFF34D399) else Color(0xFF00796B)) else (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)),
                                 modifier = Modifier.size(20.dp)
                             )
                             Column {
@@ -1292,13 +1375,13 @@ fun SubOrderTrackingItem(
                                     text = "CÓDIGO DE ENTREGA",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                                    color = if (isReady) (if (isDark) Color(0xFF6EE7B7) else Color(0xFF004D40)) else (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366))
                                 )
                                 Text(
                                     text = "Dile este PIN al vendedor al retirar",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 )
                             }
                         }
@@ -1307,7 +1390,7 @@ fun SubOrderTrackingItem(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 2.sp,
-                            color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                            color = if (isReady) (if (isDark) Color(0xFF34D399) else Color(0xFF004D40)) else (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366))
                         )
                     }
                 }
@@ -1381,10 +1464,14 @@ fun SubOrderTrackingItem(
 
 @Composable
 fun TrackingStepper(status: SubOrderStatus) {
+    val isDark = LocalDarkTheme.current
     val step1Done = true // Solicitado
     val step2Done = status in listOf(SubOrderStatus.ACEPTADO, SubOrderStatus.EN_PREPARACION, SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA, SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO)
     val step3Done = status in listOf(SubOrderStatus.LISTO, SubOrderStatus.ESPERANDO_ENTREGA, SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO)
     val step4Done = status in listOf(SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO)
+
+    val activeDoneColor = if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32)
+    val inactiveDividerColor = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color.LightGray
 
     Row(
         modifier = Modifier
@@ -1394,17 +1481,18 @@ fun TrackingStepper(status: SubOrderStatus) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         StepCircle(label = "Enviado", isDone = step1Done, isActive = status == SubOrderStatus.PENDIENTE)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step2Done) Color(0xFF2E7D32) else Color.LightGray)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step2Done) activeDoneColor else inactiveDividerColor)
         StepCircle(label = "Preparando", isDone = step2Done, isActive = status == SubOrderStatus.ACEPTADO || status == SubOrderStatus.EN_PREPARACION)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step3Done) Color(0xFF2E7D32) else Color.LightGray)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step3Done) activeDoneColor else inactiveDividerColor)
         StepCircle(label = "Listo", isDone = step3Done, isActive = status == SubOrderStatus.LISTO || status == SubOrderStatus.ESPERANDO_ENTREGA)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step4Done) Color(0xFF2E7D32) else Color.LightGray)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step4Done) activeDoneColor else inactiveDividerColor)
         StepCircle(label = "Entregado", isDone = step4Done, isActive = step4Done)
     }
 }
 
 @Composable
 fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
+    val isDark = LocalDarkTheme.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
@@ -1412,9 +1500,9 @@ fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
                 .clip(CircleShape)
                 .background(
                     when {
-                        isDone -> Color(0xFF2E7D32)
-                        isActive -> Color(0xFF003366)
-                        else -> Color(0xFFE2E8F0)
+                        isDone -> if (isDark) Color(0xFF059669) else Color(0xFF2E7D32)
+                        isActive -> if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)
+                        else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE2E8F0)
                     }
                 ),
             contentAlignment = Alignment.Center
@@ -1433,32 +1521,64 @@ fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
             text = label,
             fontSize = 9.sp,
             fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive || isDone) Color(0xFF003366) else Color.Gray
+            color = if (isActive || isDone) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray)
         )
     }
 }
 
 @Composable
 fun OrderStatusBadge(status: OrderStatus) {
+    val isDark = LocalDarkTheme.current
     val (bgColor, textColor, label) = when (status) {
-        OrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
-        OrderStatus.EN_PROCESO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "En Proceso")
-        OrderStatus.PARCIALMENTE_ACEPTADA -> Triple(Color(0xFFFFF8E1), Color(0xFFF57F17), "Parcialmente Aceptada")
-        OrderStatus.COMPLETADA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Completada")
-        OrderStatus.CANCELADA -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelada")
+        OrderStatus.PENDIENTE -> Triple(
+            if (isDark) Color(0xFF451A03).copy(alpha = 0.5f) else Color(0xFFFFF3E0),
+            if (isDark) Color(0xFFFBBF24) else Color(0xFFE65100),
+            "Pendiente"
+        )
+        OrderStatus.EN_PROCESO -> Triple(
+            if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFE3F2FD),
+            if (isDark) Color(0xFF60A5FA) else Color(0xFF1565C0),
+            "En Proceso"
+        )
+        OrderStatus.PARCIALMENTE_ACEPTADA -> Triple(
+            if (isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFFF8E1),
+            if (isDark) Color(0xFFFCD34D) else Color(0xFFF57F17),
+            "Parcialmente Aceptada"
+        )
+        OrderStatus.COMPLETADA -> Triple(
+            if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFE8F5E9),
+            if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32),
+            "Completada"
+        )
+        OrderStatus.CANCELADA -> Triple(
+            if (isDark) Color(0xFF450A0A).copy(alpha = 0.5f) else Color(0xFFFFEBEE),
+            if (isDark) Color(0xFFF87171) else Color(0xFFC8102E),
+            "Cancelada"
+        )
     }
 
     Surface(
         color = bgColor,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(20.dp),
+        border = if (isDark) BorderStroke(1.dp, textColor.copy(alpha = 0.3f)) else null
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = textColor
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(textColor, CircleShape)
+            )
+            Text(
+                text = label,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+        }
     }
 }
 
@@ -1472,6 +1592,7 @@ fun BuyerOrderDetailDialog(
     onOpenChat: ((SubOrder) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
+    val isDark = LocalDarkTheme.current
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val configuration = LocalConfiguration.current
@@ -1481,7 +1602,7 @@ fun BuyerOrderDetailDialog(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8FAFC),
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -1493,7 +1614,7 @@ fun BuyerOrderDetailDialog(
                     modifier = Modifier
                         .width(42.dp)
                         .height(4.5.dp)
-                        .background(Color(0xFFCBD5E1), CircleShape)
+                        .background(if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1), CircleShape)
                 )
             }
         }
@@ -1518,30 +1639,35 @@ fun BuyerOrderDetailDialog(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFE6F7F3),
+                        color = if (isDark) Color(0xFF004D3D) else Color(0xFFE6F7F3),
                         modifier = Modifier.size(42.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = if (isDark) Color(0xFF34D399) else Color(0xFF00A884),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
                     }
                     Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Orden #${order.id.takeLast(4).uppercase()}",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 18.sp,
+                                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F)
+                            )
+                        }
                         Text(
-                            text = "Detalle del Pedido",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 19.sp,
-                            color = Color(0xFF16324F)
-                        )
-                        Text(
-                            text = order.meetingPointName.ifBlank { "Entrega en campus" },
-                            fontSize = 12.sp,
+                            text = "Entrega en: ${order.meetingPointName.ifBlank { "Campus Universitario" }}",
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                         )
                     }
                 }
@@ -1556,12 +1682,12 @@ fun BuyerOrderDetailDialog(
                         onClick = onDismiss,
                         modifier = Modifier
                             .size(34.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cerrar",
-                            tint = Color(0xFF475569),
+                            tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -1569,7 +1695,7 @@ fun BuyerOrderDetailDialog(
             }
 
             HorizontalDivider(
-                color = Color(0xFFE2E8F0),
+                color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0),
                 thickness = 1.dp,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -1585,10 +1711,15 @@ fun BuyerOrderDetailDialog(
             ) {
                 // 1. Tarjeta: Punto de Entrega Acordado
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                    ),
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -1601,14 +1732,14 @@ fun BuyerOrderDetailDialog(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFE6F7F3),
+                                color = if (isDark) Color(0xFF004D3D) else Color(0xFFE6F7F3),
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_location_custom),
                                         contentDescription = null,
-                                        tint = Color(0xFF00A884),
+                                        tint = if (isDark) Color(0xFF34D399) else Color(0xFF00A884),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1617,7 +1748,7 @@ fun BuyerOrderDetailDialog(
                                 text = "PUNTO DE ENTREGA ACORDADO",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B),
+                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                 letterSpacing = 0.5.sp
                             )
                         }
@@ -1626,14 +1757,17 @@ fun BuyerOrderDetailDialog(
                             text = order.meetingPointName.ifBlank { "Campus Universitario" },
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F),
+                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                             modifier = Modifier.padding(start = 4.dp)
                         )
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                            ),
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Row(
@@ -1644,14 +1778,14 @@ fun BuyerOrderDetailDialog(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_alarm_custom),
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF00A884),
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Hora acordada: ${order.scheduledTime.ifBlank { "Lo antes posible" }}",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF334155)
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF334155)
                                 )
                             }
                         }
@@ -1683,9 +1817,14 @@ fun BuyerOrderDetailDialog(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -1703,14 +1842,14 @@ fun BuyerOrderDetailDialog(
                                 ) {
                                     Surface(
                                         shape = CircleShape,
-                                        color = Color(0xFFF1F5F9),
+                                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
                                         modifier = Modifier.size(34.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Default.Store,
                                                 contentDescription = null,
-                                                tint = Color(0xFF00A884),
+                                                tint = if (isDark) Color(0xFF34D399) else Color(0xFF00A884),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1720,7 +1859,7 @@ fun BuyerOrderDetailDialog(
                                             text = subOrder.sellerName.ifBlank { "Puesto Comercial" },
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp,
-                                            color = Color(0xFF16324F),
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -1729,7 +1868,7 @@ fun BuyerOrderDetailDialog(
                                             Text(
                                                 text = "📍 $subMeetingPoint",
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B),
+                                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -1740,7 +1879,10 @@ fun BuyerOrderDetailDialog(
                                 SubOrderStatusBadge(status = subOrder.status)
                             }
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(
+                                color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFF1F5F9),
+                                thickness = 1.dp
+                            )
 
                             // Lista de productos de este puesto
                             subOrder.items.forEach { item ->
@@ -1758,7 +1900,7 @@ fun BuyerOrderDetailDialog(
                                     ) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFFF1F5F9),
+                                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
                                             modifier = Modifier.size(24.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
@@ -1766,21 +1908,21 @@ fun BuyerOrderDetailDialog(
                                                     text = "${item.quantity}x",
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 11.sp,
-                                                    color = Color(0xFF16324F)
+                                                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F)
                                                 )
                                             }
                                         }
                                         Text(
                                             text = item.productName,
                                             fontSize = 13.sp,
-                                            color = Color(0xFF334155)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF334155)
                                         )
                                     }
                                     Text(
                                         text = "S/ %.2f".format(item.subtotal),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF16324F)
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F)
                                     )
                                 }
                             }
@@ -1807,7 +1949,7 @@ fun BuyerOrderDetailDialog(
                                             },
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF475569)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569)
                                         )
                                     }
                                 }
@@ -1815,7 +1957,7 @@ fun BuyerOrderDetailDialog(
                                     text = "Subtotal: S/ %.2f".format(subOrder.subtotalAmount),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp,
-                                    color = Color(0xFF00A884)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -1826,9 +1968,17 @@ fun BuyerOrderDetailDialog(
                                 subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA) {
                                 val isReady = subOrder.status == SubOrderStatus.LISTO || subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA
                                 Surface(
-                                    color = if (isReady) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
+                                    color = if (isDark) {
+                                        if (isReady) Color(0xFF064E3B).copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant
+                                    } else {
+                                        if (isReady) Color(0xFFF0FDF4) else Color(0xFFF8FAFC)
+                                    },
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, if (isReady) Color(0xFF86EFAC) else Color(0xFFCBD5E1)),
+                                    border = BorderStroke(1.dp, if (isDark) {
+                                        if (isReady) Color(0xFF059669) else MaterialTheme.colorScheme.outlineVariant
+                                    } else {
+                                        if (isReady) Color(0xFF86EFAC) else Color(0xFFCBD5E1)
+                                    }),
                                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                 ) {
                                     Row(
@@ -1845,7 +1995,7 @@ fun BuyerOrderDetailDialog(
                                             Icon(
                                                 imageVector = Icons.Default.VerifiedUser,
                                                 contentDescription = null,
-                                                tint = if (isReady) Color(0xFF16A34A) else Color(0xFF0284C7),
+                                                tint = if (isReady) (if (isDark) Color(0xFF34D399) else Color(0xFF16A34A)) else (if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Column {
@@ -1853,12 +2003,12 @@ fun BuyerOrderDetailDialog(
                                                     text = "CÓDIGO PIN DE ENTREGA",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (isReady) Color(0xFF166534) else Color(0xFF0369A1)
+                                                    color = if (isReady) (if (isDark) Color(0xFF6EE7B7) else Color(0xFF166534)) else (if (isDark) Color(0xFF7DD3FC) else Color(0xFF0369A1))
                                                 )
                                                 Text(
                                                     text = "Muestra al vendedor",
                                                     fontSize = 10.5.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                                 )
                                             }
                                         }
@@ -1867,7 +2017,7 @@ fun BuyerOrderDetailDialog(
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             letterSpacing = 1.5.sp,
-                                            color = if (isReady) Color(0xFF15803D) else Color(0xFF0284C7)
+                                            color = if (isReady) (if (isDark) Color(0xFF34D399) else Color(0xFF15803D)) else (if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7))
                                         )
                                     }
                                 }
@@ -1940,8 +2090,8 @@ fun BuyerOrderDetailDialog(
                                 Button(
                                     onClick = { onOpenChat(subOrder) },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFE6F7F3),
-                                        contentColor = Color(0xFF00A884)
+                                        containerColor = if (isDark) Color(0xFF004D3D) else Color(0xFFE6F7F3),
+                                        contentColor = if (isDark) Color(0xFF34D399) else Color(0xFF00A884)
                                     ),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier
@@ -1991,10 +2141,15 @@ fun BuyerOrderDetailDialog(
 
                 // 3. Tarjeta: Total y Resumen de Pago
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                    ),
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -2008,13 +2163,33 @@ fun BuyerOrderDetailDialog(
                         val isSplitPayment = uniquePaymentMethods.size > 1
                         val pm = order.paymentMethod ?: order.subOrders.firstOrNull()?.paymentMethod ?: PaymentMethod.EFECTIVO
                         val (pmBg, pmColor, pmName) = if (isSplitPayment) {
-                            Triple(Color(0xFFE0E7FF), Color(0xFF3730A3), "Pagos por puesto (${uniquePaymentMethods.size})")
+                            Triple(
+                                if (isDark) Color(0xFF312E81) else Color(0xFFE0E7FF),
+                                if (isDark) Color(0xFFA5B4FC) else Color(0xFF3730A3),
+                                "Pagos por puesto (${uniquePaymentMethods.size})"
+                            )
                         } else {
                             when (pm) {
-                                PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                                PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                                PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF16324F), "Efectivo")
-                                else -> Triple(Color(0xFFF1F5F9), Color(0xFF16324F), pm.name)
+                                PaymentMethod.YAPE -> Triple(
+                                    if (isDark) Color(0xFF4A154B).copy(alpha = 0.6f) else Color(0xFFF3E5F5),
+                                    if (isDark) Color(0xFFE879F9) else Color(0xFF6A1B9A),
+                                    "Yape"
+                                )
+                                PaymentMethod.PLIN -> Triple(
+                                    if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFE0F2F1),
+                                    if (isDark) Color(0xFF5EEAD4) else Color(0xFF00796B),
+                                    "Plin"
+                                )
+                                PaymentMethod.EFECTIVO -> Triple(
+                                    if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
+                                    if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
+                                    "Efectivo"
+                                )
+                                else -> Triple(
+                                    if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
+                                    if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
+                                    pm.name
+                                )
                             }
                         }
 
@@ -2053,7 +2228,7 @@ fun BuyerOrderDetailDialog(
                                     text = "Subtotal original (${order.subOrders.size} puestos): S/ %.2f".format(originalSum),
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF64748B)
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 )
                                 Text(
                                     text = "Puesto cancelado: -S/ %.2f".format(cancelledSum),
@@ -2069,13 +2244,13 @@ fun BuyerOrderDetailDialog(
                                         text = "Total a pagar:",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                                     )
                                     Text(
                                         text = "S/ %.2f".format(effectiveToPay),
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 20.sp,
-                                        color = Color(0xFF00A884)
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -2087,13 +2262,13 @@ fun BuyerOrderDetailDialog(
                                 Text(
                                     text = "Total:",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF64748B)
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 )
                                 Text(
                                     text = "S/ %.2f".format(originalSum),
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 20.sp,
-                                    color = Color(0xFF00A884)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -2103,7 +2278,7 @@ fun BuyerOrderDetailDialog(
                 // Botón Cerrar inferior
                 Button(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16324F)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2120,21 +2295,23 @@ fun BuyerOrderDetailDialog(
 
 @Composable
 fun SubOrderStatusBadge(status: SubOrderStatus) {
+    val isDark = LocalDarkTheme.current
     val (backgroundColor, textColor, label) = when (status) {
-        SubOrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
-        SubOrderStatus.ACEPTADO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "Aceptado")
-        SubOrderStatus.EN_PREPARACION -> Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "En Preparación")
-        SubOrderStatus.LISTO -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Listo")
-        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Esperando")
-        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), "Completado")
-        SubOrderStatus.RECHAZADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
-        SubOrderStatus.CANCELADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelado")
-        SubOrderStatus.NO_ENTREGADO -> Triple(Color(0xFFECEFF1), Color(0xFF455A64), "No entregado")
+        SubOrderStatus.PENDIENTE -> Triple(if (isDark) Color(0xFF451A03).copy(alpha = 0.5f) else Color(0xFFFFF3E0), if (isDark) Color(0xFFFBBF24) else Color(0xFFE65100), "Pendiente")
+        SubOrderStatus.ACEPTADO -> Triple(if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFE3F2FD), if (isDark) Color(0xFF60A5FA) else Color(0xFF1565C0), "Aceptado")
+        SubOrderStatus.EN_PREPARACION -> Triple(if (isDark) Color(0xFF3B0764).copy(alpha = 0.5f) else Color(0xFFEDE7F6), if (isDark) Color(0xFFC084FC) else Color(0xFF512DA8), "En Preparación")
+        SubOrderStatus.LISTO -> Triple(if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFE8F5E9), if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32), "Listo")
+        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFE8F5E9), if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32), "Esperando")
+        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(if (isDark) Color(0xFF042F2E).copy(alpha = 0.5f) else Color(0xFFE0F2F1), if (isDark) Color(0xFF2DD4BF) else Color(0xFF00695C), "Completado")
+        SubOrderStatus.RECHAZADO -> Triple(if (isDark) Color(0xFF450A0A).copy(alpha = 0.5f) else Color(0xFFFFEBEE), if (isDark) Color(0xFFF87171) else Color(0xFFC8102E), "Rechazado")
+        SubOrderStatus.CANCELADO -> Triple(if (isDark) Color(0xFF450A0A).copy(alpha = 0.5f) else Color(0xFFFFEBEE), if (isDark) Color(0xFFF87171) else Color(0xFFC8102E), "Cancelado")
+        SubOrderStatus.NO_ENTREGADO -> Triple(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFECEFF1), if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF455A64), "No entregado")
     }
 
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(6.dp)
+        shape = RoundedCornerShape(6.dp),
+        border = if (isDark) BorderStroke(1.dp, textColor.copy(alpha = 0.25f)) else null
     ) {
         Text(
             text = label,

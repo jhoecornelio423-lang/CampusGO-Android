@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.model
+package com.example.campusgo.domain.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -24,4 +24,7 @@ data class Order(
  * Código canónico de la orden visible para Comprador y Vendedor (ej: "#A1B2C3").
  */
 val Order.orderCodeDisplay: String
-    get() = "#${id.takeLast(6).uppercase()}"
+    get() = "#${id.takeLast(4).uppercase()}"
+
+val Order.friendlyTitle: String
+    get() = "Pedido #${id.takeLast(4).uppercase()}"

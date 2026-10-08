@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import com.example.campusgo.theme.LocalDarkTheme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -138,6 +139,8 @@ fun BuyerSellerProfileScreen(
         label = "buyer_seller_profile_blur"
     )
 
+    val isDark = LocalDarkTheme.current
+
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -146,8 +149,9 @@ fun BuyerSellerProfileScreen(
         bottomBar = {
             if (cartCalculation.totalItemCount > 0) {
                 Surface(
-                    color = Color.White,
+                    color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
                     shadowElevation = 10.dp,
+                    border = if (isDark) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -168,12 +172,14 @@ fun BuyerSellerProfileScreen(
                                 text = "Total: S/ %.2f".format(cartCalculation.grandTotal),
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 16.sp,
-                                color = Color(0xFF003366)
+                                color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366)
                             )
                         }
                         Button(
                             onClick = onNavigateToCart,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)
+                            ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
@@ -188,7 +194,7 @@ fun BuyerSellerProfileScreen(
                 }
             }
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = if (isDark) MaterialTheme.colorScheme.background else Color(0xFFF8FAFC)
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -250,8 +256,13 @@ fun BuyerSellerProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(22.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                        )
                     ) {
                         Column(
                             modifier = Modifier
@@ -266,7 +277,7 @@ fun BuyerSellerProfileScreen(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    border = BorderStroke(3.5.dp, Color.White),
+                                    border = BorderStroke(3.5.dp, if (isDark) MaterialTheme.colorScheme.surface else Color.White),
                                     shadowElevation = 5.dp,
                                     modifier = Modifier
                                         .size(76.dp)
@@ -297,7 +308,7 @@ fun BuyerSellerProfileScreen(
                                         style = MaterialTheme.typography.titleLarge,
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Color(0xFF0F766E),
+                                        color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF0F766E),
                                         lineHeight = 24.sp,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
@@ -312,7 +323,7 @@ fun BuyerSellerProfileScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Person,
                                                 contentDescription = null,
-                                                tint = Color(0xFF64748B),
+                                                tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Text(
@@ -320,7 +331,7 @@ fun BuyerSellerProfileScreen(
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontSize = 13.5.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF475569),
+                                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -336,7 +347,7 @@ fun BuyerSellerProfileScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Surface(
-                                    color = Color(0xFFFEF3C7),
+                                    color = if (isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Row(
@@ -347,34 +358,34 @@ fun BuyerSellerProfileScreen(
                                         Icon(
                                             imageVector = Icons.Default.Star,
                                             contentDescription = null,
-                                            tint = Color(0xFFD97706),
+                                            tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Text(
                                             text = "%.1f".format(store.ratingAverage),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp,
-                                            color = Color(0xFF92400E)
+                                            color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
                                         )
                                     }
                                 }
 
                                 val category = store.businessCategory?.takeIf { it.isNotBlank() } ?: "Campus UCV"
                                 Surface(
-                                    color = Color(0xFFF1F5F9),
+                                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
                                         text = category,
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = Color(0xFF475569),
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                     )
                                 }
 
                                 Surface(
-                                    color = Color(0xFFE6F6F3),
+                                    color = if (isDark) Color(0xFF064E3B) else Color(0xFFE6F6F3),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Row(
@@ -385,13 +396,13 @@ fun BuyerSellerProfileScreen(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFF0D5C4C),
+                                            tint = if (isDark) Color(0xFF34D399) else Color(0xFF0D5C4C),
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Text(
                                             text = "Autorizado UCV",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF0D5C4C),
+                                            color = if (isDark) Color(0xFF6EE7B7) else Color(0xFF0D5C4C),
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -401,8 +412,11 @@ fun BuyerSellerProfileScreen(
                             // Bloque informativo moderno horizontal: Ubicación, Horario y Medios de Pago
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = Color(0xFFF8FAFC),
-                                border = BorderStroke(1.dp, Color(0xFFEEF2F6)),
+                                color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFEEF2F6)
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -433,7 +447,7 @@ fun BuyerSellerProfileScreen(
                                                 text = "UBICACIÓN",
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF94A3B8),
+                                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
                                                 letterSpacing = 0.4.sp
                                             )
                                         }
@@ -441,7 +455,7 @@ fun BuyerSellerProfileScreen(
                                             text = store.location?.takeIf { it.isNotBlank() } ?: "Campus UCV",
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1E293B),
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B),
                                             maxLines = 1,
                                             textAlign = TextAlign.Center,
                                             modifier = Modifier
@@ -459,7 +473,7 @@ fun BuyerSellerProfileScreen(
                                         modifier = Modifier
                                             .width(1.dp)
                                             .height(28.dp)
-                                            .background(Color(0xFFE2E8F0))
+                                            .background(if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))
                                     )
 
                                     // 2. Horario
@@ -484,7 +498,7 @@ fun BuyerSellerProfileScreen(
                                                 text = "HORARIO",
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF94A3B8),
+                                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
                                                 letterSpacing = 0.4.sp
                                             )
                                         }
@@ -492,7 +506,7 @@ fun BuyerSellerProfileScreen(
                                             text = scheduleText,
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1E293B),
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             textAlign = TextAlign.Center
@@ -504,7 +518,7 @@ fun BuyerSellerProfileScreen(
                                         modifier = Modifier
                                             .width(1.dp)
                                             .height(28.dp)
-                                            .background(Color(0xFFE2E8F0))
+                                            .background(if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0))
                                     )
 
                                     // 3. Medios de Pago
@@ -527,7 +541,7 @@ fun BuyerSellerProfileScreen(
                                                 text = "PAGOS",
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF94A3B8),
+                                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
                                                 letterSpacing = 0.4.sp
                                             )
                                         }
@@ -548,7 +562,7 @@ fun BuyerSellerProfileScreen(
                                                 text = "Efectivo",
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF1E293B),
+                                                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 textAlign = TextAlign.Center
@@ -563,7 +577,7 @@ fun BuyerSellerProfileScreen(
                                 Text(
                                     text = store.description,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF475569),
+                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
                                     lineHeight = 20.sp
                                 )
                             }
@@ -571,7 +585,9 @@ fun BuyerSellerProfileScreen(
                             // Alerta si el puesto está Saturado, Pausado o Cerrado
                             if (isSaturated) {
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)
+                                    ),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -582,20 +598,22 @@ fun BuyerSellerProfileScreen(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_info_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFFD97706),
+                                            tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "Alta afluencia de pedidos. Tu pedido podría tardar unos minutos adicionales en ser preparado.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFF92400E)
+                                            color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
                                         )
                                     }
                                 }
                             } else if (!isOpen || isPaused) {
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
+                                    ),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -606,7 +624,7 @@ fun BuyerSellerProfileScreen(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_info_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFF64748B),
+                                            tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -614,7 +632,7 @@ fun BuyerSellerProfileScreen(
                                             text = if (isPaused) "Este puesto está pausado temporalmente. Podrás explorar sus productos pero no realizar pedidos por ahora."
                                             else "Este puesto se encuentra cerrado en este momento. Revisa sus horarios habituales.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFF334155)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF334155)
                                         )
                                     }
                                 }
@@ -623,12 +641,18 @@ fun BuyerSellerProfileScreen(
                     }
 
                     // 3. Sección: Puntos de Entrega en Campus (Desplegable / Accordion)
+                    // 3. Sección: Puntos de Entrega en Campus (Desplegable / Accordion)
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -652,13 +676,16 @@ fun BuyerSellerProfileScreen(
                                     Box(
                                         modifier = Modifier
                                             .size(36.dp)
-                                            .background(Color(0xFFFEE2E2), CircleShape),
+                                            .background(
+                                                if (isDark) Color(0xFF7F1D1D).copy(alpha = 0.3f) else Color(0xFFFEE2E2),
+                                                CircleShape
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.LocationOn,
                                             contentDescription = null,
-                                            tint = Color(0xFFDC2626),
+                                            tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -667,7 +694,7 @@ fun BuyerSellerProfileScreen(
                                             text = "Puntos de Entrega",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp,
-                                            color = Color(0xFF16324F)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F)
                                         )
                                         Text(
                                             text = if (sellerSupportedPoints.isNotEmpty())
@@ -675,7 +702,7 @@ fun BuyerSellerProfileScreen(
                                             else
                                                 "Entregas en accesos del campus",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFF64748B)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                         )
                                     }
                                 }
@@ -685,21 +712,21 @@ fun BuyerSellerProfileScreen(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Surface(
-                                        color = Color(0xFFF1F5F9),
+                                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
                                         Text(
                                             text = if (isMeetingPointsExpanded) "Ocultar" else "Ver puntos",
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF003366),
+                                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF003366),
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                         )
                                     }
                                     Icon(
                                         imageVector = if (isMeetingPointsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = if (isMeetingPointsExpanded) "Colapsar" else "Expandir",
-                                        tint = Color(0xFF64748B),
+                                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -714,19 +741,21 @@ fun BuyerSellerProfileScreen(
                                         .padding(bottom = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                                    HorizontalDivider(
+                                        color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                                    )
                                     Spacer(modifier = Modifier.height(2.dp))
 
                                     if (sellerSupportedPoints.isEmpty()) {
                                         Surface(
-                                            color = Color(0xFFFFFBEB),
+                                            color = if (isDark) Color(0xFF451A03).copy(alpha = 0.4f) else Color(0xFFFFFBEB),
                                             shape = RoundedCornerShape(10.dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Text(
                                                 text = "El vendedor coordina la entrega en los accesos principales del campus.",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = Color(0xFFB45309),
+                                                color = if (isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                                 modifier = Modifier.padding(12.dp)
                                             )
                                         }
@@ -734,8 +763,11 @@ fun BuyerSellerProfileScreen(
                                         sellerSupportedPoints.forEach { point ->
                                             Surface(
                                                 shape = RoundedCornerShape(12.dp),
-                                                color = Color(0xFFF8FAFC),
-                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                                                ),
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
                                                 Row(
@@ -750,7 +782,7 @@ fun BuyerSellerProfileScreen(
                                                             text = point.name,
                                                             fontWeight = FontWeight.Bold,
                                                             style = MaterialTheme.typography.bodyMedium,
-                                                            color = Color(0xFF1E293B)
+                                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                                                         )
                                                         val details = listOfNotNull(point.pavilion, point.description)
                                                             .filter { it.isNotBlank() }
@@ -759,21 +791,29 @@ fun BuyerSellerProfileScreen(
                                                             Text(
                                                                 text = details,
                                                                 style = MaterialTheme.typography.bodySmall,
-                                                                color = Color(0xFF64748B)
+                                                                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                                             )
                                                         }
                                                     }
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     val isExterior = point.zoneType.equals("EXTERIOR", ignoreCase = true)
                                                     Surface(
-                                                        color = if (isExterior) Color(0xFFE6F6F3) else Color(0xFFEFF6FF),
+                                                        color = if (isDark) {
+                                                            if (isExterior) Color(0xFF004D3D) else Color(0xFF1E3A8A).copy(alpha = 0.5f)
+                                                        } else {
+                                                            if (isExterior) Color(0xFFE6F6F3) else Color(0xFFEFF6FF)
+                                                        },
                                                         shape = RoundedCornerShape(6.dp)
                                                     ) {
                                                         Text(
                                                             text = if (isExterior) "Exterior" else "Interior",
                                                             style = MaterialTheme.typography.labelSmall,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = if (isExterior) Color(0xFF16A085) else Color(0xFF1D4ED8),
+                                                            color = if (isDark) {
+                                                                if (isExterior) Color(0xFF34D399) else Color(0xFF93C5FD)
+                                                            } else {
+                                                                if (isExterior) Color(0xFF16A085) else Color(0xFF1D4ED8)
+                                                            },
                                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                                         )
                                                     }
@@ -795,7 +835,7 @@ fun BuyerSellerProfileScreen(
                             text = "PRODUCTOS DEL PUESTO (${store.products.size})",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B),
                             letterSpacing = 0.8.sp
                         )
 
@@ -803,8 +843,13 @@ fun BuyerSellerProfileScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+                                )
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -860,8 +905,13 @@ fun BuyerSellerProfileScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFFEE2E2))
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFEE2E2)
+                        )
                     ) {
                         Row(
                             modifier = Modifier
@@ -877,14 +927,14 @@ fun BuyerSellerProfileScreen(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color(0xFFFEE2E2),
+                                    color = if (isDark) Color(0xFF7F1D1D).copy(alpha = 0.3f) else Color(0xFFFEE2E2),
                                     modifier = Modifier.size(40.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_report_triangle_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFFDC2626),
+                                            tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -894,21 +944,24 @@ fun BuyerSellerProfileScreen(
                                         text = "¿Tuviste algún problema?",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)
                                     )
                                     Text(
                                         text = "Reporta precios engañosos, mala conducta o faltas",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF64748B)
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                     )
                                 }
                             }
                             OutlinedButton(
                                 onClick = { showReportDialog = true },
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFFDC2626)
+                                    contentColor = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                                 ),
-                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA)
+                                ),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -934,19 +987,20 @@ fun BuyerSellerProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Flecha de volver con círculo blanco detrás
+                // Flecha de volver con círculo adaptativo detrás
                 Surface(
                     onClick = onNavigateBack,
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.96f),
+                    color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.96f),
                     shadowElevation = 5.dp,
+                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint = Color(0xFF16324F),
+                            tint = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16324F),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -957,9 +1011,9 @@ fun BuyerSellerProfileScreen(
                     Surface(
                         onClick = { isStatusDropdownOpen = true },
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.96f),
+                        color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.96f),
                         shadowElevation = 5.dp,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
                         modifier = Modifier
                             .height(40.dp)
                             .then(if (isScrolledPastBanner) Modifier.width(40.dp) else Modifier)
@@ -990,7 +1044,7 @@ fun BuyerSellerProfileScreen(
                                         text = if (isOpen) "Abierto" else "Cerrado",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
-                                        color = if (isOpen) Color(0xFF065F46) else Color(0xFF64748B)
+                                        color = if (isOpen) (if (isDark) Color(0xFF34D399) else Color(0xFF065F46)) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B))
                                     )
                                 }
                             }
@@ -1001,9 +1055,13 @@ fun BuyerSellerProfileScreen(
                         expanded = isStatusDropdownOpen,
                         onDismissRequest = { isStatusDropdownOpen = false },
                         modifier = Modifier
-                            .background(Color.White)
+                            .background(if (isDark) MaterialTheme.colorScheme.surface else Color.White)
                             .clip(RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                            .border(
+                                1.dp,
+                                if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0),
+                                RoundedCornerShape(12.dp)
+                            )
                     ) {
                         DropdownMenuItem(
                             text = {
@@ -1023,12 +1081,12 @@ fun BuyerSellerProfileScreen(
                                             text = if (isOpen) "Abierto ahora" else "Cerrado ahora",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
-                                            color = Color(0xFF0F172A)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0F172A)
                                         )
                                         Text(
                                             text = if (isOpen) "Puesto activo y recibiendo pedidos" else "No acepta pedidos en este momento",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF64748B)
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                         )
                                     }
                                 }
@@ -1092,6 +1150,7 @@ private fun SellerProductItemCard(
     categoryName: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalDarkTheme.current
     val isAvailable = isStoreAvailable && product.stock > 0
 
     Surface(
@@ -1102,9 +1161,12 @@ private fun SellerProductItemCard(
         },
         enabled = isAvailable,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, if (isAvailable) Color(0xFFEEF2F6) else Color(0xFFE2E8F0)),
-        shadowElevation = if (isAvailable) 1.5.dp else 0.dp,
+        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+        border = BorderStroke(
+            1.dp,
+            if (isDark) MaterialTheme.colorScheme.outlineVariant else (if (isAvailable) Color(0xFFEEF2F6) else Color(0xFFE2E8F0))
+        ),
+        shadowElevation = if (isDark) 0.dp else (if (isAvailable) 1.5.dp else 0.dp),
         modifier = modifier
             .fillMaxWidth()
             .alpha(if (isAvailable) 1f else 0.55f)
@@ -1170,7 +1232,7 @@ private fun SellerProductItemCard(
                     text = product.name,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.5.sp,
-                    color = if (isAvailable) Color(0xFF1E293B) else Color(0xFF64748B),
+                    color = if (isAvailable) (if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1E293B)) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1179,7 +1241,7 @@ private fun SellerProductItemCard(
                     Text(
                         text = product.description,
                         fontSize = 10.5.sp,
-                        color = Color(0xFF94A3B8),
+                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1194,7 +1256,7 @@ private fun SellerProductItemCard(
                         text = "S/ %.2f".format(product.price),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 13.5.sp,
-                        color = if (isAvailable) Color(0xFF003366) else Color(0xFF94A3B8)
+                        color = if (isAvailable) MaterialTheme.colorScheme.primary else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8))
                     )
 
                     FilledTonalButton(
@@ -1202,10 +1264,10 @@ private fun SellerProductItemCard(
                         enabled = isAvailable,
                         shape = CircleShape,
                         colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color(0xFFE6F7F3),
-                            contentColor = Color(0xFF00A884),
-                            disabledContainerColor = Color(0xFFF1F5F9),
-                            disabledContentColor = Color(0xFFCBD5E1)
+                            containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
+                            contentColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                            disabledContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else Color(0xFFF1F5F9),
+                            disabledContentColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else Color(0xFFCBD5E1)
                         ),
                         contentPadding = PaddingValues(0.dp),
                         modifier = Modifier.size(26.dp)
