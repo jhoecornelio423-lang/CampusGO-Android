@@ -30,6 +30,7 @@ data class AuthUiState(
     val storeDescription: String = "",
     val selectedMeetingPoint: String = "",
     val availableMeetingPoints: List<CampusMeetingPoint> = emptyList(),
+    val availableCategories: List<String> = emptyList(),
     val otpCode: String = "",
     val newPassword: String = "",
     val confirmNewPassword: String = "",
@@ -52,6 +53,13 @@ data class AuthUiState(
             customCategory.trim()
         } else {
             storeCategory.trim()
+        }
+
+    val effectiveCategories: List<String>
+        get() = if (availableCategories.isNotEmpty()) {
+            (availableCategories.filter { !it.equals("Otros", ignoreCase = true) && !it.equals("Otro", ignoreCase = true) } + "Otros")
+        } else {
+            STORE_CATEGORIES
         }
 
     val canSubmit: Boolean get() {

@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.ProfileWarning
+import com.example.campusgo.theme.extendedColors
 
 /**
  * Badge compacto para directorios y listados que muestra el conteo de strikes de un usuario.
@@ -43,15 +44,15 @@ fun StrikeBadge(
     showAutoSuspensionLabel: Boolean = false
 ) {
     val bgColor = when {
-        strikes >= 5 -> Color(0xFFFFEBEE)
-        strikes in 1..4 -> Color(0xFFFFF3E0)
-        else -> Color(0xFFE8F5E9)
+        strikes >= 5 -> MaterialTheme.colorScheme.errorContainer
+        strikes in 1..4 -> MaterialTheme.extendedColors.warningContainer
+        else -> MaterialTheme.extendedColors.successContainer
     }
 
     val textColor = when {
-        strikes >= 5 -> Color(0xFFC8102E)
-        strikes in 1..4 -> Color(0xFFE65100)
-        else -> Color(0xFF2E7D32)
+        strikes >= 5 -> MaterialTheme.colorScheme.onErrorContainer
+        strikes in 1..4 -> MaterialTheme.extendedColors.onWarningContainer
+        else -> MaterialTheme.extendedColors.onSuccessContainer
     }
 
     val icon: ImageVector = when {
@@ -120,15 +121,17 @@ fun StrikeMeter(
 
                 val segmentColor = when {
                     !isActive -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                    isMaxReached -> Color(0xFFC8102E)
-                    else -> Color(0xFFE65100)
+                    isMaxReached -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.extendedColors.warning
                 }
 
                 val borderColor = when {
                     !isActive -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    isMaxReached -> Color(0xFFB71C1C)
-                    else -> Color(0xFFD84315)
+                    isMaxReached -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                    else -> MaterialTheme.extendedColors.warning.copy(alpha = 0.8f)
                 }
+
+                val contentTint = if (isMaxReached) MaterialTheme.colorScheme.onError else MaterialTheme.extendedColors.onWarning
 
                 Surface(
                     color = segmentColor,
@@ -150,13 +153,13 @@ fun StrikeMeter(
                                 Icon(
                                     imageVector = if (isMaxReached) Icons.Default.Dangerous else Icons.Default.Warning,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = contentTint,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "$step",
-                                    color = Color.White,
+                                    color = contentTint,
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 12.sp
                                 )
@@ -190,7 +193,7 @@ fun StrikeMeter(
             Text(
                 text = "5to: Suspensión",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (strikes >= 5) Color(0xFFC8102E) else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (strikes >= 5) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (strikes >= 5) FontWeight.Bold else FontWeight.Normal,
                 fontSize = 10.sp
             )
@@ -213,7 +216,7 @@ fun StrikeManagementCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (strikes >= 5 || isSuspended) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (strikes >= 5 || isSuspended) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(
@@ -228,21 +231,25 @@ fun StrikeManagementCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                val iconBoxBg = if (strikes >= 5) MaterialTheme.colorScheme.errorContainer
+                    else if (strikes > 0) MaterialTheme.extendedColors.warningContainer
+                    else MaterialTheme.extendedColors.successContainer
+
+                val iconTint = if (strikes >= 5) MaterialTheme.colorScheme.error
+                    else if (strikes > 0) MaterialTheme.extendedColors.warning
+                    else MaterialTheme.extendedColors.success
+
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (strikes >= 5) Color(0xFFFFCDD2)
-                            else if (strikes > 0) Color(0xFFFFE082)
-                            else Color(0xFFC8E6C9)
-                        ),
+                        .background(iconBoxBg),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (strikes >= 5) Icons.Default.Dangerous else if (strikes > 0) Icons.Default.WarningAmber else Icons.Default.Shield,
                         contentDescription = null,
-                        tint = if (strikes >= 5) Color(0xFFC8102E) else if (strikes > 0) Color(0xFFE65100) else Color(0xFF2E7D32),
+                        tint = iconTint,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -252,7 +259,7 @@ fun StrikeManagementCard(
                         text = "Sistema Disciplinario de Strikes",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall,
-                        color = if (strikes >= 5) Color(0xFFC8102E) else Color(0xFF003366)
+                        color = if (strikes >= 5) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = if (isSeller) "Control de conducta y cumplimiento de puesto" else "Control de conducta del comprador",
@@ -265,9 +272,9 @@ fun StrikeManagementCard(
 
             // Explicación de la regla de los 5 strikes
             Surface(
-                color = Color.White.copy(alpha = 0.85f),
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.15f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -278,13 +285,13 @@ fun StrikeManagementCard(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = Color(0xFF003366),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Regla de Seguridad Campus: Cada llamada de atenci\u00F3n oficial equivale a 1 strike. Al recibir 5 strikes, la cuenta es suspendida autom\u00E1ticamente por el sistema de forma inmediata.",
+                        text = "Regla de Seguridad Campus: Cada llamada de atención oficial equivale a 1 strike. Al recibir 5 strikes, la cuenta es suspendida automáticamente por el sistema de forma inmediata.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF1E293B),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 11.sp,
                         lineHeight = 16.sp
                     )
@@ -302,7 +309,7 @@ fun StrikeManagementCard(
                     text = "Historial Detallado (${warnings.size} ${if (warnings.size == 1) "strike emitido" else "strikes emitidos"}):",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFF003366),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp
                 )
 
@@ -311,7 +318,7 @@ fun StrikeManagementCard(
                         Surface(
                             color = MaterialTheme.colorScheme.surface,
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, if (strikes >= 5) Color(0xFFFFCDD2) else Color(0xFFFFE082)),
+                            border = BorderStroke(1.dp, if (strikes >= 5) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else MaterialTheme.extendedColors.warning.copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -327,13 +334,15 @@ fun StrikeManagementCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
+                                        val badgeBg = if (strikes >= 5) MaterialTheme.colorScheme.error else MaterialTheme.extendedColors.warning
+                                        val badgeText = if (strikes >= 5) MaterialTheme.colorScheme.onError else MaterialTheme.extendedColors.onWarning
                                         Surface(
-                                            color = if (strikes >= 5) Color(0xFFC8102E) else Color(0xFFE65100),
+                                            color = badgeBg,
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
                                             Text(
                                                 text = "Strike #${warnings.size - index}",
-                                                color = Color.White,
+                                                color = badgeText,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 10.sp,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -343,7 +352,7 @@ fun StrikeManagementCard(
                                             text = "Advertencia Oficial",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp,
-                                            color = Color(0xFF1E293B)
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Text(

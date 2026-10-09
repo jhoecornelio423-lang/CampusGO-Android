@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -19,12 +20,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.ProfileWarning
 import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.extendedColors
 import com.example.campusgo.ui.components.StrikeMeter
+import com.example.campusgo.ui.components.campusBottomSheetWindowInsets
+import com.example.campusgo.ui.components.preventBottomSheetBounce
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,114 +40,105 @@ fun SellerNotificationsBottomSheet(
     modifier: Modifier = Modifier,
     isSeller: Boolean = true
 ) {
-    val isDark = LocalDarkTheme.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
-
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(4.5.dp)
-                        .background(
-                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1),
-                            CircleShape
-                        )
-                )
-            }
-        },
-        modifier = modifier
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            // Header del diálogo
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
             ) {
+                // Header del diálogo
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (warnings.isNotEmpty()) {
-                            if (isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2)
-                        } else {
-                            if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3)
-                        },
-                        modifier = Modifier.size(38.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        ) {
                             Icon(
-                                imageVector = if (warnings.isNotEmpty()) Icons.Default.WarningAmber else Icons.Outlined.Notifications,
-                                contentDescription = null,
-                                tint = if (warnings.isNotEmpty()) Color(0xFFDC2626) else (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)),
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-                    Column {
-                        Text(
-                            text = "Avisos y Moderación",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (warnings.isEmpty()) (if (isSeller) "Todo en orden con tu puesto" else "Todo en orden con tu cuenta") else "${warnings.size} aviso${if (warnings.size != 1) "s" else ""} registrado${if (warnings.size != 1) "s" else ""}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Surface(
+                            shape = CircleShape,
+                            color = if (warnings.isNotEmpty()) {
+                                MaterialTheme.colorScheme.errorContainer
+                            } else {
+                                MaterialTheme.extendedColors.successContainer
+                            },
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (warnings.isNotEmpty()) Icons.Default.WarningAmber else Icons.Outlined.Notifications,
+                                    contentDescription = null,
+                                    tint = if (warnings.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.extendedColors.success,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                text = "Avisos y Moderación",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (warnings.isEmpty()) (if (isSeller) "Todo en orden con tu puesto" else "Todo en orden con tu cuenta") else "${warnings.size} aviso${if (warnings.size != 1) "s" else ""} registrado${if (warnings.size != 1) "s" else ""}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(36.dp)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 20.dp, vertical = 14.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-            ) {
                 // 1. Tarjeta Resumen de Strikes y Moderación del Administrador
                 item {
                     if (warnings.isEmpty()) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4),
-                            border = BorderStroke(1.dp, if (isDark) Color(0xFF059669) else Color(0xFFBBF7D0)),
+                            color = MaterialTheme.extendedColors.successContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -151,14 +148,14 @@ fun SellerNotificationsBottomSheet(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (isDark) Color(0xFF022C22) else Color(0xFFDCFCE7),
+                                    color = MaterialTheme.extendedColors.success.copy(alpha = 0.2f),
                                     modifier = Modifier.size(44.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.VerifiedUser,
                                             contentDescription = null,
-                                            tint = if (isDark) Color(0xFF34D399) else Color(0xFF16A34A),
+                                            tint = MaterialTheme.extendedColors.success,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -168,12 +165,12 @@ fun SellerNotificationsBottomSheet(
                                         text = "0 Strikes • Historial Limpio",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = if (isDark) Color(0xFF6EE7B7) else Color(0xFF14532D)
+                                        color = MaterialTheme.extendedColors.onSuccessContainer
                                     )
                                     Text(
                                         text = if (isSeller) "¡Excelente! Tu puesto no registra advertencias formales ni sanciones del administrador del campus." else "¡Excelente! Tu cuenta de comprador no registra advertencias formales ni sanciones del administrador.",
                                         fontSize = 12.sp,
-                                        color = if (isDark) Color(0xFFA7F3D0) else Color(0xFF166534),
+                                        color = MaterialTheme.extendedColors.onSuccessContainer.copy(alpha = 0.9f),
                                         lineHeight = 17.sp
                                     )
                                 }
@@ -182,8 +179,8 @@ fun SellerNotificationsBottomSheet(
                     } else {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2),
-                            border = BorderStroke(1.dp, if (isDark) Color(0xFF991B1B) else Color(0xFFFECACA)),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -196,14 +193,14 @@ fun SellerNotificationsBottomSheet(
                                 ) {
                                     Surface(
                                         shape = CircleShape,
-                                        color = if (isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2),
+                                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.2f),
                                         modifier = Modifier.size(44.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Default.WarningAmber,
                                                 contentDescription = null,
-                                                tint = Color(0xFFDC2626),
+                                                tint = MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(24.dp)
                                             )
                                         }
@@ -213,7 +210,7 @@ fun SellerNotificationsBottomSheet(
                                             text = "${warnings.size} de 5 Strikes Registrados",
                                             fontWeight = FontWeight.ExtraBold,
                                             fontSize = 15.sp,
-                                            color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
+                                            color = MaterialTheme.colorScheme.onErrorContainer
                                         )
                                         Text(
                                             text = when {
@@ -223,7 +220,7 @@ fun SellerNotificationsBottomSheet(
                                                 else -> "Advertencia formal (1/5 strikes): por favor corrige las conductas reportadas."
                                             },
                                             fontSize = 12.sp,
-                                            color = if (isDark) Color(0xFFFECACA) else Color(0xFFB91C1C),
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
                                             lineHeight = 16.sp
                                         )
                                     }
@@ -231,12 +228,12 @@ fun SellerNotificationsBottomSheet(
 
                                 StrikeMeter(strikes = warnings.size, maxStrikes = 5)
 
-                                HorizontalDivider(color = if (isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
 
                                 Text(
                                     text = if (isSeller) "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu puesto comercial." else "Regla Disciplinaria Oficial: Cada llamada de atención oficial equivale a 1 strike. Al acumular 5 strikes, el sistema suspenderá automáticamente tu cuenta impidiendo realizar pedidos.",
                                     fontSize = 11.5.sp,
-                                    color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF7F1D1D),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
                                     lineHeight = 16.sp
                                 )
                             }
@@ -260,8 +257,8 @@ fun SellerNotificationsBottomSheet(
                     itemsIndexed(warnings) { index, warning ->
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -275,14 +272,14 @@ fun SellerNotificationsBottomSheet(
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
-                                        color = if (isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2),
+                                        color = MaterialTheme.colorScheme.errorContainer,
                                         modifier = Modifier.padding(bottom = 2.dp)
                                     ) {
                                         Text(
                                             text = "Strike #${index + 1}",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp,
-                                            color = if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626),
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
@@ -335,4 +332,5 @@ fun SellerNotificationsBottomSheet(
             }
         }
     }
+}
 }

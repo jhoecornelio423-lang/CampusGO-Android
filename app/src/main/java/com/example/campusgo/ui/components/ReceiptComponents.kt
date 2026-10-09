@@ -132,7 +132,7 @@ fun formatReceiptOrderDate(createdAtIso: String?): String {
         val zone = ZoneId.systemDefault()
         val dt = instant.atZone(zone)
         val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy • hh:mm a", localePe)
-        dt.format(formatter)
+        dt.format(formatter).replace(". ", " ").replace(".", "").uppercase()
     } catch (e: Exception) {
         createdAtIso.take(16).replace("T", " ")
     }

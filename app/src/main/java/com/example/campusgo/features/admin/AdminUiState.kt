@@ -1,9 +1,10 @@
-﻿package com.example.campusgo.features.admin
+package com.example.campusgo.features.admin
 
 import com.example.campusgo.domain.model.BuyerOrderStats
 import com.example.campusgo.domain.model.CampusDetailedMetrics
 import com.example.campusgo.domain.model.CampusMeetingPoint
 import com.example.campusgo.domain.model.CampusMetrics
+import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.MetricsPeriod
 import com.example.campusgo.domain.model.OrderIncident
 import com.example.campusgo.domain.model.Product
@@ -24,6 +25,7 @@ data class AdminUiState(
     val selectedTab: AdminTab = AdminTab.MEETING_POINTS,
     val meetingPoints: List<CampusMeetingPoint> = emptyList(),
     val sellerApplications: List<SellerApplication> = emptyList(),
+    val categories: List<Category> = emptyList(),
     val sellers: List<UserProfile> = emptyList(),
     val buyers: List<UserProfile> = emptyList(),
     val incidents: List<OrderIncident> = emptyList(),
@@ -46,7 +48,10 @@ data class AdminUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val showCreateMeetingPointDialog: Boolean = false,
+    val selectedApplicationForApproval: SellerApplication? = null,
     val selectedApplicationForRejection: SellerApplication? = null,
+    val showManageCategoriesDialog: Boolean = false,
+    val isManagingCategories: Boolean = false,
     val selectedSellerForSuspension: UserProfile? = null,
     val selectedBuyerForSuspension: UserProfile? = null,
     val selectedUserForWarning: UserProfile? = null,

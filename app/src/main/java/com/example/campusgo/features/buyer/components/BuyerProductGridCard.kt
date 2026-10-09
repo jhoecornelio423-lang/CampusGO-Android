@@ -56,9 +56,9 @@ fun BuyerProductGridCard(
         onClick = { if (isAvailable) onClick() },
         enabled = isAvailable,
         shape = RoundedCornerShape(16.dp),
-        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else if (isAvailable) Color(0xFFEEF2F6) else Color(0xFFE2E8F0)),
-        shadowElevation = if (isAvailable) 1.5.dp else 0.dp,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = if (isAvailable && !isDark) 1.dp else 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .alpha(if (isAvailable) 1f else 0.55f)
@@ -83,7 +83,7 @@ fun BuyerProductGridCard(
                 if (!badgeText.isNullOrBlank()) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF0284C7),
+                        color = MaterialTheme.colorScheme.primary,
                         shadowElevation = 2.dp,
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -91,7 +91,7 @@ fun BuyerProductGridCard(
                     ) {
                         Text(
                             text = badgeText,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -108,7 +108,7 @@ fun BuyerProductGridCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Surface(
-                            color = Color(0xEEBE123C),
+                            color = MaterialTheme.colorScheme.error,
                             shape = RoundedCornerShape(8.dp),
                             shadowElevation = 3.dp
                         ) {
@@ -120,12 +120,12 @@ fun BuyerProductGridCard(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onError,
                                     modifier = Modifier.size(11.dp)
                                 )
                                 Text(
                                     text = "No disponible",
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onError,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -139,8 +139,8 @@ fun BuyerProductGridCard(
                     Surface(
                         onClick = onToggleFavorite,
                         shape = CircleShape,
-                        color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.90f) else Color.White.copy(alpha = 0.90f),
-                        border = if (isDark) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 2.dp,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -151,7 +151,7 @@ fun BuyerProductGridCard(
                             Icon(
                                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = "Favorito",
-                                tint = if (isFavorite) Color(0xFFEF4444) else (if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)),
+                                tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -181,14 +181,14 @@ fun BuyerProductGridCard(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_store_custom),
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(11.dp)
                         )
                         Text(
                             text = store.sellerName,
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00A884),
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -216,7 +216,7 @@ fun BuyerProductGridCard(
                         text = "S/ %.2f".format(product.price),
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.primary
                     )
 
                     Surface(
@@ -225,7 +225,7 @@ fun BuyerProductGridCard(
                         },
                         enabled = isAvailable,
                         shape = CircleShape,
-                        color = if (isAvailable) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE2E8F0)),
+                        color = if (isAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.size(26.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -233,14 +233,14 @@ fun BuyerProductGridCard(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_add_to_cart_custom),
                                     contentDescription = "Agregar al carrito",
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(15.dp)
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Block,
                                     contentDescription = "No disponible",
-                                    tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF94A3B8),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(15.dp)
                                 )
                             }

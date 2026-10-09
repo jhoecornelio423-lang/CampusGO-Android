@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.campusgo.R
 import com.example.campusgo.core.util.ImageCompressor
+import com.example.campusgo.theme.extendedColors
 import kotlinx.coroutines.launch
 
 enum class IncidentContextType {
@@ -88,7 +91,6 @@ fun ReportIncidentDialog(
     onDismiss: () -> Unit,
     onSubmit: (reasonKey: String, reasonLabel: String, details: String, evidenceBytes: ByteArray?) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val options = remember(contextType) {
         when (contextType) {
             IncidentContextType.SELLER -> listOf(
@@ -274,40 +276,29 @@ fun ReportIncidentDialog(
         }
     }
 
-    val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.88f).dp
     val selectedOption = remember(selectedKey, options) {
         options.firstOrNull { it.key == selectedKey } ?: options.first()
     }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = Color(0xFFF8FAFC),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(44.dp)
-                        .height(4.5.dp)
-                        .background(Color(0xFFCBD5E1), CircleShape)
-                )
-            }
-        }
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = !isSubmitting,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
-                .navigationBarsPadding()
-                .imePadding()
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
             // Cabecera adaptable según el paso actual
             Row(
                 modifier = Modifier
@@ -321,43 +312,45 @@ fun ReportIncidentDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    if (currentStep == 2) {
-                        IconButton(
-                            onClick = { if (!isSubmitting) currentStep = 1 },
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(Color(0xFFF1F5F9), CircleShape)
-                        ) {
+                    IconButton(
+                        onClick = {
+                            if (!isSubmitting) {
+                                if (currentStep == 2) currentStep = 1 else onDismiss()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (currentStep == 2) "Volver al paso 1" else "Regresar",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Volver al paso 1",
-                                tint = Color(0xFF0F172A),
+                                painter = painterResource(id = R.drawable.ic_report_triangle_custom),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                    } else {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFFFEE2E2),
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_report_triangle_custom),
-                                    contentDescription = null,
-                                    tint = Color(0xFFDC2626),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
                     }
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (currentStep == 1) title else "¿Deseas agregar algo más?",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 17.5.sp,
-                            color = Color(0xFF0F172A)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = if (currentStep == 1) {
@@ -367,28 +360,14 @@ fun ReportIncidentDialog(
                             },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-
-                IconButton(
-                    onClick = { if (!isSubmitting) onDismiss() },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(Color(0xFFF1F5F9), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
             }
 
             HorizontalDivider(
-                color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 modifier = Modifier.padding(top = 10.dp)
             )
 
@@ -398,16 +377,16 @@ fun ReportIncidentDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = false)
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Banner de protección institucional
                     Surface(
-                        color = Color(0xFFFFFBEB),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
                         shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -418,13 +397,13 @@ fun ReportIncidentDialog(
                             Icon(
                                 imageVector = Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = Color(0xFFD97706),
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = "Este reporte llegará directamente al Panel del Administrador del Campus para su investigación y seguimiento confidencial.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF92400E),
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp
                             )
@@ -435,20 +414,20 @@ fun ReportIncidentDialog(
                         text = "SELECCIONA EL MOTIVO PRINCIPAL",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 0.5.sp
                     )
 
-                    // Tarjetas seleccionables con diseño premium estilo Rappi / iOS
+                    // Tarjetas seleccionables
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         options.forEach { option ->
                             val isSelected = selectedKey == option.key
                             Surface(
-                                color = if (isSelected) Color(0xFFEFF6FF) else Color.White,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(14.dp),
                                 border = BorderStroke(
                                     width = if (isSelected) 1.8.dp else 1.dp,
-                                    color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
                                 ),
                                 shadowElevation = if (isSelected) 1.5.dp else 0.dp,
                                 modifier = Modifier
@@ -469,7 +448,7 @@ fun ReportIncidentDialog(
                                         modifier = Modifier
                                             .size(22.dp)
                                             .background(
-                                                color = if (isSelected) Color(0xFF2563EB) else Color(0xFFF1F5F9),
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                                 shape = CircleShape
                                             ),
                                         contentAlignment = Alignment.Center
@@ -478,14 +457,14 @@ fun ReportIncidentDialog(
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = null,
-                                                tint = Color.White,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.size(14.dp)
                                             )
                                         } else {
                                             Box(
                                                 modifier = Modifier
                                                     .size(8.dp)
-                                                    .background(Color(0xFFCBD5E1), CircleShape)
+                                                    .background(MaterialTheme.colorScheme.outline, CircleShape)
                                             )
                                         }
                                     }
@@ -495,14 +474,14 @@ fun ReportIncidentDialog(
                                             text = option.label,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                             fontSize = 13.5.sp,
-                                            color = if (isSelected) Color(0xFF1E3A8A) else Color(0xFF1E293B)
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                         )
                                         option.description?.let { desc ->
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Text(
                                                 text = desc,
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 lineHeight = 15.sp
                                             )
                                         }
@@ -515,8 +494,8 @@ fun ReportIncidentDialog(
 
                 // Barra inferior fija para Paso 1
                 Surface(
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -533,7 +512,7 @@ fun ReportIncidentDialog(
                             },
                             enabled = !isSubmitting,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF2563EB)
+                                containerColor = MaterialTheme.colorScheme.primary
                             ),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
@@ -556,7 +535,7 @@ fun ReportIncidentDialog(
                         ) {
                             Text(
                                 text = "Cancelar",
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -567,16 +546,16 @@ fun ReportIncidentDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = false)
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // Resumen del motivo seleccionado con opción de cambiar
                     Surface(
-                        color = Color(0xFFF1F5F9),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -593,14 +572,14 @@ fun ReportIncidentDialog(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color(0xFFDBEAFE),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
-                                            tint = Color(0xFF2563EB),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -610,13 +589,13 @@ fun ReportIncidentDialog(
                                         text = "Motivo seleccionado:",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF64748B)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
                                         text = selectedOption.label,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -628,7 +607,7 @@ fun ReportIncidentDialog(
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = null,
-                                    tint = Color(0xFF2563EB),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -636,7 +615,7 @@ fun ReportIncidentDialog(
                                     text = "Cambiar",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2563EB)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -644,15 +623,15 @@ fun ReportIncidentDialog(
 
                     // Mensaje explicativo
                     Surface(
-                        color = Color(0xFFF0FDF4),
+                        color = MaterialTheme.extendedColors.successContainer.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        border = BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "Este paso es opcional. Puedes añadir una explicación o adjuntar una captura o foto como evidencia (por ejemplo un comprobante de pago o foto del producto) para agilizar la resolución.",
                             fontSize = 12.sp,
-                            color = Color(0xFF166534),
+                            color = MaterialTheme.extendedColors.onSuccessContainer,
                             lineHeight = 17.sp,
                             modifier = Modifier.padding(12.dp)
                         )
@@ -664,7 +643,7 @@ fun ReportIncidentDialog(
                             text = if (selectedKey == "OTHER") "DETALLES DE LO OCURRIDO *" else "DETALLES DE LO OCURRIDO (OPCIONAL)",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.5.sp
                         )
                         OutlinedTextField(
@@ -683,7 +662,7 @@ fun ReportIncidentDialog(
                                         "Describe qué ocurrió, acuerdos no cumplidos, hora aproximada... (Opcional)"
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF94A3B8)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                             },
                             modifier = Modifier
@@ -692,10 +671,12 @@ fun ReportIncidentDialog(
                             shape = RoundedCornerShape(14.dp),
                             enabled = !isSubmitting,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF2563EB),
-                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             )
                         )
                         Row(
@@ -705,7 +686,7 @@ fun ReportIncidentDialog(
                             if (validationError != null) {
                                 Text(
                                     text = validationError ?: "",
-                                    color = Color(0xFFDC2626),
+                                    color = MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -715,7 +696,7 @@ fun ReportIncidentDialog(
                             Text(
                                 text = "${detailsText.length}/400",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF94A3B8)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -726,15 +707,15 @@ fun ReportIncidentDialog(
                             text = "EVIDENCIA FOTOGRÁFICA (OPCIONAL)",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.5.sp
                         )
 
                         if (selectedBitmap != null) {
                             Surface(
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -757,12 +738,12 @@ fun ReportIncidentDialog(
                                             text = "Fotografía adjunta",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.5.sp,
-                                            color = Color(0xFF0F172A)
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
                                             text = "Optimizada para tu dispositivo",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF16A34A),
+                                            color = MaterialTheme.extendedColors.success,
                                             fontWeight = FontWeight.Medium
                                         )
                                     }
@@ -775,12 +756,12 @@ fun ReportIncidentDialog(
                                         enabled = !isSubmitting,
                                         modifier = Modifier
                                             .size(36.dp)
-                                            .background(Color(0xFFFEE2E2), CircleShape)
+                                            .background(MaterialTheme.colorScheme.errorContainer, CircleShape)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Eliminar foto",
-                                            tint = Color(0xFFDC2626),
+                                            tint = MaterialTheme.colorScheme.error,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -788,9 +769,9 @@ fun ReportIncidentDialog(
                             }
                         } else if (isCompressingImage) {
                             Surface(
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -803,20 +784,20 @@ fun ReportIncidentDialog(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp),
                                         strokeWidth = 2.dp,
-                                        color = Color(0xFF2563EB)
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
                                         text = "Optimizando imagen de forma segura...",
                                         fontSize = 12.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         } else {
                             Surface(
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.2.dp, Color(0xFFCBD5E1)),
+                                border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.outlineVariant),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable(enabled = !isSubmitting) {
@@ -831,7 +812,7 @@ fun ReportIncidentDialog(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Surface(
-                                        color = Color(0xFFEFF6FF),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
                                         shape = CircleShape,
                                         modifier = Modifier.size(40.dp)
                                     ) {
@@ -839,7 +820,7 @@ fun ReportIncidentDialog(
                                             Icon(
                                                 imageVector = Icons.Default.AddPhotoAlternate,
                                                 contentDescription = null,
-                                                tint = Color(0xFF2563EB),
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -849,12 +830,12 @@ fun ReportIncidentDialog(
                                             text = "Adjuntar Foto o Captura de Prueba",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.5.sp,
-                                            color = Color(0xFF1E3A8A)
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
                                             text = "Comprobante Yape/Plin, captura de chat o entrega",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -865,8 +846,8 @@ fun ReportIncidentDialog(
 
                 // Barra inferior fija para Paso 2
                 Surface(
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -892,8 +873,8 @@ fun ReportIncidentDialog(
                             },
                             enabled = !isSubmitting,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFDC2626),
-                                disabledContainerColor = Color(0xFFE2E8F0)
+                                containerColor = MaterialTheme.colorScheme.error,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                             ),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
@@ -903,23 +884,24 @@ fun ReportIncidentDialog(
                             if (isSubmitting) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onError,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Enviando reporte...", fontWeight = FontWeight.Bold)
+                                Text("Enviando reporte...", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onError)
                             } else {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_report_triangle_custom),
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onError,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Enviar Reporte al Campus",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onError
                                 )
                             }
                         }
@@ -933,7 +915,7 @@ fun ReportIncidentDialog(
                         ) {
                             Text(
                                 text = "← Volver a cambiar motivo",
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -942,4 +924,5 @@ fun ReportIncidentDialog(
             }
         }
     }
+}
 }

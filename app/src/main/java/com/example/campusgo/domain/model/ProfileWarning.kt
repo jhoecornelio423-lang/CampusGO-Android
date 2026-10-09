@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.model
+package com.example.campusgo.domain.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -9,6 +9,7 @@ data class ProfileWarning(
     @SerialName("profile_id") val profileId: String,
     @SerialName("reason") val reason: String,
     @SerialName("ticket_id") val ticketId: String? = null,
+    @SerialName("incident_id") val incidentId: String? = null,
     @SerialName("created_by") val createdBy: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 ) {

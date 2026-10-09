@@ -9,9 +9,11 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
+import com.example.campusgo.core.di.databaseModule
 import com.example.campusgo.core.di.networkModule
 import com.example.campusgo.core.di.repositoryModule
 import com.example.campusgo.core.di.uiModule
+import com.example.campusgo.core.di.useCaseModule
 import com.example.campusgo.core.notification.CampusGoNotificationHelper
 import com.example.campusgo.core.notification.CampusGoPushService
 import com.example.campusgo.core.notification.PushWatchdogReceiver
@@ -36,7 +38,7 @@ class CampusGoApplication : Application(), ImageLoaderFactory {
         startKoin {
             androidLogger()
             androidContext(this@CampusGoApplication)
-            modules(networkModule, repositoryModule, uiModule)
+            modules(networkModule, databaseModule, repositoryModule, useCaseModule, uiModule)
         }
         CampusGoNotificationHelper.createNotificationChannels(this)
         SellerPaymentMethodsStorage.initialize(this)

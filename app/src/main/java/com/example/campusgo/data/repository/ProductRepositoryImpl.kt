@@ -15,7 +15,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.campusgo.data.local.dao.ProductDao
+import com.example.campusgo.data.local.entity.toEntity
+import io.github.jan.supabase.realtime.Realtime
 
 @kotlinx.serialization.Serializable
 data class ProductInsertDto(
@@ -124,7 +130,9 @@ data class ProductStockAndActiveDto(
 class ProductRepositoryImpl(
     private val postgrest: Postgrest,
     private val auth: Auth,
-    private val storage: Storage? = null
+    private val storage: Storage? = null,
+    private val productDao: ProductDao? = null,
+    private val realtime: Realtime? = null
 ) : ProductRepository {
 
     private fun isValidUUID(value: String): Boolean {
@@ -148,33 +156,51 @@ class ProductRepositoryImpl(
                     }
                 }
                 .decodeList<Product>()
+            
+            // Persistir inmediatamente en caché local Room
+            productDao?.insertProducts(products.map { it.toEntity() })
             _activeProductsFlow.value = products
             Result.success(products)
         } catch (e: Exception) {
-            Result.failure(e)
+            android.util.Log.w("ProductRepo", "Offline fallback active products: ${e.message}")
+            // Si la red falla o está offline, retornar lo que haya en memoria
+            if (_activeProductsFlow.value.isNotEmpty()) {
+                Result.success(_activeProductsFlow.value)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
-    override fun observeActiveProducts(): Flow<List<Product>> = flow {
-        if (_activeProductsFlow.value.isNotEmpty()) {
-            emit(_activeProductsFlow.value)
+    override fun observeActiveProducts(): Flow<List<Product>> {
+        return if (productDao != null) {
+            // Flujo reactivo Offline-First desde Room: emisión instantánea (0ms)
+            productDao.observeActiveProducts()
+                .map { entities -> entities.map { it.toDomain() } }
+                .onStart {
+                    // Sincronizar en segundo plano al iniciar
+                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                        getActiveProducts()
+                    }
+                }
+                .flowOn(Dispatchers.IO)
+        } else {
+            flow {
+                if (_activeProductsFlow.value.isNotEmpty()) {
+                    emit(_activeProductsFlow.value)
+                }
+                val result = getActiveProducts()
+                result.getOrNull()?.let { prods ->
+                    emit(prods)
+                }
+            }.flowOn(Dispatchers.IO)
         }
-        while (true) {
-            val result = getActiveProducts()
-            result.getOrNull()?.let { prods ->
-                emit(prods)
-            }
-            delay(4000L)
-        }
-    }.flowOn(Dispatchers.IO)
+    }
+
 
     private var cachedCategories: List<Category>? = null
 
     override suspend fun getCategories(): Result<List<Category>> = withContext(Dispatchers.IO) {
-        val memory = cachedCategories
-        if (!memory.isNullOrEmpty()) {
-            return@withContext Result.success(memory)
-        }
         try {
             val categories = postgrest.from("categories")
                 .select()
@@ -182,6 +208,7 @@ class ProductRepositoryImpl(
             cachedCategories = categories
             Result.success(categories)
         } catch (e: Exception) {
+            val memory = cachedCategories
             if (!memory.isNullOrEmpty()) {
                 Result.success(memory)
             } else {
@@ -236,8 +263,10 @@ class ProductRepositoryImpl(
                 pickupLocation = pickup
             )
             postgrest.from("products").insert(dto)
+            val created = product.copy(id = prodId, sellerId = sellerId, categoryId = catId, description = desc, pickupLocation = pickup)
+            productDao?.insertProduct(created.toEntity())
             android.util.Log.d("ProductRepo", "Producto creado exitosamente: ${dto.name} (id=$prodId, seller=$sellerId)")
-            Result.success(product.copy(id = prodId, sellerId = sellerId, categoryId = catId, description = desc, pickupLocation = pickup))
+            Result.success(created)
         } catch (e: Exception) {
             android.util.Log.e("ProductRepo", "Error al crear producto: ${e.message}", e)
             Result.failure(e)
@@ -261,6 +290,7 @@ class ProductRepositoryImpl(
                     eq("id", product.id)
                 }
             }
+            productDao?.insertProduct(product.toEntity())
             android.util.Log.d("ProductRepo", "Producto actualizado exitosamente: ${product.name} (id=${product.id})")
             Result.success(product)
         } catch (e: Exception) {
@@ -276,6 +306,7 @@ class ProductRepositoryImpl(
                     eq("id", productId)
                 }
             }
+            productDao?.deleteProduct(productId)
             Result.success(Unit)
         } catch (e: Exception) {
             // Si hay restricción por órdenes históricas, realizar baja lógica (soft-delete)
@@ -287,6 +318,7 @@ class ProductRepositoryImpl(
                         eq("id", productId)
                     }
                 }
+                productDao?.deleteProduct(productId)
                 Result.success(Unit)
             } catch (inner: Exception) {
                 Result.failure(e)

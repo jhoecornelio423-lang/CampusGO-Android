@@ -35,7 +35,9 @@ val repositoryModule = module {
         OrderRepositoryImpl(
             postgrest = get(),
             recalculateOrderUseCase = get(),
-            storage = getOrNull()
+            storage = getOrNull(),
+            orderDao = getOrNull(),
+            realtime = getOrNull()
         )
     }
 
@@ -50,7 +52,8 @@ val repositoryModule = module {
         com.example.campusgo.data.repository.ProductRepositoryImpl(
             postgrest = get(),
             auth = get(),
-            storage = getOrNull()
+            storage = getOrNull(),
+            productDao = getOrNull()
         )
     }
 

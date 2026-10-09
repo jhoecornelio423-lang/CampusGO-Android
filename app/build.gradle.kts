@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.google.services)
+  alias(libs.plugins.ksp)
 }
 
 val localProperties = Properties()
@@ -15,13 +16,13 @@ if (localPropertiesFile.exists()) {
 }
 val supabaseUrl: String = (localProperties.getProperty("SUPABASE_URL")
     ?: System.getenv("SUPABASE_URL")
-    ?: "https://api.kodexti.com")
+    ?: error("Falta SUPABASE_URL en local.properties o variables de entorno."))
 val supabaseKey: String = (localProperties.getProperty("SUPABASE_KEY")
     ?: System.getenv("SUPABASE_KEY")
-    ?: "sb_publishable_zstYiRQi8ysTq5WXUL2SNP_c1EKvmOE")
+    ?: error("Falta SUPABASE_KEY en local.properties o variables de entorno."))
 val googleServerClientId: String = (localProperties.getProperty("GOOGLE_SERVER_CLIENT_ID")
     ?: System.getenv("GOOGLE_SERVER_CLIENT_ID")
-    ?: "932068399848-ekb75dp64iot6ap496okojhgp4tkmt9k.apps.googleusercontent.com")
+    ?: error("Falta GOOGLE_SERVER_CLIENT_ID en local.properties o variables de entorno."))
 
 android {
     namespace = "com.example.campusgo"
@@ -32,7 +33,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 7
-        versionName = "0.6.2-beta"
+        versionName = "0.7.2-beta"
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
@@ -43,6 +44,7 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -145,5 +147,10 @@ dependencies {
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services.auth)
   implementation(libs.googleid)
+
+  // Room Local Database
+  implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.room.ktx)
+  ksp(libs.androidx.room.compiler)
 }
 

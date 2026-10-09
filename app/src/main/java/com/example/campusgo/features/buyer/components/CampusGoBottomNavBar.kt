@@ -35,7 +35,7 @@ fun CampusGoBottomNavBar(
     unreadChatCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
-    val activeColor = Color(0xFF00A884)
+    val activeColor = MaterialTheme.colorScheme.primary
     val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
@@ -141,8 +141,8 @@ fun CampusGoBottomNavBar(
                             badge = {
                                 if (unreadChatCount > 0) {
                                     Badge(
-                                        containerColor = Color(0xFFEF4444),
-                                        contentColor = Color.White
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
                                     ) {
                                         Text(
                                             text = if (unreadChatCount > 9) "+9" else "$unreadChatCount",
@@ -192,7 +192,7 @@ fun CampusGoBottomNavBar(
         Surface(
             onClick = { onTabSelected(BuyerBottomNavTab.PEDIDOS) },
             shape = CircleShape,
-            color = Color(0xFF00A884),
+            color = MaterialTheme.colorScheme.primary,
             shadowElevation = 6.dp,
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -205,7 +205,7 @@ fun CampusGoBottomNavBar(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_orders_bag),
                     contentDescription = "Pedidos",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(25.dp)
                 )
             }

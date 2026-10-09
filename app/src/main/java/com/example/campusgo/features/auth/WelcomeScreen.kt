@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.auth
+package com.example.campusgo.features.auth
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -88,7 +89,7 @@ fun WelcomeScreen(
                 )
             }
 
-            // SECCIÓN INFERIOR: Tarjeta blanca flotante con bordes redondeados
+            // SECCIÓN INFERIOR: Tarjeta flotante con bordes redondeados adaptativa
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -96,7 +97,7 @@ fun WelcomeScreen(
                     .padding(bottom = 20.dp)
                     .navigationBarsPadding(),
                 shape = RoundedCornerShape(34.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 10.dp
             ) {
                 Column(
@@ -116,12 +117,12 @@ fun WelcomeScreen(
                             text = "¿Listo para comenzar?",
                             fontSize = 25.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF102A43)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Crea tu cuenta en pocos pasos o ingresa si ya eres parte de CampusGO.",
                             fontSize = 13.5.sp,
-                            color = Color(0xFF627D98),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 19.sp
                         )
                     }
@@ -133,18 +134,12 @@ fun WelcomeScreen(
                         onClick = onStartRegister,
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00A884),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp)
-                            .shadow(
-                                elevation = 6.dp,
-                                shape = RoundedCornerShape(16.dp),
-                                spotColor = Color(0xFF00A884),
-                                ambientColor = Color(0x3300A884)
-                            )
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -154,13 +149,13 @@ fun WelcomeScreen(
                                 text = "Comenzar",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -175,13 +170,13 @@ fun WelcomeScreen(
                         Text(
                             text = "¿Ya tienes una cuenta? ",
                             fontSize = 13.sp,
-                            color = Color(0xFF627D98)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "Iniciar sesión",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00A884),
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { onLogin() }
                         )
                     }
@@ -202,7 +197,7 @@ fun WelcomeScreen(
                                 text = "CON EL RESPALDO DE  ",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF94A3B8),
+                                color = MaterialTheme.colorScheme.outline,
                                 letterSpacing = 1.sp
                             )
                             Image(
@@ -216,7 +211,7 @@ fun WelcomeScreen(
                                 text = "KODEX",
                                 fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Black,
-                                color = Color(0xFF102A43),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 letterSpacing = 1.2.sp
                             )
                         }
@@ -224,7 +219,7 @@ fun WelcomeScreen(
                             text = "Versión Beta v${com.example.campusgo.BuildConfig.VERSION_NAME.removeSuffix("-beta")}",
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFFA0AEC0)
+                            color = MaterialTheme.colorScheme.outline
                         )
                     }
                 }

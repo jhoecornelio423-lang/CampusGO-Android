@@ -57,6 +57,9 @@ import java.util.TimeZone
 
 import androidx.compose.ui.res.painterResource
 import com.example.campusgo.R
+import com.example.campusgo.ui.components.designsystem.CampusBadge
+import com.example.campusgo.ui.components.designsystem.CampusBadgeVariant
+import com.example.campusgo.theme.extendedColors
 
 data class CategoryVisualTheme(
     val emoji: String = "",
@@ -503,7 +506,9 @@ fun SubOrderCountdownTimerBadge(
             text = if (totalSeconds > 0) "$labelPrefix$formattedTime" else "¡Tiempo agotado!",
             color = textCol.copy(alpha = alphaAnim),
             fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -514,46 +519,33 @@ fun StoreStatusBadge(
     acceptingOrders: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val isDark = com.example.campusgo.theme.LocalDarkTheme.current
     val normStatus = (status ?: if (acceptingOrders) "ABIERTO" else "CERRADO").uppercase()
-
-    val (bgCol, textCol, label) = when {
-        !acceptingOrders || normStatus == "CERRADO" ->
-            if (isDark) Triple(Color(0xFF21262D), Color(0xFF8B949E), "Cerrado")
-            else Triple(Color(0xFFF4F6F8), Color(0xFF64748B), "Cerrado")
-        normStatus == "SATURADO" ->
-            if (isDark) Triple(Color(0xFF78350F).copy(alpha = 0.35f), Color(0xFFFBBF24), "Saturado (Demoras)")
-            else Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "Saturado (Demoras)")
-        normStatus == "PAUSADO" ->
-            if (isDark) Triple(Color(0xFF7C2D12).copy(alpha = 0.35f), Color(0xFFFB923C), "Pausado")
-            else Triple(Color(0xFFFFF7ED), Color(0xFFEA580C), "Pausado")
-        else ->
-            if (isDark) Triple(Color(0xFF004D3D).copy(alpha = 0.45f), Color(0xFF34D399), "Abierto")
-            else Triple(Color(0xFFE6F6F3), Color(0xFF16A085), "Abierto")
+    val (label, variant) = when {
+        !acceptingOrders || normStatus == "CERRADO" -> "Cerrado" to CampusBadgeVariant.Neutral
+        normStatus == "SATURADO" -> "Saturado (Demoras)" to CampusBadgeVariant.Warning
+        normStatus == "PAUSADO" -> "Pausado" to CampusBadgeVariant.Warning
+        else -> "Abierto" to CampusBadgeVariant.Success
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(bgCol)
-            .let { if (isDark) it.border(0.75.dp, textCol.copy(alpha = 0.35f), RoundedCornerShape(6.dp)) else it }
-            .padding(horizontal = 7.dp, vertical = 3.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(textCol)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = label,
-            color = textCol,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
+    CampusBadge(
+        text = label,
+        variant = variant,
+        modifier = modifier,
+        leadingIcon = {
+            val dotColor = when (variant) {
+                CampusBadgeVariant.Success -> MaterialTheme.extendedColors.success
+                CampusBadgeVariant.Warning -> MaterialTheme.extendedColors.warning
+                CampusBadgeVariant.Error -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+        }
+    )
 }
 
 private fun parseIsoEpochMillis(isoString: String?): Long {
@@ -799,10 +791,10 @@ fun formatOrderTime(isoDate: String?): String {
             }
             val date = sdf.parse(isoDate)
             if (date != null) {
-                val outFormat = SimpleDateFormat("h:mm a", Locale.forLanguageTag("es-PE")).apply {
+                val outFormat = SimpleDateFormat("h:mm a", Locale.US).apply {
                     timeZone = TimeZone.getTimeZone("America/Lima")
                 }
-                return outFormat.format(date).uppercase()
+                return outFormat.format(date).uppercase().replace(" ", "\u00A0")
             }
         } catch (_: Exception) {}
     }

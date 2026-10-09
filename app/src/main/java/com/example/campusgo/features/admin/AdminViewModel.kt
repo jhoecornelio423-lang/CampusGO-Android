@@ -10,6 +10,8 @@ import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.repository.AdminRepository
 import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.domain.repository.ProductRepository
+import com.example.campusgo.domain.usecase.ModerateIncidentUseCase
+import com.example.campusgo.domain.usecase.ProcessSellerApplicationUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -19,7 +21,9 @@ import java.util.UUID
 class AdminViewModel(
     private val adminRepository: AdminRepository,
     private val productRepository: ProductRepository,
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val processSellerApplicationUseCase: ProcessSellerApplicationUseCase,
+    private val moderateIncidentUseCase: ModerateIncidentUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
@@ -34,6 +38,11 @@ class AdminViewModel(
         viewModelScope.launch {
             adminRepository.observeSellerApplications().collect { apps ->
                 _uiState.update { it.copy(sellerApplications = apps) }
+            }
+        }
+        viewModelScope.launch {
+            adminRepository.observeCategories().collect { categories ->
+                _uiState.update { it.copy(categories = categories) }
             }
         }
         viewModelScope.launch {
@@ -200,6 +209,7 @@ class AdminViewModel(
             try {
                 adminRepository.refreshMeetingPoints()
                 adminRepository.refreshSellerApplications()
+                adminRepository.refreshCategories()
                 adminRepository.refreshSellers()
                 adminRepository.refreshBuyers()
                 adminRepository.refreshIncidents()
@@ -293,15 +303,74 @@ class AdminViewModel(
         }
     }
 
-    fun approveApplication(applicationId: String, adminId: String? = null) {
+    fun openApproveDialog(application: SellerApplication) {
+        _uiState.update { it.copy(selectedApplicationForApproval = application) }
+    }
+
+    fun dismissApproveDialog() {
+        _uiState.update { it.copy(selectedApplicationForApproval = null) }
+    }
+
+    fun confirmApproval(
+        applicationId: String,
+        adminId: String? = null,
+        category: String? = null,
+        addToGlobalCategories: Boolean = false
+    ) {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            val result = adminRepository.approveSellerApplication(applicationId, adminId)
+            val result = processSellerApplicationUseCase.approve(
+                applicationId = applicationId,
+                adminId = adminId,
+                category = category,
+                addToGlobalCategories = addToGlobalCategories
+            )
+            dismissApproveDialog()
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    successMessage = if (result.isSuccess) "¡Solicitud aprobada! El usuario ahora tiene acceso como vendedor." else null,
+                    successMessage = if (result.isSuccess) "¡Solicitud aprobada con éxito! Puesto y categoría actualizados." else null,
                     errorMessage = if (result.isFailure) "Error al aprobar solicitud: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
+        }
+    }
+
+    fun approveApplication(applicationId: String, adminId: String? = null) {
+        confirmApproval(applicationId, adminId, null, false)
+    }
+
+    fun openManageCategoriesDialog() {
+        _uiState.update { it.copy(showManageCategoriesDialog = true) }
+    }
+
+    fun dismissManageCategoriesDialog() {
+        _uiState.update { it.copy(showManageCategoriesDialog = false) }
+    }
+
+    fun createCategory(name: String, icon: String? = null) {
+        _uiState.update { it.copy(isManagingCategories = true) }
+        viewModelScope.launch {
+            val result = adminRepository.createCategory(name, icon)
+            _uiState.update {
+                it.copy(
+                    isManagingCategories = false,
+                    successMessage = if (result.isSuccess) "Categoría '${name.trim()}' agregada correctamente." else null,
+                    errorMessage = if (result.isFailure) "Error al crear categoría: ${result.exceptionOrNull()?.message}" else null
+                )
+            }
+        }
+    }
+
+    fun deleteCategory(id: String) {
+        _uiState.update { it.copy(isManagingCategories = true) }
+        viewModelScope.launch {
+            val result = adminRepository.deleteCategory(id)
+            _uiState.update {
+                it.copy(
+                    isManagingCategories = false,
+                    successMessage = if (result.isSuccess) "Categoría eliminada." else null,
+                    errorMessage = if (result.isFailure) "Error al eliminar categoría: ${result.exceptionOrNull()?.message}" else null
                 )
             }
         }
@@ -318,7 +387,7 @@ class AdminViewModel(
     fun confirmRejection(applicationId: String, reason: String) {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            val result = adminRepository.rejectSellerApplication(applicationId, reason)
+            val result = processSellerApplicationUseCase.reject(applicationId, reason)
             dismissRejectionDialog()
             _uiState.update {
                 it.copy(
@@ -342,9 +411,9 @@ class AdminViewModel(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val pendingIncident = _uiState.value.selectedIncidentForResolution
-            val result = adminRepository.toggleSellerSuspension(sellerId, isSuspended = true, reason = reason)
+            val result = moderateIncidentUseCase.suspendUser(sellerId, isSeller = true, reason = reason)
             if (pendingIncident != null && result.isSuccess) {
-                adminRepository.resolveIncident(
+                moderateIncidentUseCase.resolve(
                     incidentId = pendingIncident.id,
                     status = "SANCIONADO",
                     action = "SUSPENDED",
@@ -408,9 +477,9 @@ class AdminViewModel(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val pendingIncident = _uiState.value.selectedIncidentForResolution
-            val result = adminRepository.toggleBuyerSuspension(buyerId, isSuspended = true, reason = reason)
+            val result = moderateIncidentUseCase.suspendUser(buyerId, isSeller = false, reason = reason)
             if (pendingIncident != null && result.isSuccess) {
-                adminRepository.resolveIncident(
+                moderateIncidentUseCase.resolve(
                     incidentId = pendingIncident.id,
                     status = "SANCIONADO",
                     action = "SUSPENDED",
@@ -511,7 +580,7 @@ class AdminViewModel(
     fun resolveIncident(incidentId: String, status: String, action: String? = null, adminNotes: String? = null) {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            val result = adminRepository.resolveIncident(incidentId, status, action, adminNotes)
+            val result = moderateIncidentUseCase.resolve(incidentId, status, action, adminNotes)
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -536,9 +605,9 @@ class AdminViewModel(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val pendingIncident = _uiState.value.selectedIncidentForResolution
-            val result = adminRepository.issueWarning(userId, reason, adminId)
+            val result = moderateIncidentUseCase.issueWarning(userId, reason, adminId)
             if (pendingIncident != null && result.isSuccess) {
-                adminRepository.resolveIncident(
+                moderateIncidentUseCase.resolve(
                     incidentId = pendingIncident.id,
                     status = "SANCIONADO",
                     action = "WARNING_ISSUED",

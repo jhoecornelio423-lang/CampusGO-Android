@@ -9,9 +9,11 @@ import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.SubOrderStatus
 import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.domain.repository.ProductRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -26,7 +28,9 @@ import java.util.UUID
 class SellerDashboardViewModel(
     private val orderRepository: OrderRepository,
     private val productRepository: ProductRepository,
-    private val adminRepository: AdminRepository? = null
+    private val adminRepository: AdminRepository? = null,
+    private val supportRepository: com.example.campusgo.domain.repository.SupportRepository? = null,
+    private val chatRepository: com.example.campusgo.domain.repository.ChatRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SellerDashboardUiState())
@@ -51,6 +55,26 @@ class SellerDashboardViewModel(
             viewModelScope.launch {
                 adminRepository.observeMeetingPoints().collect { points ->
                     _uiState.update { it.copy(availableMeetingPoints = points.filter { p -> p.isActive }) }
+                }
+            }
+        }
+
+        if (supportRepository != null) {
+            viewModelScope.launch {
+                while (isActive) {
+                    try {
+                        val res = supportRepository.getActiveTicketForUser(sellerId)
+                        _uiState.update { it.copy(activeSupportTicket = res.getOrNull()) }
+                    } catch (_: Exception) {}
+                    delay(12000L)
+                }
+            }
+        }
+
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.observeUnreadCount(sellerId).collect { count ->
+                    _uiState.update { it.copy(unreadChatCount = count) }
                 }
             }
         }
@@ -756,8 +780,8 @@ class SellerDashboardViewModel(
             val currentMap = _uiState.value.buyerStrikes.toMutableMap()
             var changed = false
             for (buyerId in uniqueIds) {
-                if (!currentMap.containsKey(buyerId)) {
-                    orderRepository.getUserWarnings(buyerId).onSuccess { warnings ->
+                orderRepository.getUserWarnings(buyerId).onSuccess { warnings ->
+                    if (currentMap[buyerId] != warnings.size) {
                         currentMap[buyerId] = warnings.size
                         changed = true
                     }
@@ -793,6 +817,24 @@ class SellerDashboardViewModel(
             } else {
                 _uiState.update { it.copy(errorMessage = "Error al enviar reporte: ${result.exceptionOrNull()?.message}") }
             }
+        }
+    }
+
+    suspend fun getSubOrderById(subId: String): SubOrder? {
+        return orderRepository.getSubOrderById(subId).getOrNull()
+    }
+
+    suspend fun getTicketById(ticketId: String, userId: String): com.example.campusgo.domain.model.SupportTicket? {
+        return supportRepository?.getTicketById(ticketId)?.getOrNull()
+            ?: supportRepository?.getActiveTicketForUser(userId)?.getOrNull()
+    }
+
+    fun refreshActiveTicket(userId: String) {
+        viewModelScope.launch {
+            try {
+                val res = supportRepository?.getActiveTicketForUser(userId)
+                _uiState.update { it.copy(activeSupportTicket = res?.getOrNull()) }
+            } catch (_: Exception) {}
         }
     }
 

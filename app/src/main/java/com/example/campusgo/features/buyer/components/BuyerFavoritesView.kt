@@ -37,6 +37,7 @@ import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.features.buyer.StoreCatalogGroup
 import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.extendedColors
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,9 +110,9 @@ fun BuyerFavoritesView(
             ) { data ->
                 Snackbar(
                     snackbarData = data,
-                    containerColor = Color(0xFF1E293B),
-                    contentColor = Color.White,
-                    actionColor = Color(0xFF38BDF8),
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    actionColor = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(12.dp)
                 )
             }
@@ -121,15 +122,13 @@ fun BuyerFavoritesView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = if (isDark) 0.dp else 6.dp,
+                        elevation = if (isDark) 0.dp else 4.dp,
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                        spotColor = Color(0x1F16324F),
-                        ambientColor = Color(0x2816324F),
                         clip = false
                     ),
                 shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-                border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shadowElevation = 0.dp
             ) {
                 TopAppBar(
@@ -207,7 +206,7 @@ fun BuyerFavoritesView(
                             text = "Explorar más",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00A884),
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { onExploreCatalog() }
                         )
                     }
@@ -217,8 +216,8 @@ fun BuyerFavoritesView(
                     // Tarjeta compacta informativa cuando aún no hay productos en favoritos
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFEEF2F6)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = if (isDark) 0.dp else 1.dp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -231,14 +230,14 @@ fun BuyerFavoritesView(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = if (isDark) Color(0xFF2D1515) else Color(0xFFFEF2F2),
+                                color = MaterialTheme.colorScheme.errorContainer,
                                 modifier = Modifier.size(46.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Outlined.FavoriteBorder,
                                         contentDescription = null,
-                                        tint = Color(0xFFEF4444),
+                                        tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -328,7 +327,7 @@ fun BuyerFavoritesView(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_store_custom),
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
@@ -375,7 +374,7 @@ fun BuyerFavoritesView(
                                         shape = CircleShape,
                                         border = BorderStroke(
                                             width = 2.dp,
-                                            color = if (isOpen) Color(0xFF00A884) else (if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1))
+                                            color = if (isOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
                                         ),
                                         shadowElevation = if (isDark) 0.dp else 2.dp,
                                         modifier = Modifier.size(56.dp)
@@ -392,7 +391,7 @@ fun BuyerFavoritesView(
                                         modifier = Modifier
                                             .size(15.dp)
                                             .clip(CircleShape)
-                                            .background(if (isDark) MaterialTheme.colorScheme.surface else Color.White)
+                                            .background(MaterialTheme.colorScheme.surface)
                                             .padding(2.dp)
                                             .align(Alignment.BottomEnd)
                                     ) {
@@ -401,9 +400,9 @@ fun BuyerFavoritesView(
                                                 .fillMaxSize()
                                                 .clip(CircleShape)
                                                 .background(
-                                                    if (isOpen) Color(0xFF16A34A)
-                                                    else if (store.businessStatus.equals("PAUSADO", ignoreCase = true)) Color(0xFFEAB308)
-                                                    else Color(0xFF94A3B8)
+                                                    if (isOpen) MaterialTheme.extendedColors.success
+                                                    else if (store.businessStatus.equals("PAUSADO", ignoreCase = true)) MaterialTheme.colorScheme.tertiary
+                                                    else MaterialTheme.colorScheme.outline
                                                 )
                                         )
                                     }
@@ -427,7 +426,7 @@ fun BuyerFavoritesView(
                                     else "Cerrado",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (isOpen) Color(0xFF16A34A) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isOpen) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -457,7 +456,7 @@ fun BuyerFavoritesView(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
-                            tint = Color(0xFF0284C7),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -474,7 +473,7 @@ fun BuyerFavoritesView(
                             text = "${mostOrderedItems.size} frecuente${if (mostOrderedItems.size > 1) "s" else ""}",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0284C7)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -483,8 +482,8 @@ fun BuyerFavoritesView(
                     // Tarjeta cuando aún no hay historial de compras
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFEEF2F6)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = if (isDark) 0.dp else 1.dp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -500,14 +499,14 @@ fun BuyerFavoritesView(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (isDark) Color(0xFF0C2B47) else Color(0xFFF0F9FF),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     modifier = Modifier.size(44.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.Refresh,
                                             contentDescription = null,
-                                            tint = Color(0xFF0284C7),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
@@ -531,7 +530,10 @@ fun BuyerFavoritesView(
                             Button(
                                 onClick = onExploreCatalog,
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(40.dp)

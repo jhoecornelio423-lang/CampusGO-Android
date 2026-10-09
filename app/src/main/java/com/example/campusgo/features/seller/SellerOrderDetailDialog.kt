@@ -10,7 +10,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Schedule
@@ -20,6 +22,8 @@ import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.campusgo.theme.LocalDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +46,12 @@ import com.example.campusgo.ui.components.IncidentContextType
 import com.example.campusgo.ui.components.PaymentMethodLogo
 import com.example.campusgo.ui.components.ReportIncidentDialog
 import com.example.campusgo.ui.components.CampusGoUserAvatar
+import com.example.campusgo.ui.components.campusBottomSheetWindowInsets
 import com.example.campusgo.ui.components.formatOrderTime
+import com.example.campusgo.ui.components.preventBottomSheetBounce
+import com.example.campusgo.features.seller.components.StatusBadge
+import com.example.campusgo.theme.extendedColors
+import com.example.campusgo.ui.components.StrikeBadge
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -57,6 +66,8 @@ fun SellerOrderDetailDialog(
     onOpenDelivery: (SubOrder) -> Unit,
     onOpenRejection: (SubOrder) -> Unit,
     onOpenChat: ((SubOrder) -> Unit)? = null,
+    onOpenBuyerProfile: ((SubOrder) -> Unit)? = null,
+    buyerStrikes: Int = 0,
     isProcessing: Boolean = false,
     orderRepository: OrderRepository = koinInject()
 ) {
@@ -66,133 +77,103 @@ fun SellerOrderDetailDialog(
     var showReportBuyerDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
     var showEnlargedBuyerPhoto by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
-
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(4.5.dp)
-                        .background(
-                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1),
-                            CircleShape
-                        )
-                )
-            }
-        }
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
-                .navigationBarsPadding()
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            // Cabecera superior moderna tipo Rappi / iOS (fija)
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
             ) {
+                // Cabecera superior moderna con botón de regreso único
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
-                        modifier = Modifier.size(42.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
+                        ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                                contentDescription = null,
-                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                                modifier = Modifier.size(22.dp)
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
+                            modifier = Modifier.size(38.dp)
                         ) {
-                            Text(
-                                text = "Pedido #${subOrder.orderId.takeLast(4).uppercase()}",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            val orderTime = formatOrderTime(subOrder.createdAt)
-                            if (orderTime.isNotBlank()) {
-                                Text(
-                                    text = "• $orderTime",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                                    contentDescription = null,
+                                    tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
-                        Text(
-                            text = "Cliente: ${subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario"}",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Detalle del Pedido",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 17.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val orderTime = formatOrderTime(subOrder.createdAt)
+                            val buyer = subOrder.buyerName?.ifBlank { "Estudiante" } ?: "Estudiante"
+                            val subtitleText = if (orderTime.isNotBlank()) "$buyer • $orderTime" else buyer
+                            Text(
+                                text = subtitleText,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
                     StatusBadge(status = subOrder.status)
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(34.dp)
-                            .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
-                            modifier = Modifier.size(17.dp)
-                        )
-                    }
                 }
-            }
 
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                thickness = 1.dp,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // Contenido con scroll
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+                // Contenido con scroll nativo
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                 // 1. Tarjeta: Punto de Entrega Acordado
                 Card(
                     colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White),
@@ -294,73 +275,120 @@ fun SellerOrderDetailDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 letterSpacing = 0.5.sp
                             )
-                            Surface(
-                                color = if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE),
-                                shape = RoundedCornerShape(12.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(
-                                    text = "🎓 Estudiante Campus GO",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) Color(0xFF7DD3FC) else Color(0xFF0369A1),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
+                                if (buyerStrikes > 0) {
+                                    StrikeBadge(strikes = buyerStrikes)
+                                } else {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.extendedColors.successContainer.copy(alpha = 0.6f)
+                                    ) {
+                                        Text(
+                                            text = "0 strikes",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.extendedColors.onSuccessContainer,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                                Surface(
+                                    color = if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = "🎓 Estudiante",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color(0xFF7DD3FC) else Color(0xFF0369A1),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
                             }
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (onOpenBuyerProfile != null) {
+                                        Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .clickable { onOpenBuyerProfile(subOrder) }
+                                    } else Modifier
+                                ),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outline.copy(alpha = 0.15f) else Color(0xFFE2E8F0))
                         ) {
-                            Box(
-                                contentAlignment = Alignment.BottomEnd,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .clip(CircleShape)
-                                    .clickable {
-                                        if (!subOrder.buyerAvatarUrl.isNullOrBlank()) {
-                                            showEnlargedBuyerPhoto = true
-                                        }
-                                    }
+                                    .fillMaxWidth()
+                                    .padding(12.dp)
                             ) {
-                                CampusGoUserAvatar(
-                                    avatarUrl = subOrder.buyerAvatarUrl,
-                                    name = subOrder.buyerName,
-                                    size = 46.dp
-                                )
-                                if (!subOrder.buyerAvatarUrl.isNullOrBlank()) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                                        border = BorderStroke(1.5.dp, if (isDark) MaterialTheme.colorScheme.surface else Color.White),
-                                        modifier = Modifier.size(18.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = Icons.Default.ZoomIn,
-                                                contentDescription = "Ampliar foto",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(11.dp)
-                                            )
+                                Box(
+                                    contentAlignment = Alignment.BottomEnd,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            if (!subOrder.buyerAvatarUrl.isNullOrBlank()) {
+                                                showEnlargedBuyerPhoto = true
+                                            } else {
+                                                onOpenBuyerProfile?.invoke(subOrder)
+                                            }
+                                        }
+                                ) {
+                                    CampusGoUserAvatar(
+                                        avatarUrl = subOrder.buyerAvatarUrl,
+                                        name = subOrder.buyerName,
+                                        size = 46.dp
+                                    )
+                                    if (!subOrder.buyerAvatarUrl.isNullOrBlank()) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                            border = BorderStroke(1.5.dp, if (isDark) MaterialTheme.colorScheme.surface else Color.White),
+                                            modifier = Modifier.size(18.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ZoomIn,
+                                                    contentDescription = "Ampliar foto",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "Comprador verificado",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = subOrder.buyerName?.ifBlank { "Estudiante Universitario" } ?: "Estudiante Universitario",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "Toca para ver perfil y strikes",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = "Ver perfil",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -797,26 +825,32 @@ fun SellerOrderDetailDialog(
 
                             Button(
                                 onClick = onDismiss,
-                                colors = ButtonDefaults.buttonColors(containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFF16324F)),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp)
                             ) {
-                                Text("Cerrar", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text("Volver", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                         }
                     }
                     else -> {
                         Button(
                             onClick = onDismiss,
-                            colors = ButtonDefaults.buttonColors(containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFF16324F)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(46.dp)
                         ) {
-                            Text("Cerrar", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Volver", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -825,6 +859,7 @@ fun SellerOrderDetailDialog(
             }
         }
     }
+}
 
     if (showReportBuyerDialog) {
         ReportIncidentDialog(

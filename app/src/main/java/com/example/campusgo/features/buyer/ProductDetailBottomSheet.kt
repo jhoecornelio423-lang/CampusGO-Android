@@ -1,5 +1,6 @@
 package com.example.campusgo.features.buyer
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.foundation.clickable
@@ -21,8 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.extendedColors
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,6 +36,8 @@ import androidx.compose.ui.res.painterResource
 import com.example.campusgo.R
 import com.example.campusgo.domain.model.Product
 import com.example.campusgo.ui.components.CampusGoProductImage
+import com.example.campusgo.ui.components.campusBottomSheetWindowInsets
+import com.example.campusgo.ui.components.preventBottomSheetBounce
 import com.example.campusgo.ui.components.resolveCategoryVisualTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,37 +53,86 @@ fun ProductDetailBottomSheet(
     onAddToCart: (product: Product, quantity: Int, specialInstructions: String?) -> Unit
 ) {
     val isDark = LocalDarkTheme.current
-    val modalBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var quantity by remember { mutableIntStateOf(if (product.stock > 0) 1 else 0) }
     var specialInstructions by remember { mutableStateOf("") }
     val maxStock = remember(product.stock) { maxOf(0, product.stock) }
 
-    val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
-
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = modalBottomSheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(bottom = 16.dp)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
             ) {
+                // Header superior con botón Atrás y botón Cerrar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = "Detalle del Producto",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = storeName,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // Scroll central
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                 // Imagen Hero Grande del Producto
                 Box(
                     modifier = Modifier
@@ -108,7 +164,7 @@ fun ProductDetailBottomSheet(
                                     Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable { onStoreClick() }
-                                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3))
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 } else Modifier
                             )
@@ -116,7 +172,7 @@ fun ProductDetailBottomSheet(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_store_custom),
                             contentDescription = null,
-                            tint = if (onStoreClick != null) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurface,
+                            tint = if (onStoreClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -124,7 +180,7 @@ fun ProductDetailBottomSheet(
                             text = storeName,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (onStoreClick != null) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurface,
+                            color = if (onStoreClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -133,7 +189,7 @@ fun ProductDetailBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = "Ver Puesto",
-                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -181,15 +237,11 @@ fun ProductDetailBottomSheet(
                             text = "S/ %.2f".format(product.price),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         val isLowStock = product.stock <= 3
                         Surface(
-                            color = if (isDark) {
-                                if (isLowStock) Color(0xFF450A0A) else Color(0xFF064E3B)
-                            } else {
-                                if (isLowStock) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
-                            },
+                            color = if (isLowStock) MaterialTheme.colorScheme.errorContainer else MaterialTheme.extendedColors.successContainer,
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
@@ -197,11 +249,7 @@ fun ProductDetailBottomSheet(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) {
-                                    if (isLowStock) Color(0xFFFCA5A5) else Color(0xFF6EE7B7)
-                                } else {
-                                    if (isLowStock) Color(0xFFC8102E) else Color(0xFF2E7D32)
-                                }
+                                color = if (isLowStock) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.extendedColors.onSuccessContainer
                             )
                         }
                     }
@@ -221,7 +269,7 @@ fun ProductDetailBottomSheet(
                 // Advertencia si el puesto está cerrado o en pausa
                 if (!isStoreAvailable) {
                     Surface(
-                        color = if (isDark) Color(0xFF431407) else Color(0xFFFFF3E0),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -232,7 +280,7 @@ fun ProductDetailBottomSheet(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_warning_custom),
                                 contentDescription = null,
-                                tint = if (isDark) Color(0xFFFB923C) else Color(0xFFE65100),
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(22.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -242,7 +290,7 @@ fun ProductDetailBottomSheet(
                                 else
                                     "Este puesto se encuentra cerrado actualmente.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isDark) Color(0xFFFDBA74) else Color(0xFFE65100),
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -302,7 +350,7 @@ fun ProductDetailBottomSheet(
                             text = "$quantity",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = if (product.stock > 0) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else Color(0xFF9E9E9E)
+                            color = if (product.stock > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                         )
 
                         FilledTonalIconButton(
@@ -316,9 +364,7 @@ fun ProductDetailBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón Sticky de Agregar al Carrito (Deshabilitado si está en Pausa o Cerrado)
+            // Barra inferior fija con el botón de Agregar al Carrito
             val subtotal = product.price * quantity
             val canAdd = isStoreAvailable && product.stock > 0 && quantity > 0
             val buttonLabel = when {
@@ -328,59 +374,73 @@ fun ProductDetailBottomSheet(
                 else -> "Agregar al carrito"
             }
 
-            Button(
-                onClick = {
-                    val instructions = specialInstructions.trim().takeIf { it.isNotBlank() }
-                    onAddToCart(product, quantity, instructions)
-                    onDismiss()
-                },
-                enabled = canAdd,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                    disabledContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEEEEEE),
-                    disabledContentColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF9E9E9E)
-                )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (canAdd) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_add_to_cart_custom),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Block,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
+                    Button(
+                        onClick = {
+                            val instructions = specialInstructions.trim().takeIf { it.isNotBlank() }
+                            onAddToCart(product, quantity, instructions)
+                            onDismiss()
+                        },
+                        enabled = canAdd,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (canAdd) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_add_to_cart_custom),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Block,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = buttonLabel,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            if (canAdd) {
+                                Text(
+                                    text = "S/ %.2f".format(subtotal),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = buttonLabel,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                    if (canAdd) {
-                        Text(
-                            text = "S/ %.2f".format(subtotal),
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 16.sp
-                        )
                     }
                 }
             }
         }
     }
+}
 }

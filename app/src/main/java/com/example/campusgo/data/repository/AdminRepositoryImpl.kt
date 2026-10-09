@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.example.campusgo.domain.model.BuyerOrderStats
+import com.example.campusgo.domain.model.Category
 import com.example.campusgo.domain.model.ProfileWarning
 import com.example.campusgo.domain.model.CampusDetailedMetrics
 import com.example.campusgo.domain.model.MetricsPeriod
@@ -157,6 +158,7 @@ class AdminRepositoryImpl(
 
     private val _meetingPointsFlow = MutableStateFlow<List<CampusMeetingPoint>>(defaultMeetingPoints)
     private val _applicationsFlow = MutableStateFlow<List<SellerApplication>>(defaultApplications)
+    private val _categoriesFlow = MutableStateFlow<List<Category>>(emptyList())
     private val _sellersFlow = MutableStateFlow<List<UserProfile>>(defaultSellers)
     private val _buyersFlow = MutableStateFlow<List<UserProfile>>(defaultBuyers)
     private val _incidentsFlow = MutableStateFlow<List<OrderIncident>>(emptyList())
@@ -180,6 +182,7 @@ class AdminRepositoryImpl(
     private suspend fun refreshAll() {
         refreshMeetingPoints()
         refreshSellerApplications()
+        refreshCategories()
         refreshSellers()
         refreshBuyers()
         refreshIncidents()
@@ -219,6 +222,22 @@ class AdminRepositoryImpl(
 
         if (_applicationsFlow.value.isEmpty() && postgrest == null) {
             _applicationsFlow.value = defaultApplications
+        }
+    }
+
+    override fun observeCategories(): Flow<List<Category>> = _categoriesFlow.asStateFlow()
+
+    override suspend fun refreshCategories() = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                val remoteCats = postgrest.from("categories")
+                    .select()
+                    .decodeList<Category>()
+                _categoriesFlow.value = remoteCats.sortedBy { it.name }
+                return@withContext
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepositoryImpl", "Error al cargar categories: ${e.message}", e)
         }
     }
 
@@ -373,7 +392,12 @@ class AdminRepositoryImpl(
 
     override fun observeSellerApplications(): Flow<List<SellerApplication>> = _applicationsFlow.asStateFlow()
 
-    override suspend fun approveSellerApplication(applicationId: String, adminId: String?): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun approveSellerApplication(
+        applicationId: String,
+        adminId: String?,
+        category: String?,
+        addToGlobalCategories: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
                 val targetApp = _applicationsFlow.value.find { it.id == applicationId }
@@ -381,9 +405,48 @@ class AdminRepositoryImpl(
                         postgrest.from("seller_applications").select { filter { eq("id", applicationId) } }.decodeSingleOrNull<SellerApplication>()
                     } catch (_: Exception) { null }
 
+                val finalCategory = category?.trim()?.takeIf { it.isNotBlank() } ?: targetApp?.category?.trim().orEmpty()
+
+                if (addToGlobalCategories && finalCategory.isNotBlank()) {
+                    try {
+                        val existing = postgrest.from("categories")
+                            .select {
+                                filter {
+                                    ilike("name", finalCategory)
+                                }
+                            }
+                            .decodeList<Category>()
+                        if (existing.isEmpty()) {
+                            val slug = finalCategory.lowercase()
+                                .replace(Regex("[áàäâ]"), "a")
+                                .replace(Regex("[éèëê]"), "e")
+                                .replace(Regex("[íìïî]"), "i")
+                                .replace(Regex("[óòöô]"), "o")
+                                .replace(Regex("[úùüû]"), "u")
+                                .replace(Regex("[ñ]"), "n")
+                                .replace(Regex("[^a-z0-9]+"), "-")
+                                .trim('-')
+                            postgrest.from("categories").insert(
+                                Category(
+                                    id = UUID.randomUUID().toString(),
+                                    name = finalCategory,
+                                    slug = slug,
+                                    icon = "🏷️"
+                                )
+                            )
+                            refreshCategories()
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("AdminRepo", "Error al registrar categoría global: ${e.message}", e)
+                    }
+                }
+
                 postgrest.from("seller_applications").update(
                     buildJsonObject {
                         put("status", "approved")
+                        if (finalCategory.isNotBlank()) {
+                            put("business_category", finalCategory)
+                        }
                         if (!adminId.isNullOrBlank()) {
                             put("reviewed_by", adminId)
                         }
@@ -398,8 +461,8 @@ class AdminRepositoryImpl(
                         buildJsonObject {
                             put("role", "emprendedor")
                             put("business_name", targetApp.storeName.ifBlank { "Mi Tienda" })
-                            if (targetApp.category.isNotBlank()) {
-                                put("business_category", targetApp.category)
+                            if (finalCategory.isNotBlank()) {
+                                put("business_category", finalCategory)
                             }
                             if (targetApp.description.isNotBlank()) {
                                 put("business_description", targetApp.description)
@@ -425,7 +488,10 @@ class AdminRepositoryImpl(
             val current = _applicationsFlow.value.toMutableList()
             val index = current.indexOfFirst { it.id == applicationId }
             if (index >= 0) {
-                current[index] = current[index].copy(status = ApplicationStatus.APROBADA)
+                current[index] = current[index].copy(
+                    status = ApplicationStatus.APROBADA,
+                    category = category?.trim()?.takeIf { it.isNotBlank() } ?: current[index].category
+                )
                 _applicationsFlow.value = current
                 Result.success(Unit)
             } else {
@@ -433,6 +499,79 @@ class AdminRepositoryImpl(
             }
         } catch (e: Exception) {
             android.util.Log.e("AdminRepo", "Error al aprobar solicitud: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun createCategory(name: String, icon: String?): Result<Category> = withContext(Dispatchers.IO) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("El nombre de la categoría no puede estar vacío"))
+        }
+        try {
+            if (postgrest != null) {
+                val existing = postgrest.from("categories")
+                    .select {
+                        filter {
+                            ilike("name", trimmed)
+                        }
+                    }
+                    .decodeList<Category>()
+                if (existing.isNotEmpty()) {
+                    return@withContext Result.failure(IllegalStateException("Ya existe una categoría llamada '$trimmed'"))
+                }
+
+                val slug = trimmed.lowercase()
+                    .replace(Regex("[áàäâ]"), "a")
+                    .replace(Regex("[éèëê]"), "e")
+                    .replace(Regex("[íìïî]"), "i")
+                    .replace(Regex("[óòöô]"), "o")
+                    .replace(Regex("[úùüû]"), "u")
+                    .replace(Regex("[ñ]"), "n")
+                    .replace(Regex("[^a-z0-9]+"), "-")
+                    .trim('-')
+
+                val newCat = Category(
+                    id = UUID.randomUUID().toString(),
+                    name = trimmed,
+                    slug = slug,
+                    icon = icon?.trim()?.takeIf { it.isNotBlank() } ?: "🏷️"
+                )
+                postgrest.from("categories").insert(newCat)
+                refreshCategories()
+                return@withContext Result.success(newCat)
+            }
+            val newCat = Category(
+                id = UUID.randomUUID().toString(),
+                name = trimmed,
+                slug = trimmed.lowercase(),
+                icon = icon ?: "🏷️"
+            )
+            val current = _categoriesFlow.value.toMutableList()
+            current.add(newCat)
+            _categoriesFlow.value = current.sortedBy { it.name }
+            Result.success(newCat)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al crear categoría: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteCategory(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (postgrest != null) {
+                postgrest.from("categories").delete {
+                    filter { eq("id", id) }
+                }
+                refreshCategories()
+                return@withContext Result.success(Unit)
+            }
+            val current = _categoriesFlow.value.toMutableList()
+            current.removeAll { it.id == id }
+            _categoriesFlow.value = current
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("AdminRepo", "Error al eliminar categoría: ${e.message}", e)
             Result.failure(e)
         }
     }

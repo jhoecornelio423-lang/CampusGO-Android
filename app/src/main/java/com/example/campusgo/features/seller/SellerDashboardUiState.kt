@@ -106,7 +106,9 @@ data class SellerDashboardUiState(
     val statsTimeRange: String = "all",
     val warnings: List<com.example.campusgo.domain.model.ProfileWarning> = emptyList(),
     val buyerStrikes: Map<String, Int> = emptyMap(),
-    val selectedDate: LocalDate = LocalDate.now(ZoneId.of("America/Lima"))
+    val selectedDate: LocalDate = LocalDate.now(ZoneId.of("America/Lima")),
+    val activeSupportTicket: com.example.campusgo.domain.model.SupportTicket? = null,
+    val unreadChatCount: Int = 0
 ) {
     val isViewingToday: Boolean
         get() = selectedDate == LocalDate.now(ZoneId.of("America/Lima"))

@@ -9,11 +9,13 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -28,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +42,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.campusgo.R
 import com.example.campusgo.core.util.SupportEmailHelper
+import com.example.campusgo.ui.components.designsystem.CampusCard
+import com.example.campusgo.ui.components.designsystem.CampusButton
+import com.example.campusgo.ui.components.designsystem.CampusOutlinedButton
+import com.example.campusgo.theme.extendedColors
 
 enum class ProfileInfoType {
     NONE,
@@ -139,113 +147,116 @@ fun ProfileInfoBottomSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 10.dp)
-                    .width(36.dp)
-                    .height(4.dp),
-                shape = CircleShape,
-                color = Color(0xFFCBD5E1)
-            ) {}
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp)
-        ) {
-            // Cabecera del modal
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    val (iconRes, badgeBg, badgeTint) = when (type) {
-                        ProfileInfoType.TERMS -> Triple(R.drawable.ic_terms_custom, Color(0xFFE6F7F3), Color(0xFF00A884))
-                        ProfileInfoType.PRIVACY -> Triple(R.drawable.ic_privacy_custom, Color(0xFFEFF6FF), Color(0xFF2563EB))
-                        ProfileInfoType.HELP -> Triple(R.drawable.ic_help_headset_custom, Color(0xFFFEF3C7), Color(0xFFD97706))
-                        ProfileInfoType.NONE -> Triple(R.drawable.ic_help_headset_custom, Color(0xFFF1F5F9), Color(0xFF64748B))
-                    }
+    if (type == ProfileInfoType.NONE) return
 
-                    Surface(
-                        shape = CircleShape,
-                        color = badgeBg,
-                        modifier = Modifier.size(42.dp)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                // Cabecera superior moderna con botón de volver y cerrar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        ) {
                             Icon(
-                                painter = painterResource(id = iconRes),
-                                contentDescription = null,
-                                tint = badgeTint,
-                                modifier = Modifier.size(22.dp)
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        val extended = MaterialTheme.extendedColors
+                        val (iconRes, badgeBg, badgeTint) = when (type) {
+                            ProfileInfoType.TERMS -> Triple(R.drawable.ic_terms_custom, extended.successContainer, extended.onSuccessContainer)
+                            ProfileInfoType.PRIVACY -> Triple(R.drawable.ic_privacy_custom, extended.infoContainer, extended.onInfoContainer)
+                            ProfileInfoType.HELP -> Triple(R.drawable.ic_help_headset_custom, extended.warningContainer, extended.onWarningContainer)
+                            ProfileInfoType.NONE -> Triple(R.drawable.ic_help_headset_custom, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = badgeBg,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painter = painterResource(id = iconRes),
+                                    contentDescription = null,
+                                    tint = badgeTint,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                text = when (type) {
+                                    ProfileInfoType.TERMS -> "Términos y Condiciones"
+                                    ProfileInfoType.PRIVACY -> "Políticas de Privacidad"
+                                    ProfileInfoType.HELP -> "Centro de Ayuda"
+                                    ProfileInfoType.NONE -> ""
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = when (type) {
+                                    ProfileInfoType.TERMS -> "CampusGO • Normas de la comunidad"
+                                    ProfileInfoType.PRIVACY -> "Protección y seguridad de tus datos"
+                                    ProfileInfoType.HELP -> "Preguntas frecuentes y soporte"
+                                    ProfileInfoType.NONE -> ""
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = when (type) {
-                                ProfileInfoType.TERMS -> "Términos y Condiciones"
-                                ProfileInfoType.PRIVACY -> "Políticas de Privacidad"
-                                ProfileInfoType.HELP -> "Centro de Ayuda"
-                                ProfileInfoType.NONE -> ""
-                            },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F)
-                        )
-                        Text(
-                            text = when (type) {
-                                ProfileInfoType.TERMS -> "CampusGO • Normas de la comunidad"
-                                ProfileInfoType.PRIVACY -> "Protección y seguridad de tus datos"
-                                ProfileInfoType.HELP -> "Preguntas frecuentes y soporte"
-                                ProfileInfoType.NONE -> ""
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF64748B)
-                        )
-                    }
                 }
 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(36.dp)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // Contenido desplazable a pantalla completa
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = Color(0xFF64748B)
-                    )
-                }
-            }
-
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(vertical = 14.dp)
-            )
-
-            // Contenido con scroll (altura máxima acotada sin .weight para evitar vibración de layout)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = sheetMaxHeight - 90.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
                 when (type) {
                     ProfileInfoType.TERMS -> {
                         InfoCardItem(
@@ -312,7 +323,7 @@ fun ProfileInfoBottomSheet(
                             text = "PREGUNTAS FRECUENTES",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 0.8.sp
                         )
 
@@ -338,8 +349,8 @@ fun ProfileInfoBottomSheet(
                         // Tarjeta de contacto con soporte
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFF0FDF4),
-                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            color = MaterialTheme.extendedColors.successContainer.copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.4f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -350,7 +361,7 @@ fun ProfileInfoBottomSheet(
                                     Icon(
                                         imageVector = Icons.Default.Email,
                                         contentDescription = null,
-                                        tint = Color(0xFF16A34A),
+                                        tint = MaterialTheme.extendedColors.success,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -358,21 +369,21 @@ fun ProfileInfoBottomSheet(
                                         text = "¿Necesitas ayuda personalizada?",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = Color(0xFF166534)
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 Text(
                                     text = "Escríbenos a nuestro correo de soporte estudiantil para resolver cualquier duda o incidencia con tu cuenta o puesto:\n📧 ${SupportEmailHelper.SUPPORT_EMAIL}\n⏰ Horario: Lun - Sáb 8:00 AM a 8:00 PM\n📍 Sede oficial: UCV - Lima Norte",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF15803D),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 18.sp
                                 )
 
                                 if (lastSentSuccess != null) {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (lastSentSuccess == true) Color(0xFFDCFCE7) else Color(0xFFFEE2E2),
-                                        border = BorderStroke(1.dp, if (lastSentSuccess == true) Color(0xFF86EFAC) else Color(0xFFFCA5A5)),
+                                        color = if (lastSentSuccess == true) MaterialTheme.extendedColors.successContainer else MaterialTheme.colorScheme.errorContainer,
+                                        border = BorderStroke(1.dp, if (lastSentSuccess == true) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.error),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -382,7 +393,7 @@ fun ProfileInfoBottomSheet(
                                             Icon(
                                                 imageVector = if (lastSentSuccess == true) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
                                                 contentDescription = null,
-                                                tint = if (lastSentSuccess == true) Color(0xFF16A34A) else Color(0xFFDC2626),
+                                                tint = if (lastSentSuccess == true) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
@@ -393,7 +404,7 @@ fun ProfileInfoBottomSheet(
                                                     "Error al enviar correo electrónico",
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = if (lastSentSuccess == true) Color(0xFF166534) else Color(0xFF991B1B)
+                                                color = if (lastSentSuccess == true) MaterialTheme.extendedColors.onSuccessContainer else MaterialTheme.colorScheme.onErrorContainer
                                             )
                                         }
                                     }
@@ -403,66 +414,59 @@ fun ProfileInfoBottomSheet(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    OutlinedButton(
+                                    CampusOutlinedButton(
+                                        text = "Copiar Correo",
                                         onClick = {
                                             val copied = SupportEmailHelper.copySupportEmailToClipboard(context)
                                             if (copied) {
                                                 Toast.makeText(context, "Correo de soporte copiado (${SupportEmailHelper.SUPPORT_EMAIL})", Toast.LENGTH_SHORT).show()
                                             }
                                         },
-                                        shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, Color(0xFF86EFAC)),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF166534)),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.ContentCopy,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        },
                                         modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.ContentCopy,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Copiar Correo", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
+                                    )
 
-                                    Button(
+                                    CampusButton(
+                                        text = "Enviar Email",
                                         onClick = triggerSendEmail,
-                                        shape = RoundedCornerShape(10.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Email,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        },
                                         modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Email,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Enviar Email", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
+                                    )
                                 }
                             }
                         }
                     }
                     ProfileInfoType.NONE -> {}
                 }
-            }
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp)
-            ) {
-                Text(
-                    text = if (type == ProfileInfoType.HELP) "Cerrar" else "Entendido",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
+                // Barra inferior fija con botón de acción
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        CampusButton(
+                            text = if (type == ProfileInfoType.HELP) "Cerrar" else "Entendido",
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
         }
     }
@@ -473,18 +477,18 @@ fun ProfileInfoBottomSheet(
             AlertDialog(
                 onDismissRequest = { feedbackState = SupportEmailFeedbackState.NONE },
                 shape = RoundedCornerShape(20.dp),
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 icon = {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFFE6F7F3),
+                        color = MaterialTheme.extendedColors.successContainer,
                         modifier = Modifier.size(52.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = MaterialTheme.extendedColors.success,
                                 modifier = Modifier.size(30.dp)
                             )
                         }
@@ -496,7 +500,7 @@ fun ProfileInfoBottomSheet(
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         textAlign = TextAlign.Center,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 text = {
@@ -507,19 +511,19 @@ fun ProfileInfoBottomSheet(
                         Text(
                             text = "Se envió correctamente el correo a la casilla oficial de soporte:",
                             fontSize = 13.5.sp,
-                            color = Color(0xFF475569),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFE6F7F3),
+                            color = MaterialTheme.extendedColors.successContainer.copy(alpha = 0.5f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = SupportEmailHelper.SUPPORT_EMAIL,
                                 fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF00A884),
+                                color = MaterialTheme.colorScheme.primary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
                             )
@@ -527,21 +531,18 @@ fun ProfileInfoBottomSheet(
                         Text(
                             text = "El equipo de soporte de Campus GO revisará tu caso y responderá a tu correo a la brevedad posible.",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             lineHeight = 17.sp
                         )
                     }
                 },
                 confirmButton = {
-                    Button(
+                    CampusButton(
+                        text = "Entendido",
                         onClick = { feedbackState = SupportEmailFeedbackState.NONE },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
-                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Entendido", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
+                    )
                 }
             )
         }
@@ -549,18 +550,18 @@ fun ProfileInfoBottomSheet(
             AlertDialog(
                 onDismissRequest = { feedbackState = SupportEmailFeedbackState.NONE },
                 shape = RoundedCornerShape(20.dp),
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 icon = {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFFFEF2F2),
+                        color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.size(52.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.ErrorOutline,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(30.dp)
                             )
                         }
@@ -572,7 +573,7 @@ fun ProfileInfoBottomSheet(
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         textAlign = TextAlign.Center,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 text = {
@@ -583,19 +584,19 @@ fun ProfileInfoBottomSheet(
                         Text(
                             text = errorMessageDetail ?: "No se pudo completar el envío del correo electrónico a la dirección de soporte.",
                             fontSize = 13.5.sp,
-                            color = Color(0xFF475569),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF1F5F9),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "Buzón oficial: ${SupportEmailHelper.SUPPORT_EMAIL}",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0F172A),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp)
                             )
@@ -603,7 +604,7 @@ fun ProfileInfoBottomSheet(
                         Text(
                             text = "Por favor verifica tu conexión o copia el correo de soporte para redactar tu consulta manualmente.",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -613,39 +614,34 @@ fun ProfileInfoBottomSheet(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
+                        CampusButton(
+                            text = "Reintentar Envío de Correo",
                             onClick = {
                                 feedbackState = SupportEmailFeedbackState.NONE
                                 triggerSendEmail()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
-                            shape = RoundedCornerShape(12.dp),
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
+                            },
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(imageVector = Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Reintentar Envío de Correo", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                        OutlinedButton(
+                        )
+                        CampusOutlinedButton(
+                            text = "Copiar Correo Oficial",
                             onClick = {
                                 SupportEmailHelper.copySupportEmailToClipboard(context)
                                 Toast.makeText(context, "Correo de soporte copiado (${SupportEmailHelper.SUPPORT_EMAIL})", Toast.LENGTH_SHORT).show()
                                 feedbackState = SupportEmailFeedbackState.NONE
                             },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF166534)),
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
+                            },
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Copiar Correo Oficial", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
+                        )
                         TextButton(
                             onClick = { feedbackState = SupportEmailFeedbackState.NONE },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Cerrar", color = Color(0xFF64748B), fontSize = 13.sp)
+                            Text("Cerrar", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         }
                     }
                 }
@@ -661,10 +657,10 @@ private fun InfoCardItem(
     description: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    CampusCard(
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -675,12 +671,12 @@ private fun InfoCardItem(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF16324F)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF475569),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 18.sp
             )
         }

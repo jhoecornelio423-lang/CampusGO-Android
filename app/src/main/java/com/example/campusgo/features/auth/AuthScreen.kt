@@ -108,6 +108,7 @@ import androidx.compose.ui.unit.sp
 import com.example.campusgo.R
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.model.UserRole
+import com.example.campusgo.theme.extendedColors
 import com.example.campusgo.ui.components.SetDarkScreenStatusBar
 import com.example.campusgo.ui.components.CampusGoDialogContainerColor
 import com.example.campusgo.ui.components.CampusGoDialogShape
@@ -255,6 +256,34 @@ fun AuthRoute(
     }
 }
 
+class FormFieldFocusState {
+    var hasHadFocus by mutableStateOf(false)
+    var isCurrentlyFocused by mutableStateOf(false)
+    var hasBlurred by mutableStateOf(false)
+
+    fun onFocusChanged(isFocused: Boolean) {
+        if (isFocused) {
+            hasHadFocus = true
+            isCurrentlyFocused = true
+        } else {
+            if (hasHadFocus) {
+                hasBlurred = true
+            }
+            isCurrentlyFocused = false
+        }
+    }
+
+    fun reset() {
+        hasHadFocus = false
+        isCurrentlyFocused = false
+        hasBlurred = false
+    }
+
+    fun shouldShowError(submitAttempted: Boolean): Boolean {
+        return submitAttempted || (hasBlurred && !isCurrentlyFocused)
+    }
+}
+
 @Composable
 fun AuthScreen(
     uiState: AuthUiState,
@@ -287,29 +316,29 @@ fun AuthScreen(
     var showTermsSheet by remember { mutableStateOf(false) }
     var showFieldErrors by remember { mutableStateOf(false) }
 
-    var firstNameTouched by remember { mutableStateOf(false) }
-    var lastNameTouched by remember { mutableStateOf(false) }
-    var phoneTouched by remember { mutableStateOf(false) }
-    var storeNameTouched by remember { mutableStateOf(false) }
-    var customCategoryTouched by remember { mutableStateOf(false) }
-    var storeDescTouched by remember { mutableStateOf(false) }
+    val firstNameFocus = remember { FormFieldFocusState() }
+    val lastNameFocus = remember { FormFieldFocusState() }
+    val phoneFocus = remember { FormFieldFocusState() }
+    val storeNameFocus = remember { FormFieldFocusState() }
+    val customCategoryFocus = remember { FormFieldFocusState() }
+    val storeDescFocus = remember { FormFieldFocusState() }
     var meetingPointTouched by remember { mutableStateOf(false) }
-    var emailTouched by remember { mutableStateOf(false) }
-    var passwordTouched by remember { mutableStateOf(false) }
+    val emailFocus = remember { FormFieldFocusState() }
+    val passwordFocus = remember { FormFieldFocusState() }
 
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(uiState.isLoginMode) {
         showFieldErrors = false
-        firstNameTouched = false
-        lastNameTouched = false
-        phoneTouched = false
-        storeNameTouched = false
-        customCategoryTouched = false
-        storeDescTouched = false
+        firstNameFocus.reset()
+        lastNameFocus.reset()
+        phoneFocus.reset()
+        storeNameFocus.reset()
+        customCategoryFocus.reset()
+        storeDescFocus.reset()
         meetingPointTouched = false
-        emailTouched = false
-        passwordTouched = false
+        emailFocus.reset()
+        passwordFocus.reset()
         scrollState.scrollTo(0)
     }
 
@@ -390,7 +419,7 @@ fun AuthScreen(
                     topStart = 32.dp,
                     topEnd = 32.dp
                 ),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 10.dp
             ) {
                 Column(
@@ -413,14 +442,14 @@ fun AuthScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 24.sp
                             ),
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = if (uiState.isLoginMode) "Inicia sesión para continuar" else "Ingresa tus datos para empezar",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontSize = 13.5.sp
                             ),
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -431,9 +460,9 @@ fun AuthScreen(
                         exit = fadeOut()
                     ) {
                         Surface(
-                            color = Color(0xFFF0FDF4),
+                            color = MaterialTheme.extendedColors.successContainer,
                             shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.3f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -443,7 +472,7 @@ fun AuthScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.CheckCircle,
                                     contentDescription = null,
-                                    tint = Color(0xFF00A884),
+                                    tint = MaterialTheme.extendedColors.success,
                                     modifier = Modifier.size(22.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
@@ -452,7 +481,7 @@ fun AuthScreen(
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF166534),
+                                    color = MaterialTheme.extendedColors.onSuccessContainer,
                                     modifier = Modifier.weight(1f)
                                 )
                                 IconButton(
@@ -462,7 +491,7 @@ fun AuthScreen(
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Cerrar",
-                                        tint = Color(0xFF166534),
+                                        tint = MaterialTheme.extendedColors.onSuccessContainer,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -477,9 +506,9 @@ fun AuthScreen(
                         exit = fadeOut()
                     ) {
                         Surface(
-                            color = Color(0xFFFEF2F2),
+                            color = MaterialTheme.colorScheme.errorContainer,
                             shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -489,7 +518,7 @@ fun AuthScreen(
                                 Icon(
                                     imageVector = Icons.Default.Error,
                                     contentDescription = null,
-                                    tint = Color(0xFFDC2626),
+                                    tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
@@ -498,7 +527,7 @@ fun AuthScreen(
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontWeight = FontWeight.Medium
                                     ),
-                                    color = Color(0xFF991B1B),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier.weight(1f)
                                 )
                                 IconButton(
@@ -508,7 +537,7 @@ fun AuthScreen(
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Cerrar",
-                                        tint = Color(0xFF991B1B),
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -523,7 +552,7 @@ fun AuthScreen(
                                 text = "¿Cómo usarás Campus Go?",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF16324F)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Row(
@@ -550,9 +579,9 @@ fun AuthScreen(
 
                             if (uiState.selectedRole == UserRole.EMPRENDEDOR) {
                                 Surface(
-                                    color = Color(0xFFFFFBEB),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
                                     shape = RoundedCornerShape(10.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFDE68A)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -562,7 +591,7 @@ fun AuthScreen(
                                         Icon(
                                             imageVector = Icons.Default.Storefront,
                                             contentDescription = null,
-                                            tint = Color(0xFFD97706),
+                                            tint = MaterialTheme.colorScheme.tertiary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -570,7 +599,7 @@ fun AuthScreen(
                                             text = "La cuenta de vendedor requiere aprobación del administrador",
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF92400E)
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
                                         )
                                     }
                                 }
@@ -578,17 +607,17 @@ fun AuthScreen(
                         }
 
                         // Nombres & Apellidos en 2 columnas
-                        val firstNameError = if (!uiState.isLoginMode && (showFieldErrors || firstNameTouched)) {
+                        val firstNameError = if (!uiState.isLoginMode && firstNameFocus.shouldShowError(showFieldErrors)) {
                             if (uiState.firstName.isBlank()) "El nombre es obligatorio"
                             else FormValidators.validateFirstName(uiState.firstName)
                         } else null
 
-                        val lastNameError = if (!uiState.isLoginMode && (showFieldErrors || lastNameTouched)) {
+                        val lastNameError = if (!uiState.isLoginMode && lastNameFocus.shouldShowError(showFieldErrors)) {
                             if (uiState.lastName.isBlank()) "Los apellidos son obligatorios"
                             else FormValidators.validateLastName(uiState.lastName)
                         } else null
 
-                        val phoneError = if (!uiState.isLoginMode && (showFieldErrors || phoneTouched)) {
+                        val phoneError = if (!uiState.isLoginMode && phoneFocus.shouldShowError(showFieldErrors)) {
                             if (uiState.phone.isBlank()) "El número de teléfono es obligatorio"
                             else FormValidators.validatePhone(uiState.phone)
                         } else null
@@ -602,38 +631,30 @@ fun AuthScreen(
                                     text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Nombres titular *" else "Nombres *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 OutlinedTextField(
                                     value = uiState.firstName,
-                                    onValueChange = {
-                                        firstNameTouched = true
-                                        onFirstNameChange(it)
-                                    },
-                                    placeholder = { Text("Tus nombres", fontSize = 13.sp) },
+                                    onValueChange = onFirstNameChange,
+                                    placeholder = { Text("Tus nombres", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                                     isError = firstNameError != null,
                                     supportingText = firstNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Person,
                                             contentDescription = null,
-                                            tint = if (firstNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                            tint = if (firstNameError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
                                     singleLine = true,
                                     shape = RoundedCornerShape(14.dp),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFF8FAFC),
-                                        unfocusedContainerColor = Color(0xFFF4F6F8),
-                                        focusedBorderColor = Color(0xFF00A884),
-                                        unfocusedBorderColor = Color(0xFFE2E8F0)
-                                    ),
+                                    colors = authTextFieldColors(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { if (it.isFocused) firstNameTouched = true }
+                                        .onFocusChanged { firstNameFocus.onFocusChanged(it.isFocused) }
                                 )
                             }
 
@@ -642,38 +663,30 @@ fun AuthScreen(
                                     text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "Apellidos titular *" else "Apellidos *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 OutlinedTextField(
                                     value = uiState.lastName,
-                                    onValueChange = {
-                                        lastNameTouched = true
-                                        onLastNameChange(it)
-                                    },
-                                    placeholder = { Text("Tus apellidos", fontSize = 13.sp) },
+                                    onValueChange = onLastNameChange,
+                                    placeholder = { Text("Tus apellidos", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                                     isError = lastNameError != null,
                                     supportingText = lastNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Person,
                                             contentDescription = null,
-                                            tint = if (lastNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                            tint = if (lastNameError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
                                     singleLine = true,
                                     shape = RoundedCornerShape(14.dp),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFF8FAFC),
-                                        unfocusedContainerColor = Color(0xFFF4F6F8),
-                                        focusedBorderColor = Color(0xFF00A884),
-                                        unfocusedBorderColor = Color(0xFFE2E8F0)
-                                    ),
+                                    colors = authTextFieldColors(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { if (it.isFocused) lastNameTouched = true }
+                                        .onFocusChanged { lastNameFocus.onFocusChanged(it.isFocused) }
                                 )
                             }
                         }
@@ -684,23 +697,20 @@ fun AuthScreen(
                                 text = if (uiState.selectedRole == UserRole.EMPRENDEDOR) "WhatsApp de contacto *" else "Número de teléfono *",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF16324F),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             )
                             OutlinedTextField(
                                 value = uiState.phone,
-                                onValueChange = {
-                                    phoneTouched = true
-                                    onPhoneChange(it)
-                                },
-                                placeholder = { Text("Número de teléfono", fontSize = 13.sp, color = Color(0xFF94A3B8)) },
+                                onValueChange = onPhoneChange,
+                                placeholder = { Text("Número de teléfono", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                                 isError = phoneError != null,
                                 supportingText = phoneError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Outlined.Phone,
                                         contentDescription = null,
-                                        tint = if (phoneError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                        tint = if (phoneError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 },
@@ -710,30 +720,25 @@ fun AuthScreen(
                                     keyboardType = KeyboardType.Phone,
                                     imeAction = ImeAction.Next
                                 ),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color(0xFFF8FAFC),
-                                    unfocusedContainerColor = Color(0xFFF4F6F8),
-                                    focusedBorderColor = Color(0xFF00A884),
-                                    unfocusedBorderColor = Color(0xFFE2E8F0)
-                                ),
+                                colors = authTextFieldColors(),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .onFocusChanged { if (it.isFocused) phoneTouched = true }
+                                    .onFocusChanged { phoneFocus.onFocusChanged(it.isFocused) }
                             )
                         }
 
                         // CAMPOS EXCLUSIVOS DE VENDEDOR
                         if (uiState.selectedRole == UserRole.EMPRENDEDOR) {
-                            val storeNameError = if (!uiState.isLoginMode && (showFieldErrors || storeNameTouched)) {
+                            val storeNameError = if (!uiState.isLoginMode && storeNameFocus.shouldShowError(showFieldErrors)) {
                                 if (uiState.storeName.isBlank()) "El nombre del puesto es obligatorio"
                                 else FormValidators.validateStoreName(uiState.storeName)
                             } else null
                             val isOtherCategory = uiState.storeCategory.equals("Otros", ignoreCase = true) || uiState.storeCategory.equals("Otro", ignoreCase = true)
-                            val customCategoryError = if (!uiState.isLoginMode && isOtherCategory && (showFieldErrors || customCategoryTouched)) {
+                            val customCategoryError = if (!uiState.isLoginMode && isOtherCategory && customCategoryFocus.shouldShowError(showFieldErrors)) {
                                 if (uiState.customCategory.isBlank()) "Especifica la categoría de tu puesto"
                                 else FormValidators.validateCustomCategory(uiState.customCategory)
                             } else null
-                            val storeDescError = if (!uiState.isLoginMode && (showFieldErrors || storeDescTouched)) {
+                            val storeDescError = if (!uiState.isLoginMode && storeDescFocus.shouldShowError(showFieldErrors)) {
                                 if (uiState.storeDescription.isBlank()) "La descripción del puesto es obligatoria"
                                 else FormValidators.validateStoreDescription(uiState.storeDescription)
                             } else null
@@ -745,38 +750,30 @@ fun AuthScreen(
                                     text = "Nombre de la Tienda / Negocio *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 OutlinedTextField(
                                     value = uiState.storeName,
-                                    onValueChange = {
-                                        storeNameTouched = true
-                                        onStoreNameChange(it)
-                                    },
-                                    placeholder = { Text("Ej. Jugos y Snacks Doña Luz", fontSize = 13.sp) },
+                                    onValueChange = onStoreNameChange,
+                                    placeholder = { Text("Ej. Jugos y Snacks Doña Luz", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                                     isError = storeNameError != null,
                                     supportingText = storeNameError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Storefront,
                                             contentDescription = null,
-                                            tint = if (storeNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                            tint = if (storeNameError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
                                     singleLine = true,
                                     shape = RoundedCornerShape(14.dp),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFF8FAFC),
-                                        unfocusedContainerColor = Color(0xFFF4F6F8),
-                                        focusedBorderColor = Color(0xFF00A884),
-                                        unfocusedBorderColor = Color(0xFFE2E8F0)
-                                    ),
+                                    colors = authTextFieldColors(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { if (it.isFocused) storeNameTouched = true }
+                                        .onFocusChanged { storeNameFocus.onFocusChanged(it.isFocused) }
                                 )
                             }
 
@@ -786,7 +783,7 @@ fun AuthScreen(
                                     text = "Categoría del Emprendimiento *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 @OptIn(ExperimentalMaterial3Api::class)
@@ -807,14 +804,7 @@ fun AuthScreen(
                                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded)
                                         },
                                         shape = RoundedCornerShape(14.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFFF8FAFC),
-                                            unfocusedContainerColor = Color(0xFFF4F6F8),
-                                            focusedBorderColor = Color(0xFF00A884),
-                                            unfocusedBorderColor = Color(0xFFE2E8F0),
-                                            focusedTextColor = Color(0xFF16324F),
-                                            unfocusedTextColor = Color(0xFF16324F)
-                                        ),
+                                        colors = authTextFieldColors(),
                                         modifier = Modifier
                                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                             .fillMaxWidth()
@@ -825,11 +815,11 @@ fun AuthScreen(
                                         onDismissRequest = { categoryDropdownExpanded = false },
                                         modifier = Modifier
                                             .exposedDropdownSize()
-                                            .background(Color.White)
+                                            .background(MaterialTheme.colorScheme.surface)
                                     ) {
-                                        AuthUiState.STORE_CATEGORIES.forEach { category ->
+                                        uiState.effectiveCategories.forEach { category ->
                                             DropdownMenuItem(
-                                                text = { Text(category, fontSize = 13.5.sp, color = Color(0xFF16324F)) },
+                                                text = { Text(category, fontSize = 13.5.sp, color = MaterialTheme.colorScheme.onSurface) },
                                                 onClick = {
                                                     onStoreCategoryChange(category)
                                                     categoryDropdownExpanded = false
@@ -849,30 +839,22 @@ fun AuthScreen(
                                         text = "¿Qué categoría es tu emprendimiento? *",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF16324F),
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.padding(bottom = 6.dp)
                                     )
                                     OutlinedTextField(
                                         value = uiState.customCategory,
-                                        onValueChange = {
-                                            customCategoryTouched = true
-                                            onCustomCategoryChange(it)
-                                        },
-                                        placeholder = { Text("Ej. Artesanías, Ropa, Papelería...", fontSize = 13.sp) },
+                                        onValueChange = onCustomCategoryChange,
+                                        placeholder = { Text("Ej. Artesanías, Ropa, Papelería...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                                         isError = customCategoryError != null,
                                         supportingText = customCategoryError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                         singleLine = true,
                                         shape = RoundedCornerShape(14.dp),
                                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFFF8FAFC),
-                                            unfocusedContainerColor = Color(0xFFF4F6F8),
-                                            focusedBorderColor = Color(0xFF00A884),
-                                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                                        ),
+                                        colors = authTextFieldColors(),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .onFocusChanged { if (it.isFocused) customCategoryTouched = true }
+                                            .onFocusChanged { customCategoryFocus.onFocusChanged(it.isFocused) }
                                     )
                                 }
                             }
@@ -883,23 +865,20 @@ fun AuthScreen(
                                     text = "Descripción de tus productos *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 OutlinedTextField(
                                     value = uiState.storeDescription,
-                                    onValueChange = {
-                                        storeDescTouched = true
-                                        onStoreDescriptionChange(it)
-                                    },
-                                    placeholder = { Text("Ej. Venta de jugos naturales, sánguches frescos y postres caseros...", fontSize = 13.sp) },
+                                    onValueChange = onStoreDescriptionChange,
+                                    placeholder = { Text("Ej. Venta de jugos naturales, sánguches frescos y postres caseros...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                                     isError = storeDescError != null,
                                     supportingText = storeDescError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Description,
                                             contentDescription = null,
-                                            tint = if (storeDescError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                            tint = if (storeDescError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -907,15 +886,10 @@ fun AuthScreen(
                                     maxLines = 3,
                                     shape = RoundedCornerShape(14.dp),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFF8FAFC),
-                                        unfocusedContainerColor = Color(0xFFF4F6F8),
-                                        focusedBorderColor = Color(0xFF00A884),
-                                        unfocusedBorderColor = Color(0xFFE2E8F0)
-                                    ),
+                                    colors = authTextFieldColors(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { if (it.isFocused) storeDescTouched = true }
+                                        .onFocusChanged { storeDescFocus.onFocusChanged(it.isFocused) }
                                 )
                             }
 
@@ -925,7 +899,7 @@ fun AuthScreen(
                                     text = "Punto de entrega preferido (Oficial) *",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16324F),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 @OptIn(ExperimentalMaterial3Api::class)
@@ -949,7 +923,7 @@ fun AuthScreen(
                                             Icon(
                                                 imageVector = Icons.Outlined.Place,
                                                 contentDescription = null,
-                                                tint = if (meetingPointError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                                tint = if (meetingPointError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         },
@@ -957,14 +931,7 @@ fun AuthScreen(
                                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = meetingPointDropdownExpanded)
                                         },
                                         shape = RoundedCornerShape(14.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFFF8FAFC),
-                                            unfocusedContainerColor = Color(0xFFF4F6F8),
-                                            focusedBorderColor = Color(0xFF00A884),
-                                            unfocusedBorderColor = Color(0xFFE2E8F0),
-                                            focusedTextColor = Color(0xFF16324F),
-                                            unfocusedTextColor = Color(0xFF16324F)
-                                        ),
+                                        colors = authTextFieldColors(),
                                         modifier = Modifier
                                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                             .fillMaxWidth()
@@ -975,16 +942,16 @@ fun AuthScreen(
                                         onDismissRequest = { meetingPointDropdownExpanded = false },
                                         modifier = Modifier
                                             .exposedDropdownSize()
-                                            .background(Color.White)
+                                            .background(MaterialTheme.colorScheme.surface)
                                     ) {
                                         uiState.availableMeetingPoints.forEach { point ->
                                             DropdownMenuItem(
                                                 text = {
                                                     Column {
-                                                        Text(point.name, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16324F))
+                                                        Text(point.name, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                                                         val desc = point.description
                                                         if (!desc.isNullOrBlank()) {
-                                                            Text(desc, fontSize = 11.5.sp, color = Color(0xFF64748B))
+                                                            Text(desc, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                         }
                                                     }
                                                 },
@@ -1006,7 +973,7 @@ fun AuthScreen(
                     val emailError = if (uiState.isLoginMode) {
                         if (showFieldErrors) FormValidators.validateEmail(uiState.email) else null
                     } else {
-                        if (showFieldErrors || emailTouched) {
+                        if (emailFocus.shouldShowError(showFieldErrors)) {
                             if (uiState.email.isBlank()) "El correo electrónico es obligatorio"
                             else FormValidators.validateEmail(uiState.email)
                         } else null
@@ -1016,23 +983,20 @@ fun AuthScreen(
                             text = "Correo Electrónico *",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F),
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                         OutlinedTextField(
                             value = uiState.email,
-                            onValueChange = {
-                                if (!uiState.isLoginMode) emailTouched = true
-                                onEmailChange(it)
-                            },
-                            placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
+                            onValueChange = onEmailChange,
+                            placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)) },
                             isError = emailError != null,
                             supportingText = emailError?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 11.5.sp) } },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Email,
                                     contentDescription = null,
-                                    tint = if (emailError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                    tint = if (emailError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -1045,17 +1009,10 @@ fun AuthScreen(
                             keyboardActions = KeyboardActions(
                                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
                             ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF8FAFC),
-                                unfocusedContainerColor = Color(0xFFF8FAFB),
-                                focusedBorderColor = Color(0xFF00A884),
-                                unfocusedBorderColor = Color(0xFFE2E8F0),
-                                focusedTextColor = Color(0xFF16324F),
-                                unfocusedTextColor = Color(0xFF16324F)
-                            ),
+                            colors = authTextFieldColors(),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onFocusChanged { if (!uiState.isLoginMode && it.isFocused) emailTouched = true }
+                                .onFocusChanged { emailFocus.onFocusChanged(it.isFocused) }
                         )
                     }
 
@@ -1063,7 +1020,7 @@ fun AuthScreen(
                     val passwordError = if (uiState.isLoginMode) {
                         if (showFieldErrors) FormValidators.validatePassword(uiState.password) else null
                     } else {
-                        if (showFieldErrors || passwordTouched) {
+                        if (passwordFocus.shouldShowError(showFieldErrors)) {
                             if (uiState.password.isBlank()) "La contraseña es obligatoria"
                             else FormValidators.validatePassword(uiState.password)
                         } else null
@@ -1073,20 +1030,17 @@ fun AuthScreen(
                             text = "Contraseña *",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F),
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                         OutlinedTextField(
                             value = uiState.password,
-                            onValueChange = {
-                                if (!uiState.isLoginMode) passwordTouched = true
-                                onPasswordChange(it)
-                            },
+                            onValueChange = onPasswordChange,
                             placeholder = {
                                 Text(
                                     text = if (uiState.isLoginMode) "••••••••" else "Mínimo 6 caracteres",
                                     fontSize = 14.sp,
-                                    color = Color(0xFF94A3B8)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                                 )
                             },
                             isError = passwordError != null,
@@ -1095,7 +1049,7 @@ fun AuthScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Lock,
                                     contentDescription = null,
-                                    tint = if (passwordError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                    tint = if (passwordError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -1104,7 +1058,7 @@ fun AuthScreen(
                                     Icon(
                                         imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                         contentDescription = if (passwordVisible) "Ocultar" else "Mostrar",
-                                        tint = Color(0xFF829AB1),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -1125,18 +1079,11 @@ fun AuthScreen(
                                     }
                                 }
                             ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF8FAFC),
-                                unfocusedContainerColor = Color(0xFFF8FAFB),
-                                focusedBorderColor = Color(0xFF00A884),
-                                unfocusedBorderColor = Color(0xFFE2E8F0),
-                                focusedTextColor = Color(0xFF16324F),
-                                unfocusedTextColor = Color(0xFF16324F)
-                            ),
+                            colors = authTextFieldColors(),
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onFocusChanged { if (!uiState.isLoginMode && it.isFocused) passwordTouched = true }
+                                .onFocusChanged { passwordFocus.onFocusChanged(it.isFocused) }
                         )
                     }
 
@@ -1151,7 +1098,7 @@ fun AuthScreen(
                                 text = "¿Olvidaste tu contraseña?",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF00A884),
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable { onForgotPasswordClick() }
                             )
                         }
@@ -1168,8 +1115,8 @@ fun AuthScreen(
                                     checked = termsAccepted,
                                     onCheckedChange = { termsAccepted = it },
                                     colors = CheckboxDefaults.colors(
-                                        checkedColor = Color(0xFF00A884),
-                                        uncheckedColor = Color(0xFFCBD5E1)
+                                        checkedColor = MaterialTheme.colorScheme.primary,
+                                        uncheckedColor = MaterialTheme.colorScheme.outline
                                     )
                                 )
                                 Row(
@@ -1178,13 +1125,13 @@ fun AuthScreen(
                                     Text(
                                         text = "Acepto los ",
                                         fontSize = 12.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
                                         text = "términos y condiciones",
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF00A884),
+                                        color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.clickable { showTermsSheet = true }
                                     )
                                 }
@@ -1224,10 +1171,10 @@ fun AuthScreen(
                         enabled = isButtonEnabled,
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00A884),
-                            disabledContainerColor = Color(0xFF80D3C5),
-                            contentColor = Color.White,
-                            disabledContentColor = Color.White.copy(alpha = 0.85f)
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1235,7 +1182,7 @@ fun AuthScreen(
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.5.dp,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -1252,13 +1199,13 @@ fun AuthScreen(
                                     },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onPrimary
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -1274,19 +1221,19 @@ fun AuthScreen(
                     ) {
                         HorizontalDivider(
                             modifier = Modifier.weight(1f),
-                            color = Color(0xFFE2E8F0),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             thickness = 1.dp
                         )
                         Text(
                             text = "o",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF94A3B8),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 14.dp)
                         )
                         HorizontalDivider(
                             modifier = Modifier.weight(1f),
-                            color = Color(0xFFE2E8F0),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             thickness = 1.dp
                         )
                     }
@@ -1300,8 +1247,8 @@ fun AuthScreen(
                             }
                         },
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.2.dp, Color(0xFFE2E8F0)),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1316,14 +1263,14 @@ fun AuthScreen(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color(0xFF00A884)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = "Conectando con Google...",
                                     fontSize = 14.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF64748B)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             } else {
                                 Image(
@@ -1336,38 +1283,7 @@ fun AuthScreen(
                                     text = "Continuar con Google",
                                     fontSize = 14.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF1E293B)
-                                )
-                            }
-                        }
-                    }
-
-                    if (uiState.errorMessage != null) {
-                        Surface(
-                            color = Color(0xFFFEF2F2),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Error,
-                                    contentDescription = null,
-                                    tint = Color(0xFFDC2626),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = uiState.errorMessage.orEmpty(),
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 12.sp
-                                    ),
-                                    color = Color(0xFF991B1B),
-                                    modifier = Modifier.weight(1f)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -1389,13 +1305,13 @@ fun AuthScreen(
                             Text(
                                 text = if (uiState.isLoginMode) "¿No tienes una cuenta? " else "¿Ya tienes una cuenta? ",
                                 fontSize = 13.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = if (uiState.isLoginMode) "Regístrate aquí" else "Inicia sesión",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF00A884),
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable { onTabSelected(!uiState.isLoginMode) }
                             )
                         }
@@ -1412,7 +1328,7 @@ fun AuthScreen(
                             Icon(
                                 imageVector = Icons.Outlined.HeadsetMic,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -1420,7 +1336,7 @@ fun AuthScreen(
                                 text = "¿Necesitas ayuda? Centro de soporte",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -1434,7 +1350,7 @@ fun AuthScreen(
                                 text = "Powered by",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Normal,
-                                color = Color(0xFF94A3B8)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Image(
@@ -1450,7 +1366,7 @@ fun AuthScreen(
                                 text = "KODEX",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 letterSpacing = 0.8.sp
                             )
                         }
@@ -1476,6 +1392,18 @@ fun AuthScreen(
 }
 
 @Composable
+private fun authTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f),
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    cursorColor = MaterialTheme.colorScheme.primary,
+    errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
+)
+
+@Composable
 private fun RoleCardButton(
     title: String,
     subtitle: String,
@@ -1488,10 +1416,10 @@ private fun RoleCardButton(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) Color(0xFF00A884) else Color(0xFFF1F5F9),
+        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         border = androidx.compose.foundation.BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) Color(0xFF00897B) else Color(0xFFCBD5E1)
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
         ),
         shadowElevation = if (isSelected) 3.dp else 0.dp,
         modifier = modifier.defaultMinSize(minHeight = 60.dp)
@@ -1511,21 +1439,21 @@ private fun RoleCardButton(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) Color.White.copy(alpha = 0.22f) else Color(0xFFE2E8F0)),
+                        .background(if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     if (iconPainter != null) {
                         Icon(
                             painter = iconPainter,
                             contentDescription = null,
-                            tint = if (isSelected) Color.White else Color(0xFF64748B),
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                     } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected) Color.White else Color(0xFF64748B),
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1539,7 +1467,7 @@ private fun RoleCardButton(
                         text = title,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 13.sp,
-                        color = if (isSelected) Color.White else Color(0xFF1E293B),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1547,7 +1475,7 @@ private fun RoleCardButton(
                         text = subtitle,
                         fontWeight = FontWeight.Medium,
                         fontSize = 9.5.sp,
-                        color = if (isSelected) Color.White.copy(alpha = 0.88f) else Color(0xFF64748B),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1558,7 +1486,7 @@ private fun RoleCardButton(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Seleccionado",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(16.dp)
                 )
             }

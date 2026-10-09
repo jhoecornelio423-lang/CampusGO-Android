@@ -35,6 +35,7 @@ import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.StrikeBadge
 import com.example.campusgo.ui.components.StrikeManagementCard
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
+import com.example.campusgo.theme.ThemeManager
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -59,6 +60,7 @@ fun AdminBuyerDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val isDarkMode by ThemeManager.isDarkMode.collectAsState()
     val isSuspended = buyer.role == UserRole.SUSPENDED_BUYER || buyer.role == UserRole.SUSPENDED
 
     var showEnlargedPhoto by remember { mutableStateOf(false) }
@@ -80,7 +82,7 @@ fun AdminBuyerDetailScreen(
                         Text(
                             text = "Seguimiento de Comprador",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
@@ -95,7 +97,7 @@ fun AdminBuyerDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Regresar al listado",
-                            tint = Color(0xFF003366)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -107,12 +109,20 @@ fun AdminBuyerDetailScreen(
                     ) {
                         StrikeBadge(strikes = warnings.size, showAutoSuspensionLabel = true)
                         Surface(
-                            color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF2E7D32),
+                            color = if (isSuspended) {
+                                MaterialTheme.colorScheme.errorContainer
+                            } else {
+                                if (isDarkMode) Color(0xFF1B4D24) else Color(0xFFE8F5E9)
+                            },
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
                                 text = if (isSuspended) "SUSPENDIDO" else "ACTIVO",
-                                color = Color.White,
+                                color = if (isSuspended) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    if (isDarkMode) Color(0xFF81C784) else Color(0xFF2E7D32)
+                                },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -141,7 +151,16 @@ fun AdminBuyerDetailScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isSuspended) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (isSuspended) {
+                            if (isDarkMode) Color(0xFF381418) else Color(0xFFFFEBEE)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSuspended) MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                     )
                 ) {
                     Column(
@@ -160,7 +179,7 @@ fun AdminBuyerDetailScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                border = BorderStroke(3.dp, if (isSuspended) Color(0xFFC8102E) else Color(0xFF003366)),
+                                border = BorderStroke(3.dp, if (isSuspended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary),
                                 shadowElevation = 4.dp
                             ) {
                                 CampusGoBusinessAvatar(
@@ -177,7 +196,7 @@ fun AdminBuyerDetailScreen(
                             text = buyer.fullName,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF003366),
+                            color = if (isSuspended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
                         )
 
@@ -189,27 +208,27 @@ fun AdminBuyerDetailScreen(
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
                             Surface(
-                                color = Color(0xFF003366).copy(alpha = 0.1f),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
                                     text = "Estudiante Comprador",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF003366),
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
 
                             Surface(
-                                color = Color(0xFF00897B).copy(alpha = 0.12f),
+                                color = if (isDarkMode) Color(0xFF064E3B) else Color(0xFF00897B).copy(alpha = 0.12f),
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
                                     text = "Campus ${buyer.campus}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF00897B),
+                                    color = if (isDarkMode) Color(0xFF34D399) else Color(0xFF00897B),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
@@ -226,8 +245,10 @@ fun AdminBuyerDetailScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                        border = BorderStroke(1.dp, Color(0xFFEF9A9A))
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDarkMode) Color(0xFF381418) else Color(0xFFFFEBEE)
+                        ),
+                        border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF7F1D1D) else Color(0xFFEF9A9A))
                     ) {
                         Row(
                             modifier = Modifier.padding(14.dp),
@@ -236,7 +257,7 @@ fun AdminBuyerDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = Color(0xFFC8102E),
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -244,14 +265,14 @@ fun AdminBuyerDetailScreen(
                                 Text(
                                     text = "Cuenta Suspendida",
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFC8102E),
+                                    color = MaterialTheme.colorScheme.error,
                                     fontSize = 13.sp
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "Motivo: ${buyer.suspensionReason}",
                                     fontSize = 12.sp,
-                                    color = Color(0xFFB71C1C)
+                                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
                                 )
                             }
                         }
@@ -270,7 +291,7 @@ fun AdminBuyerDetailScreen(
                         text = "Actividad y Estadísticas de Compras",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall,
-                        color = Color(0xFF003366)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -281,7 +302,7 @@ fun AdminBuyerDetailScreen(
                                 .height(90.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Color(0xFF003366))
+                            CircularProgressIndicator(modifier = Modifier.size(28.dp), color = MaterialTheme.colorScheme.primary)
                         }
                     } else {
                         val stats = buyerStats ?: BuyerOrderStats()
@@ -292,13 +313,13 @@ fun AdminBuyerDetailScreen(
                             BuyerMetricMiniCard(
                                 title = "Total Pedidos",
                                 value = "${stats.totalOrders}",
-                                color = Color(0xFF003366),
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.weight(1f)
                             )
                             BuyerMetricMiniCard(
                                 title = "Completados",
                                 value = "${stats.completedOrders}",
-                                color = Color(0xFF2E7D32),
+                                color = if (isDarkMode) Color(0xFF4ADE80) else Color(0xFF2E7D32),
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -312,13 +333,13 @@ fun AdminBuyerDetailScreen(
                             BuyerMetricMiniCard(
                                 title = "Cancelados",
                                 value = "${stats.cancelledOrders}",
-                                color = if (stats.cancelledOrders > 0) Color(0xFFC8102E) else Color.Gray,
+                                color = if (stats.cancelledOrders > 0) MaterialTheme.colorScheme.error else Color.Gray,
                                 modifier = Modifier.weight(1f)
                             )
                             BuyerMetricMiniCard(
                                 title = "Total Invertido",
                                 value = "S/ %.2f".format(stats.totalSpent),
-                                color = Color(0xFF00A884),
+                                color = if (isDarkMode) Color(0xFF34D399) else Color(0xFF00A884),
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -333,7 +354,8 @@ fun AdminBuyerDetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -343,7 +365,7 @@ fun AdminBuyerDetailScreen(
                             text = "Información Personal y Contacto",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF003366)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -358,7 +380,7 @@ fun AdminBuyerDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Phone,
                                     contentDescription = null,
-                                    tint = Color(0xFF003366),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -386,7 +408,7 @@ fun AdminBuyerDetailScreen(
                                         Icon(
                                             imageVector = Icons.Default.Call,
                                             contentDescription = "Llamar",
-                                            tint = Color(0xFF003366),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -419,7 +441,7 @@ fun AdminBuyerDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Badge,
                                     contentDescription = null,
-                                    tint = Color(0xFF003366),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -435,7 +457,7 @@ fun AdminBuyerDetailScreen(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_location_custom),
                                 contentDescription = null,
-                                tint = Color(0xFF003366),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -455,7 +477,8 @@ fun AdminBuyerDetailScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         ) {
                             Box(
                                 modifier = Modifier
@@ -463,7 +486,7 @@ fun AdminBuyerDetailScreen(
                                     .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color(0xFF003366))
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     } else {
@@ -554,7 +577,8 @@ private fun BuyerMetricMiniCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
         shape = RoundedCornerShape(12.dp),
         modifier = modifier
     ) {

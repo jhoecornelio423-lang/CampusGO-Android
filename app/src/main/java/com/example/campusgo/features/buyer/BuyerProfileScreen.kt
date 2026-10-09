@@ -24,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.example.campusgo.theme.LocalDarkTheme
 import com.example.campusgo.theme.ThemeManager
+import com.example.campusgo.theme.extendedColors
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -161,8 +162,8 @@ fun BuyerProfileScreen(
                             FilledTonalButton(
                                 onClick = { isEditMode = true },
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = Color(0xFFE6F7F3),
-                                    contentColor = Color(0xFF00A884)
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
@@ -225,7 +226,7 @@ fun BuyerProfileScreen(
                         if (isEditMode) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF00A884),
+                                color = MaterialTheme.colorScheme.primary,
                                 shadowElevation = 4.dp,
                                 modifier = Modifier
                                     .size(34.dp)
@@ -239,7 +240,7 @@ fun BuyerProfileScreen(
                                 Box(contentAlignment = Alignment.Center) {
                                     if (isUploading) {
                                         CircularProgressIndicator(
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onPrimary,
                                             modifier = Modifier.size(16.dp),
                                             strokeWidth = 2.dp
                                         )
@@ -247,7 +248,7 @@ fun BuyerProfileScreen(
                                         Icon(
                                             imageVector = Icons.Default.CameraAlt,
                                             contentDescription = "Cambiar foto",
-                                            tint = Color.White,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -260,7 +261,7 @@ fun BuyerProfileScreen(
                         Text(
                             text = "Toca la cámara para cambiar tu foto de perfil",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         Text(
@@ -270,13 +271,12 @@ fun BuyerProfileScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        val isDark = LocalDarkTheme.current
-                        val badgeBg = if (isDark) Color(0xFF004D3D).copy(alpha = 0.45f) else Color(0xFFE8F5E9)
-                        val badgeText = if (isDark) Color(0xFF34D399) else Color(0xFF2E7D32)
+                        val badgeBg = MaterialTheme.extendedColors.successContainer
+                        val badgeText = MaterialTheme.extendedColors.onSuccessContainer
                         Surface(
                             color = badgeBg,
                             shape = RoundedCornerShape(20.dp),
-                            border = if (isDark) BorderStroke(0.75.dp, badgeText.copy(alpha = 0.35f)) else null
+                            border = BorderStroke(0.75.dp, badgeText.copy(alpha = 0.35f))
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -324,12 +324,6 @@ fun BuyerProfileScreen(
 
                     if (!isEditMode) {
                         ProfileDetailRow(
-                            iconPainter = painterResource(id = R.drawable.ic_user_circle_custom),
-                            label = "Nombre Completo",
-                            value = fullName.ifBlank { "No registrado" }
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        ProfileDetailRow(
                             iconPainter = painterResource(id = R.drawable.ic_phone_custom),
                             label = "Teléfono",
                             value = phone.ifBlank { "No registrado" }
@@ -358,7 +352,7 @@ fun BuyerProfileScreen(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_user_circle_custom),
                                     contentDescription = null,
-                                    tint = if (fullNameError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                    tint = if (fullNameError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             },
@@ -381,7 +375,7 @@ fun BuyerProfileScreen(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_phone_custom),
                                     contentDescription = null,
-                                    tint = if (phoneError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                    tint = if (phoneError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             },
@@ -403,7 +397,7 @@ fun BuyerProfileScreen(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_location_custom),
                                     contentDescription = null,
-                                    tint = if (campusError != null) MaterialTheme.colorScheme.error else Color(0xFF00A884),
+                                    tint = if (campusError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             },
@@ -445,8 +439,8 @@ fun BuyerProfileScreen(
                         val isDarkMode by ThemeManager.isDarkMode.collectAsState()
                         ProfileInfoNavigationRow(
                             icon = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                            iconTint = if (isDarkMode) Color(0xFFF4B942) else Color(0xFF6366F1),
-                            iconBg = if (isDarkMode) Color(0xFF334155) else Color(0xFFEEF2FF),
+                            iconTint = if (isDarkMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                            iconBg = if (isDarkMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
                             title = "Modo Oscuro",
                             subtitle = if (isDarkMode) "Activado • Tema nocturno visual" else "Desactivado • Tema claro visual",
                             showChevron = false,
@@ -455,9 +449,9 @@ fun BuyerProfileScreen(
                                     checked = isDarkMode,
                                     onCheckedChange = { ThemeManager.setDarkMode(context, it) },
                                     colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF00A884),
-                                        uncheckedThumbColor = Color(0xFF94A3B8),
+                                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
                                         uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                                     )
                                 )
@@ -478,8 +472,8 @@ fun BuyerProfileScreen(
                         // 1. Términos y condiciones
                         ProfileInfoNavigationRow(
                             iconPainter = painterResource(id = R.drawable.ic_terms_custom),
-                            iconTint = Color(0xFF00A884),
-                            iconBg = Color(0xFFE6F7F3),
+                            iconTint = MaterialTheme.extendedColors.success,
+                            iconBg = MaterialTheme.extendedColors.successContainer,
                             title = "Términos y condiciones",
                             subtitle = "Normas de uso del servicio y pedidos",
                             onClick = { selectedInfoType = ProfileInfoType.TERMS }
@@ -490,8 +484,8 @@ fun BuyerProfileScreen(
                         // 2. Políticas de privacidad
                         ProfileInfoNavigationRow(
                             iconPainter = painterResource(id = R.drawable.ic_privacy_custom),
-                            iconTint = Color(0xFF2563EB),
-                            iconBg = Color(0xFFEFF6FF),
+                            iconTint = MaterialTheme.extendedColors.info,
+                            iconBg = MaterialTheme.extendedColors.infoContainer,
                             title = "Políticas de privacidad",
                             subtitle = "Tratamiento y protección de tus datos",
                             onClick = { selectedInfoType = ProfileInfoType.PRIVACY }
@@ -502,8 +496,8 @@ fun BuyerProfileScreen(
                         // 3. Botón de Ayuda
                         ProfileInfoNavigationRow(
                             iconPainter = painterResource(id = R.drawable.ic_help_headset_custom),
-                            iconTint = Color(0xFFD97706),
-                            iconBg = Color(0xFFFEF3C7),
+                            iconTint = MaterialTheme.extendedColors.warning,
+                            iconBg = MaterialTheme.extendedColors.warningContainer,
                             title = "Ayuda",
                             subtitle = "Preguntas frecuentes y soporte",
                             onClick = { selectedInfoType = ProfileInfoType.HELP }
@@ -511,26 +505,12 @@ fun BuyerProfileScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                        // 4. Quiero ser aliado Campus GO
-                        ProfileInfoNavigationRow(
-                            iconPainter = painterResource(id = R.drawable.ic_store_custom),
-                            iconTint = Color(0xFF7C3AED),
-                            iconBg = Color(0xFFF5F3FF),
-                            title = "Quiero ser aliado Campus GO",
-                            subtitle = "Vende tus productos en la comunidad universitaria",
-                            onClick = {
-                                Toast.makeText(context, "Por el momento no está disponible", Toast.LENGTH_SHORT).show()
-                            }
-                        )
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                        // 5. Sistema de Strikes / Avisos y Moderación
+                        // 4. Sistema de Strikes / Avisos y Moderación
                         val strikeCount = warnings.size
                         val (strikeIconBg, strikeIconTint) = when {
-                            strikeCount >= 5 -> Color(0xFFFEE2E2) to Color(0xFFDC2626)
-                            strikeCount in 1..4 -> Color(0xFFFFF3E0) to Color(0xFFE65100)
-                            else -> Color(0xFFE6F7F3) to Color(0xFF00A884)
+                            strikeCount >= 5 -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.error
+                            strikeCount in 1..4 -> MaterialTheme.extendedColors.warningContainer to MaterialTheme.extendedColors.warning
+                            else -> MaterialTheme.extendedColors.successContainer to MaterialTheme.extendedColors.success
                         }
                         ProfileInfoNavigationRow(
                             icon = if (strikeCount >= 5) Icons.Default.Dangerous else if (strikeCount in 1..4) Icons.Default.WarningAmber else Icons.Default.Shield,
@@ -576,7 +556,7 @@ fun BuyerProfileScreen(
                         onSaveProfile(updated)
                         isEditMode = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A884)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -599,8 +579,8 @@ fun BuyerProfileScreen(
             } else {
                 OutlinedButton(
                     onClick = onSignOut,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -609,7 +589,7 @@ fun BuyerProfileScreen(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_logout_custom),
                         contentDescription = null,
-                        tint = Color(0xFFDC2626),
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -620,7 +600,7 @@ fun BuyerProfileScreen(
                 Text(
                     text = "CampusGO - version 0.6.2-beta",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.5.sp,
                     textAlign = TextAlign.Center,
@@ -751,7 +731,7 @@ private fun ProfileDetailRow(
             Icon(
                 painter = iconPainter,
                 contentDescription = null,
-                tint = Color(0xFF00A884),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(24.dp)
                     .offset(y = 1.dp)
@@ -760,7 +740,7 @@ private fun ProfileDetailRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF00A884),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(24.dp)
                     .offset(y = 1.dp)

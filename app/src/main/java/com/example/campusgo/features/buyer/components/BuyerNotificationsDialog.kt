@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -19,7 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,8 +30,8 @@ import com.example.campusgo.domain.model.Order
 import com.example.campusgo.domain.model.SubOrder
 import com.example.campusgo.domain.model.verificationCode
 import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.extendedColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuyerNotificationsDialog(
     readyOrders: List<Triple<Order, SubOrder, String>>,
@@ -39,169 +41,157 @@ fun BuyerNotificationsDialog(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalDarkTheme.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val totalCount = readyOrders.size + preparingOrders.size
-    val configuration = LocalConfiguration.current
-    val sheetMaxHeight = (configuration.screenHeightDp * 0.85f).dp
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(4.5.dp)
-                        .background(
-                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1),
-                            CircleShape
-                        )
-                )
-            }
-        },
-        modifier = modifier
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
-                .navigationBarsPadding()
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            // Cabecera superior moderna
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
             ) {
+                // Cabecera superior moderna con botón de volver y cerrar
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.NotificationsActive,
-                                contentDescription = null,
-                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                    Column {
-                        Text(
-                            text = "Notificaciones",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 19.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (totalCount > 0) "$totalCount aviso${if (totalCount > 1) "s" else ""} activo${if (totalCount > 1) "s" else ""}" else "Bandeja al día",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (totalCount > 0) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                thickness = 1.dp,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            if (totalCount == 0) {
-                // Estado Vacío elegante
-                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 28.dp, vertical = 44.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
-                        modifier = Modifier.size(76.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
+                        ) {
                             Icon(
-                                imageVector = Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                                modifier = Modifier.size(40.dp)
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "Notificaciones",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (totalCount > 0) "$totalCount aviso${if (totalCount > 1) "s" else ""} activo${if (totalCount > 1) "s" else ""}" else "Bandeja al día",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (totalCount > 0) (if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                }
 
-                    Text(
-                        text = "¡Estás al día!",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    Text(
-                        text = "No tienes notificaciones pendientes. Te avisaremos aquí y en tiempo real cuando tus pedidos entren en preparación o estén listos para entrega.",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 19.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                if (totalCount == 0) {
+                    // Estado Vacío elegante
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.55f)
-                            .height(42.dp)
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Entendido",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.5.sp
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 28.dp, vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
+                                modifier = Modifier.size(76.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CheckCircle,
+                                        contentDescription = null,
+                                        tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "¡Estás al día!",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Text(
+                                text = "No tienes notificaciones pendientes. Te avisaremos aquí y en tiempo real cuando tus pedidos entren en preparación o estén listos para entrega.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 19.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier
+                                    .fillMaxWidth(0.55f)
+                                    .height(42.dp)
+                            ) {
+                                Text(
+                                    text = "Entendido",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp
+                                )
+                            }
+                        }
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                     // 1. Sección: Pedidos Listos para Entrega
                     if (readyOrders.isNotEmpty()) {
                         item(key = "header_ready") {
@@ -280,6 +270,7 @@ fun BuyerNotificationsDialog(
         }
     }
 }
+}
 
 @Composable
 private fun ReadyOrderCard(
@@ -290,8 +281,8 @@ private fun ReadyOrderCard(
     val isDark = LocalDarkTheme.current
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White),
-        border = BorderStroke(1.dp, if (isDark) Color(0xFF166534).copy(alpha = 0.5f) else Color(0xFFBBF7D0)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.5f)),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -307,7 +298,7 @@ private fun ReadyOrderCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7)
+                    color = MaterialTheme.extendedColors.successContainer
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -317,13 +308,13 @@ private fun ReadyOrderCard(
                         Box(
                             modifier = Modifier
                                 .size(7.dp)
-                                .background(Color(0xFF16A34A), CircleShape)
+                                .background(MaterialTheme.extendedColors.success, CircleShape)
                         )
                         Text(
                             text = "¡Listo para Recoger!",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D)
+                            color = MaterialTheme.extendedColors.onSuccessContainer
                         )
                     }
                 }
@@ -343,14 +334,14 @@ private fun ReadyOrderCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.size(34.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Outlined.Store,
                             contentDescription = null,
-                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -375,8 +366,8 @@ private fun ReadyOrderCard(
             if (meetPt.isNotBlank()) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -387,7 +378,7 @@ private fun ReadyOrderCard(
                         Icon(
                             imageVector = Icons.Outlined.LocationOn,
                             contentDescription = null,
-                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -399,7 +390,7 @@ private fun ReadyOrderCard(
                             text = meetPt,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -408,8 +399,8 @@ private fun ReadyOrderCard(
             // Código de verificación destacado
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = if (isDark) Color(0xFF132E1B) else Color(0xFFF0FDF4),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF166534) else Color(0xFF86EFAC)),
+                color = MaterialTheme.extendedColors.successContainer,
+                border = BorderStroke(1.dp, MaterialTheme.extendedColors.success),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -422,14 +413,14 @@ private fun ReadyOrderCard(
                             text = "CÓDIGO DE RECOJO",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFF4ADE80) else Color(0xFF166534),
+                            color = MaterialTheme.extendedColors.onSuccessContainer,
                             letterSpacing = 0.5.sp
                         )
                         Text(
                             text = "#${subOrder.verificationCode}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D),
+                            color = MaterialTheme.extendedColors.onSuccessContainer,
                             letterSpacing = 1.sp
                         )
                     }
@@ -438,7 +429,7 @@ private fun ReadyOrderCard(
                         text = "Muestra al vendedor",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isDark) Color(0xFF4ADE80) else Color(0xFF166534)
+                        color = MaterialTheme.extendedColors.onSuccessContainer
                     )
                 }
             }
@@ -446,7 +437,10 @@ private fun ReadyOrderCard(
             // Botón de acción hacia Mis Pedidos
             Button(
                 onClick = onAction,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -481,8 +475,8 @@ private fun PreparingOrderCard(
     val isDark = LocalDarkTheme.current
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White),
-        border = BorderStroke(1.dp, if (isDark) Color(0xFF0369A1).copy(alpha = 0.5f) else Color(0xFFBAE6FD)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -497,7 +491,7 @@ private fun PreparingOrderCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE)
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -508,7 +502,7 @@ private fun PreparingOrderCard(
                             text = "👨‍🍳 En Preparación",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFF7DD3FC) else Color(0xFF0369A1)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
@@ -527,14 +521,14 @@ private fun PreparingOrderCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.size(34.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Outlined.Store,
                             contentDescription = null,
-                            tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -558,8 +552,8 @@ private fun PreparingOrderCard(
             if (meetPt.isNotBlank()) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -570,7 +564,7 @@ private fun PreparingOrderCard(
                         Icon(
                             imageVector = Icons.Outlined.LocationOn,
                             contentDescription = null,
-                            tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -582,7 +576,7 @@ private fun PreparingOrderCard(
                             text = meetPt,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -590,8 +584,8 @@ private fun PreparingOrderCard(
 
             OutlinedButton(
                 onClick = onAction,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()

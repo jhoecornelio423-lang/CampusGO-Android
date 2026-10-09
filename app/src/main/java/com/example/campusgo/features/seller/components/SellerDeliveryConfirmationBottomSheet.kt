@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -22,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,142 +48,123 @@ fun SellerDeliveryConfirmationBottomSheet(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalDarkTheme.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     var inputCode by remember { mutableStateOf("") }
     var bypassCode by remember { mutableStateOf(false) }
 
-    val expectedCode = remember(subOrder) { subOrder.verificationCode.trim() }
-
-    val isCodeValid = inputCode.trim() == expectedCode
-    val codeStatus = remember(inputCode, isCodeValid) {
-        when {
-            isCodeValid -> CodeSlotStatus.SUCCESS
-            inputCode.length == 4 && !isCodeValid -> CodeSlotStatus.ERROR
-            else -> CodeSlotStatus.IDLE
-        }
+    val actualCode = subOrder.verificationCode
+    val isCodeValid = inputCode.length == 4 && (actualCode.isNullOrBlank() || inputCode == actualCode)
+    val codeStatus = when {
+        inputCode.length < 4 -> CodeSlotStatus.IDLE
+        isCodeValid -> CodeSlotStatus.SUCCESS
+        else -> CodeSlotStatus.ERROR
     }
-
     val canConfirm = isCodeValid || bypassCode
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(4.5.dp)
-                        .background(
-                            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFCBD5E1),
-                            CircleShape
-                        )
-                )
-            }
-        }
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            // Cabecera superior compacta y moderna (fija)
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
             ) {
+                // Cabecera superior compacta y moderna con botón Atrás y botón Cerrar
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
-                        modifier = Modifier.size(42.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.VerifiedUser,
-                                contentDescription = null,
-                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                                modifier = Modifier.size(22.dp)
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-                    Column {
-                        Text(
-                            text = "Confirmar Entrega y Cobro",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6F7F3),
+                            modifier = Modifier.size(38.dp)
                         ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column {
                             Text(
-                                text = "Orden ${subOrder.orderCodeDisplay}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.SemiBold
+                                text = "Confirmar Entrega y Cobro",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                text = "S/ %.2f".format(subOrder.subtotalAmount),
-                                fontSize = 12.sp,
-                                color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                            subOrder.paymentMethod?.let { pm ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Cliente: ${subOrder.buyerName?.ifBlank { "Estudiante" } ?: "Estudiante"}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                                 Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                PaymentMethodLogo(method = pm, size = 13.dp)
+                                Text(
+                                    text = "S/ %.2f".format(subOrder.subtotalAmount),
+                                    fontSize = 12.sp,
+                                    color = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00A884),
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                subOrder.paymentMethod?.let { pm ->
+                                    Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    PaymentMethodLogo(method = pm, size = 13.dp)
+                                }
                             }
                         }
                     }
                 }
 
-                IconButton(
-                    onClick = onDismiss,
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // Contenido desplazable con scroll nativo
+                Column(
                     modifier = Modifier
-                        .size(34.dp)
-                        .background(if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9), CircleShape)
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                thickness = 1.dp,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            // Contenido desplazable
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
                 // Tarjeta central interactiva de CodeSlots
                 Card(
                     shape = RoundedCornerShape(18.dp),
@@ -334,4 +318,5 @@ fun SellerDeliveryConfirmationBottomSheet(
             }
         }
     }
+}
 }

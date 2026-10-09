@@ -1,3 +1,96 @@
 <resources>
+    <!-- Nombre y Marca de la Aplicación -->
     <string name="app_name">CampusGO</string>
+    <string name="app_tagline">El marketplace oficial para tu campus universitario</string>
+
+    <!-- Acciones Comunes -->
+    <string name="action_accept">Aceptar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_confirm">Confirmar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_close">Cerrar</string>
+    <string name="action_back">Volver</string>
+    <string name="action_continue">Continuar</string>
+    <string name="action_retry">Reintentar</string>
+    <string name="action_refresh">Actualizar</string>
+    <string name="action_sign_out">Cerrar Sesión</string>
+    <string name="action_contact_support">Contactar a Soporte</string>
+
+    <!-- Navegación General -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_explore">Explorar</string>
+    <string name="nav_cart">Carrito</string>
+    <string name="nav_orders">Pedidos</string>
+    <string name="nav_profile">Perfil</string>
+    <string name="nav_chats">Chats</string>
+
+    <!-- Módulo de Autenticación -->
+    <string name="auth_welcome_title">Bienvenido a CampusGO</string>
+    <string name="auth_sign_in">Iniciar Sesión</string>
+    <string name="auth_sign_up">Registrarse</string>
+    <string name="auth_email_label">Correo Institucional</string>
+    <string name="auth_email_placeholder">usuario@universidad.edu.pe</string>
+    <string name="auth_password_label">Contraseña</string>
+    <string name="auth_forgot_password">¿Olvidaste tu contraseña?</string>
+    <string name="auth_google_sign_in">Continuar con Google</string>
+    <string name="auth_terms_prefix">Al continuar, aceptas nuestros </string>
+    <string name="auth_terms_link">Términos y Condiciones</string>
+    <string name="auth_privacy_link">Política de Privacidad</string>
+
+    <!-- Módulo Comprador -->
+    <string name="buyer_greeting_prefix">Hola, </string>
+    <string name="buyer_search_placeholder">Buscar puestos, comida, útiles...</string>
+    <string name="buyer_active_stands">Puestos activos en campus</string>
+    <string name="buyer_favorites_title">Mis Favoritos</string>
+    <string name="buyer_empty_favorites">Aún no tienes puestos favoritos guardados</string>
+
+    <!-- Carrito y Checkout -->
+    <string name="cart_title">Mi Carrito</string>
+    <string name="cart_empty_title">Tu carrito está vacío</string>
+    <string name="cart_empty_subtitle">Explora los puestos del campus y agrega tus productos favoritos.</string>
+    <string name="cart_step_products">Productos</string>
+    <string name="cart_step_delivery">Entrega</string>
+    <string name="cart_step_payment">Pago</string>
+    <string name="cart_subtotal">Subtotal</string>
+    <string name="cart_total">Total a Pagar</string>
+    <string name="cart_meeting_point_label">Punto de Entrega Oficial</string>
+    <string name="cart_schedule_label">Horario programado</string>
+    <string name="cart_notes_label">Instrucciones o notas para los vendedores</string>
+    <string name="cart_confirm_button">Confirmar Pedido</string>
+
+    <!-- Métodos de Pago -->
+    <string name="payment_method_cash">Efectivo contra entrega</string>
+    <string name="payment_method_yape">Yape</string>
+    <string name="payment_method_plin">Plin</string>
+    <string name="payment_method_transfer">Transferencia Bancaria</string>
+
+    <!-- Seguimiento y Estados de Pedidos -->
+    <string name="order_tracking_title">Seguimiento de Pedido</string>
+    <string name="order_status_pending">Pendiente de confirmación</string>
+    <string name="order_status_in_progress">En preparación</string>
+    <string name="order_status_ready">Listo para retiro</string>
+    <string name="order_status_completed">Completado y entregado</string>
+    <string name="order_status_cancelled">Cancelado</string>
+    <string name="order_pin_label">PIN de Retiro</string>
+
+    <!-- Panel de Administración -->
+    <string name="admin_dashboard_title">Panel de Administración</string>
+    <string name="admin_tab_meeting_points">Puntos</string>
+    <string name="admin_tab_applications">Solicitudes</string>
+    <string name="admin_tab_sellers">Vendedores</string>
+    <string name="admin_tab_buyers">Compradores</string>
+    <string name="admin_tab_metrics">Métricas</string>
+
+    <!-- Vendedor / Emprendedor -->
+    <string name="seller_dashboard_title">Panel de Vendedor</string>
+    <string name="seller_orders_active">Pedidos Activos</string>
+    <string name="seller_products_catalog">Mi Catálogo</string>
+    <string name="seller_metrics_title">Métricas de Venta</string>
+
+    <!-- Estados de Error y Conexión -->
+    <string name="error_network_generic">No se pudo conectar al servidor. Revisa tu conexión a internet.</string>
+    <string name="error_unexpected">Ha ocurrido un error inesperado. Por favor, intenta nuevamente.</string>
+    <string name="account_suspended_title">Cuenta Suspendida</string>
+    <string name="account_suspended_description">Tu cuenta ha sido suspendida temporalmente por la administración del campus.</string>
 </resources>

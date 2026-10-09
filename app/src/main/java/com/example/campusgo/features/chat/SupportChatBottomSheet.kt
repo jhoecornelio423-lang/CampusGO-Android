@@ -215,7 +215,7 @@ fun SupportChatBottomSheet(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF8FAFC)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -331,8 +331,8 @@ fun SupportChatBottomSheet(
 
             // 2. Banner Institucional de Moderación y Normativa
             Surface(
-                color = Color(0xFFEFF6FF),
-                border = BorderStroke(0.5.dp, Color(0xFFBFDBFE)),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -343,7 +343,7 @@ fun SupportChatBottomSheet(
                     Text(
                         text = "⚖️ Este canal es moderado por la administración universitaria. Los mensajes y evidencias se auditan permanentemente para la resolución justa del caso.",
                         fontSize = 11.sp,
-                        color = Color(0xFF1E40AF),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 15.sp
                     )
                 }
@@ -366,14 +366,14 @@ fun SupportChatBottomSheet(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFFE2E8F0),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.size(64.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Shield,
                                     contentDescription = null,
-                                    tint = Color(0xFF64748B),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(34.dp)
                                 )
                             }
@@ -383,13 +383,13 @@ fun SupportChatBottomSheet(
                             text = "Canal de Diálogo Oficial Abierto",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Puedes enviar detalles, aclaraciones o evidencias sobre este caso.",
                             fontSize = 12.5.sp,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 16.sp
                         )
                     }
@@ -437,14 +437,13 @@ fun SupportChatBottomSheet(
                                         bottomEnd = if (isMe) 4.dp else 16.dp
                                     ),
                                     color = when {
-                                        isMe -> Color(0xFF003366)
-                                        msg.isAdmin -> Color(0xFFEFF6FF)
-                                        else -> Color.White
+                                        isMe -> MaterialTheme.colorScheme.primary
+                                        msg.isAdmin -> MaterialTheme.colorScheme.surfaceVariant
+                                        else -> MaterialTheme.colorScheme.surface
                                     },
                                     border = when {
                                         isMe -> null
-                                        msg.isAdmin -> BorderStroke(1.dp, Color(0xFFBFDBFE))
-                                        else -> BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                        else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                     },
                                     shadowElevation = 1.dp,
                                     modifier = Modifier.widthIn(max = 300.dp)
@@ -470,9 +469,9 @@ fun SupportChatBottomSheet(
                                                 text = msg.message,
                                                 fontSize = 14.sp,
                                                 color = when {
-                                                    isMe -> Color.White
-                                                    msg.isAdmin -> Color(0xFF003366)
-                                                    else -> Color(0xFF1E293B)
+                                                    isMe -> MaterialTheme.colorScheme.onPrimary
+                                                    msg.isAdmin -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                    else -> MaterialTheme.colorScheme.onSurface
                                                 },
                                                 lineHeight = 19.sp
                                             )
@@ -482,7 +481,7 @@ fun SupportChatBottomSheet(
                                         Text(
                                             text = formatTime(msg.createdAt.orEmpty()),
                                             fontSize = 10.sp,
-                                            color = if (isMe) Color.White.copy(alpha = 0.75f) else Color(0xFF64748B),
+                                            color = if (isMe) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                             modifier = Modifier.align(Alignment.End)
                                         )
                                     }
@@ -496,8 +495,8 @@ fun SupportChatBottomSheet(
             // 4. Previsualización de imagen seleccionada antes de enviar
             AnimatedVisibility(visible = selectedBitmap != null && !isResolved) {
                 Surface(
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -518,15 +517,15 @@ fun SupportChatBottomSheet(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Foto adjunta para este mensaje", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
-                            Text("Se enviará al presionar el botón de envío", fontSize = 11.sp, color = Color(0xFF64748B))
+                            Text("Foto adjunta para este mensaje", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Se enviará al presionar el botón de envío", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick = {
                             selectedImageBytes = null
                             selectedBitmap?.recycle()
                             selectedBitmap = null
                         }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color(0xFFDC2626))
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -535,7 +534,7 @@ fun SupportChatBottomSheet(
             // 5. Barra inferior: Si el caso está RESUELTO, BLOQUEAR envío y mostrar tarjeta informativa
             if (isResolved) {
                 Surface(
-                    color = Color(0xFFF1F5F9),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -543,7 +542,7 @@ fun SupportChatBottomSheet(
                             .fillMaxWidth()
                             .navigationBarsPadding()
                     ) {
-                        HorizontalDivider(thickness = 1.dp, color = Color(0xFFCBD5E1))
+                        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -553,14 +552,14 @@ fun SupportChatBottomSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFE2E8F0),
+                                color = MaterialTheme.colorScheme.surface,
                                 modifier = Modifier.size(38.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.Lock,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = MaterialTheme.colorScheme.outline,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -570,12 +569,12 @@ fun SupportChatBottomSheet(
                                     text = "Caso Resuelto y Cerrado",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp,
-                                    color = Color(0xFF1E293B)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "El proceso de mediación ha concluido. El canal permanece en modo solo lectura para fines de auditoría.",
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF64748B),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 15.sp
                                 )
                             }
@@ -583,9 +582,9 @@ fun SupportChatBottomSheet(
                     }
                 }
             } else {
-                // Barra de entrada activa que cubre completamente el área del navigation bar con fondo blanco
+                // Barra de entrada activa
                 Surface(
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -594,7 +593,7 @@ fun SupportChatBottomSheet(
                             .navigationBarsPadding()
                             .imePadding()
                     ) {
-                        HorizontalDivider(thickness = 1.dp, color = Color(0xFFE2E8F0))
+                        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -608,15 +607,15 @@ fun SupportChatBottomSheet(
                                 enabled = !isSending && !isCompressingImage,
                                 modifier = Modifier
                                     .size(42.dp)
-                                    .background(Color(0xFFF1F5F9), CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                             ) {
                                 if (isCompressingImage) {
-                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF003366))
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.AddPhotoAlternate,
                                         contentDescription = "Adjuntar foto",
-                                        tint = Color(0xFF003366),
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -626,15 +625,17 @@ fun SupportChatBottomSheet(
                             OutlinedTextField(
                                 value = inputText,
                                 onValueChange = { inputText = it },
-                                placeholder = { Text("Escribe un mensaje de respuesta...", fontSize = 13.sp) },
+                                placeholder = { Text("Escribe un mensaje de respuesta...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(24.dp),
                                 maxLines = 4,
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color(0xFFF8FAFC),
-                                    unfocusedContainerColor = Color(0xFFF8FAFC),
-                                    focusedBorderColor = Color(0xFF003366),
-                                    unfocusedBorderColor = Color(0xFFE2E8F0)
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
 
@@ -676,15 +677,15 @@ fun SupportChatBottomSheet(
                                 enabled = canSend,
                                 modifier = Modifier
                                     .size(42.dp)
-                                    .background(if (canSend) Color(0xFF003366) else Color(0xFFE2E8F0), CircleShape)
+                                    .background(if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                             ) {
                                 if (isSending) {
-                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                                 } else {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.Send,
                                         contentDescription = "Enviar",
-                                        tint = if (canSend) Color.White else Color(0xFF94A3B8),
+                                        tint = if (canSend) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.outline,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }

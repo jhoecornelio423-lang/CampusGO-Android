@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.features.auth
+package com.example.campusgo.features.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -64,7 +64,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.campusgo.ui.components.SetDarkScreenStatusBar
+import com.example.campusgo.theme.extendedColors
 
 @Composable
 fun ForgotPasswordEmailView(
@@ -75,11 +75,9 @@ fun ForgotPasswordEmailView(
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    SetDarkScreenStatusBar()
-
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Color(0xFFF8FAFC)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -99,7 +97,7 @@ fun ForgotPasswordEmailView(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Volver",
-                        tint = Color(0xFF16324F)
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -112,12 +110,12 @@ fun ForgotPasswordEmailView(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFEFF6FF))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
             ) {
                 Icon(
                     imageVector = Icons.Outlined.LockReset,
                     contentDescription = null,
-                    tint = Color(0xFF2563EB),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(42.dp)
                 )
             }
@@ -130,7 +128,7 @@ fun ForgotPasswordEmailView(
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 ),
-                color = Color(0xFF16324F),
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
 
@@ -139,7 +137,7 @@ fun ForgotPasswordEmailView(
             Text(
                 text = "Ingresa tu correo electrónico registrado y te enviaremos un código de verificación para restablecerla.",
                 fontSize = 13.5.sp,
-                color = Color(0xFF64748B),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
             )
@@ -153,9 +151,9 @@ fun ForgotPasswordEmailView(
                 exit = fadeOut()
             ) {
                 Surface(
-                    color = Color(0xFFFEF2F2),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -167,14 +165,14 @@ fun ForgotPasswordEmailView(
                         Icon(
                             imageVector = Icons.Default.Error,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.errorMessage.orEmpty(),
                             fontSize = 12.5.sp,
-                            color = Color(0xFF991B1B),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
@@ -184,7 +182,7 @@ fun ForgotPasswordEmailView(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cerrar",
-                                tint = Color(0xFF991B1B),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -197,18 +195,18 @@ fun ForgotPasswordEmailView(
                     text = "Correo Electrónico",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF16324F),
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
                 OutlinedTextField(
                     value = uiState.email,
                     onValueChange = onEmailChange,
-                    placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
+                    placeholder = { Text("tu.correo@ejemplo.com", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Email,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
@@ -222,10 +220,12 @@ fun ForgotPasswordEmailView(
                         onDone = { if (uiState.canSubmitForgotPasswordEmail) onSubmit() }
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF8FAFC),
-                        unfocusedContainerColor = Color(0xFFF8FAFB),
-                        focusedBorderColor = Color(0xFF00A884),
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -238,10 +238,10 @@ fun ForgotPasswordEmailView(
                 enabled = uiState.canSubmitForgotPasswordEmail,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00A884),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFCBD5E1),
-                    disabledContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -249,7 +249,7 @@ fun ForgotPasswordEmailView(
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(22.dp)
                     )
@@ -268,7 +268,7 @@ fun ForgotPasswordEmailView(
                 Text(
                     text = "Regresar al inicio de sesión",
                     fontSize = 13.5.sp,
-                    color = Color(0xFF16324F),
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -288,14 +288,13 @@ fun ForgotPasswordOtpView(
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    SetDarkScreenStatusBar()
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Color(0xFFF8FAFC)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -315,7 +314,7 @@ fun ForgotPasswordOtpView(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Volver",
-                        tint = Color(0xFF16324F)
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -329,7 +328,7 @@ fun ForgotPasswordOtpView(
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 ),
-                color = Color(0xFF16324F),
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
 
@@ -338,7 +337,7 @@ fun ForgotPasswordOtpView(
             Text(
                 text = "Ingresa el código enviado a ${uiState.email} y define tu nueva contraseña.",
                 fontSize = 13.5.sp,
-                color = Color(0xFF64748B),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
@@ -351,9 +350,9 @@ fun ForgotPasswordOtpView(
                 exit = fadeOut()
             ) {
                 Surface(
-                    color = Color(0xFFF0FDF4),
+                    color = MaterialTheme.extendedColors.successContainer,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.3f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -365,14 +364,14 @@ fun ForgotPasswordOtpView(
                         Icon(
                             imageVector = Icons.Outlined.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = MaterialTheme.extendedColors.success,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.infoMessage.orEmpty(),
                             fontSize = 12.5.sp,
-                            color = Color(0xFF166534),
+                            color = MaterialTheme.extendedColors.onSuccessContainer,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -386,9 +385,9 @@ fun ForgotPasswordOtpView(
                 exit = fadeOut()
             ) {
                 Surface(
-                    color = Color(0xFFFEF2F2),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -400,14 +399,14 @@ fun ForgotPasswordOtpView(
                         Icon(
                             imageVector = Icons.Default.Error,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.errorMessage.orEmpty(),
                             fontSize = 12.5.sp,
-                            color = Color(0xFF991B1B),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
@@ -417,7 +416,7 @@ fun ForgotPasswordOtpView(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cerrar",
-                                tint = Color(0xFF991B1B),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -430,7 +429,7 @@ fun ForgotPasswordOtpView(
                 text = "Código de verificación",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF16324F),
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 10.dp)
@@ -451,18 +450,18 @@ fun ForgotPasswordOtpView(
                     text = "Nueva Contraseña",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF16324F),
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
                 OutlinedTextField(
                     value = uiState.newPassword,
                     onValueChange = onNewPasswordChange,
-                    placeholder = { Text("Mínimo 6 caracteres", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
+                    placeholder = { Text("Mínimo 6 caracteres", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Lock,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
@@ -471,7 +470,7 @@ fun ForgotPasswordOtpView(
                             Icon(
                                 imageVector = if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = null,
-                                tint = Color(0xFF829AB1)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
@@ -483,10 +482,12 @@ fun ForgotPasswordOtpView(
                         imeAction = ImeAction.Next
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF8FAFC),
-                        unfocusedContainerColor = Color(0xFFF8FAFB),
-                        focusedBorderColor = Color(0xFF00A884),
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -500,18 +501,18 @@ fun ForgotPasswordOtpView(
                     text = "Confirmar Nueva Contraseña",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF16324F),
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
                 OutlinedTextField(
                     value = uiState.confirmNewPassword,
                     onValueChange = onConfirmPasswordChange,
-                    placeholder = { Text("Repite tu nueva contraseña", fontSize = 14.sp, color = Color(0xFF94A3B8)) },
+                    placeholder = { Text("Repite tu nueva contraseña", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Lock,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
@@ -520,7 +521,7 @@ fun ForgotPasswordOtpView(
                             Icon(
                                 imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = null,
-                                tint = Color(0xFF829AB1)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
@@ -535,10 +536,12 @@ fun ForgotPasswordOtpView(
                         onDone = { if (uiState.canResetPassword) onSubmit() }
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF8FAFC),
-                        unfocusedContainerColor = Color(0xFFF8FAFB),
-                        focusedBorderColor = Color(0xFF00A884),
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -552,10 +555,10 @@ fun ForgotPasswordOtpView(
                 enabled = uiState.canResetPassword,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00A884),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFCBD5E1),
-                    disabledContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -563,7 +566,7 @@ fun ForgotPasswordOtpView(
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(22.dp)
                     )
@@ -583,14 +586,14 @@ fun ForgotPasswordOtpView(
                 Text(
                     text = "Puedes reenviar el código en ${uiState.countdownSeconds}s",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 Text(
                     text = "¿No recibiste el código? Reenviar código",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF00A884),
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable(onClick = onResend)
                 )
             }
@@ -601,7 +604,7 @@ fun ForgotPasswordOtpView(
                 Text(
                     text = "Regresar al inicio de sesión",
                     fontSize = 13.5.sp,
-                    color = Color(0xFF16324F),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }

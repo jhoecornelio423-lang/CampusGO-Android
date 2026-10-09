@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -178,8 +179,8 @@ fun CampusFlyerCarousel(
                             .width(dotWidth)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) Color(0xFF00A884)
-                                else Color(0xFFCBD5E1)
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outlineVariant
                             )
                     )
                 }

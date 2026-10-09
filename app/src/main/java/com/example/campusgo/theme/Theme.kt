@@ -1,55 +1,173 @@
 package com.example.campusgo.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-private val CampusGoLightColorScheme = lightColorScheme(
-    primary = Color(0xFF16A085),          // Verde Turquesa (Principal)
+// ==========================================
+// Paleta Material 3: Modo Claro
+// ==========================================
+val CampusGoLightColorScheme = lightColorScheme(
+    primary = Turquoise500,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE6F6F3),
-    onPrimaryContainer = Color(0xFF0D5C4C),
-    secondary = Color(0xFFF4B942),        // Amarillo Cálido (Acentos & Promos)
-    onSecondary = Color(0xFF16324F),
-    secondaryContainer = Color(0xFFFEF3C7),
-    onSecondaryContainer = Color(0xFF78350F),
-    tertiary = Color(0xFF16324F),         // Azul Oscuro (Contraste & Encabezados)
+    primaryContainer = Turquoise50,
+    onPrimaryContainer = Turquoise800,
+    secondary = Amber400,
+    onSecondary = Amber900,
+    secondaryContainer = Amber100,
+    onSecondaryContainer = Amber800,
+    tertiary = InfoLight,
     onTertiary = Color.White,
-    background = Color(0xFFFFFFFF),       // Blanco puro (Fondo principal)
-    onBackground = Color(0xFF16324F),
-    surface = Color(0xFFFFFFFF),          // Superficie blanca
-    onSurface = Color(0xFF16324F),
-    surfaceVariant = Color(0xFFF4F6F8),   // Gris claro secundario
-    onSurfaceVariant = Color(0xFF4B5563), // Texto gris
-    outline = Color(0xFFE5E7EB),
-    outlineVariant = Color(0xFFE2E8F0)
+    tertiaryContainer = InfoLightContainer,
+    onTertiaryContainer = OnInfoLightContainer,
+    background = LightBackground,
+    onBackground = LightOnBackground,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    error = ErrorLight,
+    onError = Color.White,
+    errorContainer = ErrorLightContainer,
+    onErrorContainer = OnErrorLightContainer
 )
 
-private val CampusGoDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF00B589),          // Verde Esmeralda CampusGO moderno y limpio
+// ==========================================
+// Paleta Material 3: Modo Oscuro (Obsidian)
+// ==========================================
+val CampusGoDarkColorScheme = darkColorScheme(
+    primary = Turquoise600,
     onPrimary = Color(0xFF00281F),
     primaryContainer = Color(0xFF004D3D),
     onPrimaryContainer = Color(0xFFA7F3D0),
-    secondary = Color(0xFFF59E0B),        // Ámbar cálido
+    secondary = Amber500,
     onSecondary = Color(0xFF451A03),
-    secondaryContainer = Color(0xFF78350F),
-    onSecondaryContainer = Color(0xFFFDE68A),
-    tertiary = Color(0xFF38BDF8),         // Sky blue suave
+    secondaryContainer = Amber800,
+    onSecondaryContainer = Amber200,
+    tertiary = InfoDark,
     onTertiary = Color(0xFF082F49),
-    background = Color(0xFF0B0F14),       // Obsidian Deep Carbon neutral
-    onBackground = Color(0xFFF0F6FC),     // Off-white suave y descansado
-    surface = Color(0xFF161B22),          // Superficie oscura neutra y limpia
-    onSurface = Color(0xFFF0F6FC),
-    surfaceVariant = Color(0xFF21262D),   // Tarjetas y elevaciones intermedias
-    onSurfaceVariant = Color(0xFF94A3B8), // Texto secundario neutral
-    outline = Color(0xFF30363D),          // Bordes sutiles y limpios
-    outlineVariant = Color(0xFF21262D)    // Divisores delicados
+    tertiaryContainer = InfoDarkContainer,
+    onTertiaryContainer = OnInfoDarkContainer,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    error = ErrorDark,
+    onError = Color(0xFF450A0A),
+    errorContainer = ErrorDarkContainer,
+    onErrorContainer = OnErrorDarkContainer
 )
 
-val LocalDarkTheme = androidx.compose.runtime.staticCompositionLocalOf { false }
+// ==========================================
+// Colores Semánticos Extendidos para CampusGO
+// ==========================================
+@Immutable
+data class ExtendedColors(
+    val success: Color,
+    val onSuccess: Color,
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+    val warning: Color,
+    val onWarning: Color,
+    val warningContainer: Color,
+    val onWarningContainer: Color,
+    val info: Color,
+    val onInfo: Color,
+    val infoContainer: Color,
+    val onInfoContainer: Color,
+    val cardBackground: Color,
+    val cardBorder: Color,
+    val inputBackground: Color,
+    val inputBorder: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val textMuted: Color,
+    val brandTurquoise: Color,
+    val brandAmber: Color
+)
 
+private val LightExtendedColors = ExtendedColors(
+    success = SuccessLight,
+    onSuccess = Color.White,
+    successContainer = SuccessLightContainer,
+    onSuccessContainer = OnSuccessLightContainer,
+    warning = WarningLight,
+    onWarning = Color.White,
+    warningContainer = WarningLightContainer,
+    onWarningContainer = OnWarningLightContainer,
+    info = InfoLight,
+    onInfo = Color.White,
+    infoContainer = InfoLightContainer,
+    onInfoContainer = OnInfoLightContainer,
+    cardBackground = LightSurface,
+    cardBorder = LightOutlineVariant,
+    inputBackground = LightSurfaceVariant,
+    inputBorder = LightOutline,
+    textPrimary = LightOnBackground,
+    textSecondary = LightOnSurfaceVariant,
+    textMuted = Color(0xFF94A3B8),
+    brandTurquoise = Turquoise500,
+    brandAmber = Amber400
+)
+
+private val DarkExtendedColors = ExtendedColors(
+    success = SuccessDark,
+    onSuccess = Color(0xFF022C22),
+    successContainer = SuccessDarkContainer,
+    onSuccessContainer = OnSuccessDarkContainer,
+    warning = WarningDark,
+    onWarning = Color(0xFF451A03),
+    warningContainer = WarningDarkContainer,
+    onWarningContainer = OnWarningDarkContainer,
+    info = InfoDark,
+    onInfo = Color(0xFF082F49),
+    infoContainer = InfoDarkContainer,
+    onInfoContainer = OnInfoDarkContainer,
+    cardBackground = DarkSurface,
+    cardBorder = DarkOutlineVariant,
+    inputBackground = DarkSurfaceVariant,
+    inputBorder = DarkOutline,
+    textPrimary = DarkOnBackground,
+    textSecondary = DarkOnSurfaceVariant,
+    textMuted = Color(0xFF64748B),
+    brandTurquoise = Turquoise600,
+    brandAmber = Amber500
+)
+
+val LocalDarkTheme = staticCompositionLocalOf { false }
+val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
+
+/**
+ * Acceso directo y centralizado a los colores extendidos de CampusGO.
+ * Ejemplo de uso en cualquier Composable:
+ * `MaterialTheme.extendedColors.successContainer` o `MaterialTheme.campusColors.cardBorder`
+ */
+val MaterialTheme.extendedColors: ExtendedColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalExtendedColors.current
+
+val MaterialTheme.campusColors: ExtendedColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalExtendedColors.current
+
+// ==========================================
+// Theme Principal de CampusGO
+// ==========================================
 @Composable
 fun CampusGOTheme(
     darkTheme: Boolean = false,
@@ -57,8 +175,11 @@ fun CampusGOTheme(
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) CampusGoDarkColorScheme else CampusGoLightColorScheme
-    androidx.compose.runtime.CompositionLocalProvider(
-        LocalDarkTheme provides darkTheme
+    val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
+
+    CompositionLocalProvider(
+        LocalDarkTheme provides darkTheme,
+        LocalExtendedColors provides extendedColors
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

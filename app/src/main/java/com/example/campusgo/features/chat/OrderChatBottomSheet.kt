@@ -63,6 +63,9 @@ import com.example.campusgo.core.notification.CampusGoNotificationHelper
 import com.example.campusgo.theme.DarkBlue
 import com.example.campusgo.theme.TurquoiseGreen
 import com.example.campusgo.theme.WarmYellow
+import com.example.campusgo.theme.extendedColors
+import com.example.campusgo.ui.components.StrikeBadge
+import com.example.campusgo.ui.components.StrikeMeter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -168,6 +171,7 @@ fun OrderChatBottomSheet(
     if (showFullScreenProfile) {
         ChatUserProfileFullScreen(
             otherProfile = uiState.otherUserProfile,
+            otherUserId = uiState.otherUserId,
             otherUserName = uiState.otherUserName,
             otherUserAvatarUrl = uiState.otherUserAvatarUrl,
             meetingPoint = uiState.meetingPoint,
@@ -256,6 +260,7 @@ fun OrderChatBottomSheet(
                     otherUserName = uiState.otherUserName,
                     otherUserAvatarUrl = uiState.otherUserAvatarUrl,
                     meetingPoint = uiState.meetingPoint,
+                    isViewingSeller = uiState.otherUserProfile?.role == UserRole.EMPRENDEDOR,
                     onBack = onDismiss,
                     onOpenProfile = { showFullScreenProfile = true },
                     onOpenReport = { showReportDialog = true }
@@ -379,6 +384,7 @@ private fun CampusGoTopBar(
     otherUserName: String,
     otherUserAvatarUrl: String?,
     meetingPoint: String,
+    isViewingSeller: Boolean = false,
     onBack: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenReport: () -> Unit
@@ -444,10 +450,7 @@ private fun CampusGoTopBar(
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             val locationText = meetingPoint.ifBlank { "Punto por convenir" }
-                            val codeDisplay = deliveryCode.ifBlank {
-                                if (subOrderId.isNotBlank()) (kotlin.math.abs(subOrderId.hashCode()) % 9000 + 1000).toString() else ""
-                            }
-                            val orderTag = if (codeDisplay.isNotBlank()) "Código #$codeDisplay • " else ""
+                            val orderTag = if (isViewingSeller && deliveryCode.isNotBlank()) "Código #$deliveryCode • " else ""
                             Text(
                                 text = "$orderTag$locationText",
                                 fontSize = 11.5.sp,
@@ -803,10 +806,12 @@ private fun EmptyChatState(
 @Composable
 private fun ChatUserProfileFullScreen(
     otherProfile: UserProfile?,
+    otherUserId: String = "",
     otherUserName: String,
     otherUserAvatarUrl: String?,
     meetingPoint: String,
     deliveryCode: String = "",
+    orderRepository: OrderRepository = koinInject(),
     onBack: () -> Unit,
     onOpenEnlargedPhoto: (url: String?, name: String, role: String, isBanner: Boolean) -> Unit,
     onReportUser: () -> Unit
@@ -814,10 +819,20 @@ private fun ChatUserProfileFullScreen(
     BackHandler(onBack = onBack)
 
     val isSeller = otherProfile?.role == UserRole.EMPRENDEDOR
+    var buyerStrikes by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(otherProfile?.id, otherUserId) {
+        val buyerId = otherProfile?.id ?: otherUserId.takeIf { it.isNotBlank() }
+        if (!isSeller && !buyerId.isNullOrBlank()) {
+            orderRepository.getUserWarnings(buyerId).onSuccess { warnings ->
+                buyerStrikes = warnings.size
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF8FAFC)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -827,7 +842,7 @@ private fun ChatUserProfileFullScreen(
         ) {
             // 1. Barra superior de navegación nativa (Full Screen TopBar)
             Surface(
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -842,7 +857,7 @@ private fun ChatUserProfileFullScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Regresar al chat",
-                            tint = Color(0xFF0F172A),
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -851,7 +866,7 @@ private fun ChatUserProfileFullScreen(
                         text = if (isSeller) "Perfil del Emprendedor" else "Perfil del Estudiante",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -868,7 +883,7 @@ private fun ChatUserProfileFullScreen(
                 if (otherProfile == null) {
                     // Fallback visual mientras carga el perfil desde la base de datos
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -904,18 +919,18 @@ private fun ChatUserProfileFullScreen(
                                 text = otherUserName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp,
-                                color = Color(0xFF0F172A)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Surface(
-                                color = Color(0xFFF1F5F9),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(20.dp)
                             ) {
                                 Text(
                                     text = "Usuario CampusGO",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF475569),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                                 )
                             }
@@ -926,7 +941,7 @@ private fun ChatUserProfileFullScreen(
 
                     // Tarjeta Principal del Emprendimiento (Banner + Logo + Nombre) estilo Facebook
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -976,7 +991,7 @@ private fun ChatUserProfileFullScreen(
                                 ) {
                                     Surface(
                                         shape = CircleShape,
-                                        border = BorderStroke(3.5.dp, Color.White),
+                                        border = BorderStroke(3.5.dp, MaterialTheme.colorScheme.surface),
                                         shadowElevation = 4.dp
                                     ) {
                                         CampusGoBusinessAvatar(
@@ -988,7 +1003,7 @@ private fun ChatUserProfileFullScreen(
                                     Surface(
                                         shape = CircleShape,
                                         color = TurquoiseGreen,
-                                        border = BorderStroke(2.dp, Color.White),
+                                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface),
                                         shadowElevation = 2.dp,
                                         modifier = Modifier.size(26.dp)
                                     ) {
@@ -1016,12 +1031,12 @@ private fun ChatUserProfileFullScreen(
                                     text = otherProfile.displayStoreName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 20.sp,
-                                    color = Color(0xFF0F172A),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
                                 )
 
                                 Surface(
-                                    color = Color(0xFFE6F6F3),
+                                    color = MaterialTheme.extendedColors.successContainer,
                                     shape = RoundedCornerShape(20.dp)
                                 ) {
                                     Row(
@@ -1032,7 +1047,7 @@ private fun ChatUserProfileFullScreen(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFF0D5C4C),
+                                            tint = MaterialTheme.extendedColors.onSuccessContainer,
                                             modifier = Modifier
                                                 .size(16.dp)
                                                 .offset(y = 1.dp)
@@ -1041,7 +1056,7 @@ private fun ChatUserProfileFullScreen(
                                             text = "Emprendedor Autorizado",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0D5C4C)
+                                            color = MaterialTheme.extendedColors.onSuccessContainer
                                         )
                                     }
                                 }
@@ -1051,7 +1066,7 @@ private fun ChatUserProfileFullScreen(
 
                     // Tarjeta de Información Detallada del Puesto (Sin teléfonos)
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1064,10 +1079,10 @@ private fun ChatUserProfileFullScreen(
                                 text = "Información del Puesto",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                color = Color(0xFF003366)
+                                color = MaterialTheme.colorScheme.primary
                             )
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             ProfileDetailRow(
                                 icon = Icons.Default.Person,
@@ -1111,7 +1126,7 @@ private fun ChatUserProfileFullScreen(
                             ProfileDetailRow(
                                 icon = Icons.Default.Star,
                                 label = "Calificación",
-                                value = "%.1f ?".format(otherProfile.ratingAverage)
+                                value = "%.1f ★".format(otherProfile.ratingAverage)
                             )
                         }
                     }
@@ -1120,7 +1135,7 @@ private fun ChatUserProfileFullScreen(
 
                     // Tarjeta Principal del Estudiante (Avatar + Nombre + Rol)
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1153,15 +1168,15 @@ private fun ChatUserProfileFullScreen(
                                 )
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color(0xFF003366),
-                                    border = BorderStroke(2.dp, Color.White),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface),
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.ZoomIn,
                                             contentDescription = "Ampliar foto",
-                                            tint = Color.White,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -1172,28 +1187,49 @@ private fun ChatUserProfileFullScreen(
                                 text = otherProfile.fullName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp,
-                                color = Color(0xFF0F172A),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
 
-                            Surface(
-                                color = Color(0xFFE0F2FE),
-                                shape = RoundedCornerShape(20.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = "?? Estudiante / Comprador",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0369A1),
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                                )
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Text(
+                                        text = "🎓 Estudiante / Comprador",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                                    )
+                                }
+                                if (buyerStrikes > 0) {
+                                    StrikeBadge(strikes = buyerStrikes)
+                                } else {
+                                    Surface(
+                                        color = MaterialTheme.extendedColors.successContainer.copy(alpha = 0.7f),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Text(
+                                            text = "0 strikes",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.extendedColors.onSuccessContainer,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
 
                     // Tarjeta de Información Universitaria (Sin teléfonos)
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1206,10 +1242,10 @@ private fun ChatUserProfileFullScreen(
                                 text = "Información Universitaria",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                color = Color(0xFF003366)
+                                color = MaterialTheme.colorScheme.primary
                             )
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             ProfileDetailRow(
                                 iconPainter = painterResource(id = R.drawable.ic_user_circle_custom),
@@ -1228,12 +1264,76 @@ private fun ChatUserProfileFullScreen(
                                 label = "Fecha de Creación de Cuenta",
                                 value = formatAccountCreationDate(otherProfile.createdAt)
                             )
+                        }
+                    }
 
-                            ProfileDetailRow(
-                                icon = Icons.Default.Star,
-                                label = "Calificación",
-                                value = "%.1f ?".format(otherProfile.ratingAverage)
-                            )
+                    // Tarjeta de Historial Disciplinario / Strikes del Comprador
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Historial Disciplinario",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                if (buyerStrikes > 0) {
+                                    StrikeBadge(strikes = buyerStrikes)
+                                }
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            if (buyerStrikes == 0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.VerifiedUser,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.extendedColors.success,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "Cuenta impecable (0 strikes)",
+                                            fontSize = 13.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Este estudiante no cuenta con amonestaciones ni reportes.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else {
+                                StrikeMeter(
+                                    strikes = buyerStrikes,
+                                    maxStrikes = 5,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "El comprador tiene $buyerStrikes falta(s) registrada(s) por incidencias previas.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
@@ -1241,7 +1341,7 @@ private fun ChatUserProfileFullScreen(
                 // Tarjeta del Punto de Entrega Acordado (Contexto del pedido actual)
                 if (meetingPoint.isNotBlank()) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1252,14 +1352,14 @@ private fun ChatUserProfileFullScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFE6F6F3),
+                                color = MaterialTheme.extendedColors.successContainer,
                                 modifier = Modifier.size(42.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_location_custom),
                                         contentDescription = null,
-                                        tint = TurquoiseGreen,
+                                        tint = MaterialTheme.extendedColors.success,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -1270,23 +1370,24 @@ private fun ChatUserProfileFullScreen(
                                     text = "Punto de entrega coordinado",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF64748B)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = meetingPoint,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = Color(0xFF0F172A)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
                     }
                 }
 
-                if (deliveryCode.isNotBlank()) {
+                // Código de entrega: visible ÚNICAMENTE para el comprador (cuando consulta el perfil de la tienda)
+                if (isSeller && deliveryCode.isNotBlank()) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.extendedColors.successContainer),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1302,14 +1403,14 @@ private fun ChatUserProfileFullScreen(
                                 Icon(
                                     imageVector = Icons.Default.VerifiedUser,
                                     contentDescription = null,
-                                    tint = Color(0xFF00796B),
+                                    tint = MaterialTheme.extendedColors.onSuccessContainer,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
                                     text = "Código de Entrega:",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Color(0xFF004D40)
+                                    color = MaterialTheme.extendedColors.onSuccessContainer
                                 )
                             }
                             Text(
@@ -1317,7 +1418,7 @@ private fun ChatUserProfileFullScreen(
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp,
                                 letterSpacing = 2.sp,
-                                color = Color(0xFF004D40)
+                                color = MaterialTheme.extendedColors.onSuccessContainer
                             )
                         }
                     }
@@ -1327,9 +1428,9 @@ private fun ChatUserProfileFullScreen(
                 OutlinedButton(
                     onClick = onReportUser,
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFDC2626)
+                        contentColor = MaterialTheme.colorScheme.error
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1338,7 +1439,7 @@ private fun ChatUserProfileFullScreen(
                     Icon(
                         imageVector = Icons.Default.ReportProblem,
                         contentDescription = null,
-                        tint = Color(0xFFDC2626),
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1370,7 +1471,7 @@ private fun ProfileDetailRow(
             Icon(
                 painter = iconPainter,
                 contentDescription = null,
-                tint = Color(0xFF003366),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(22.dp)
                     .offset(y = 1.dp)
@@ -1379,7 +1480,7 @@ private fun ProfileDetailRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF003366),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(22.dp)
                     .offset(y = 1.dp)
@@ -1391,13 +1492,13 @@ private fun ProfileDetailRow(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = value,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

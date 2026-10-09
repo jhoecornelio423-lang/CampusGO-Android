@@ -5,12 +5,18 @@ import com.example.campusgo.domain.model.ChatMessage
 import com.example.campusgo.domain.repository.ChatRepository
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -48,18 +54,12 @@ class ChatRepositoryImpl(
 
     private val localMessagesCache = ConcurrentHashMap<String, MutableList<ChatMessage>>()
 
-    override fun observeMessages(subOrderId: String, currentUserId: String): Flow<List<ChatMessage>> = flow {
+    override fun observeMessages(subOrderId: String, currentUserId: String): Flow<List<ChatMessage>> = channelFlow {
         val cached = localMessagesCache.getOrPut(subOrderId) { mutableListOf() }
         // Emisión inmediata (0ms) de la caché local para evitar spinner bloqueado
-        emit(cached.toList())
+        send(cached.toList())
 
-        // Bucle reactivo de alta frecuencia (1.8s) para chat en campus + emisión inmediata por firma
-        var previousSignature: String? = if (cached.isNotEmpty()) {
-            cached.joinToString(",") { "${it.id}_${it.isRead}" }
-        } else {
-            null
-        }
-        while (true) {
+        suspend fun fetchAndSendMessages() {
             try {
                 if (isValidUUID(subOrderId)) {
                     val remote = postgrest["order_messages"]
@@ -77,24 +77,38 @@ class ChatRepositoryImpl(
                         list.clear()
                         list.addAll(domainList)
                     }
-
-                    val currentSignature = domainList.joinToString(",") { "${it.id}_${it.isRead}" }
-                    if (currentSignature != previousSignature) {
-                        previousSignature = currentSignature
-                        emit(domainList)
-                    }
+                    send(domainList)
                 } else {
-                    // Si no es UUID remoto, emitir lo que haya en caché local
-                    emit(cached.toList())
+                    send(cached.toList())
                 }
             } catch (e: Exception) {
-                Log.d("ChatRepositoryImpl", "Polling messages error: ${e.message}")
-                if (previousSignature == null) {
-                    previousSignature = "__error__"
-                    emit(cached.toList())
-                }
+                Log.d("ChatRepositoryImpl", "Fetch messages error: ${e.message}")
             }
-            delay(1800L)
+        }
+
+        fetchAndSendMessages()
+
+        if (realtime != null && isValidUUID(subOrderId)) {
+            try {
+                val chatChannel = realtime.channel("chat_$subOrderId")
+                val changeFlow = chatChannel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "order_messages"
+                }
+                chatChannel.subscribe()
+
+                launch {
+                    changeFlow.collect {
+                        fetchAndSendMessages()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ChatRepositoryImpl", "Realtime channel subscription error: ${e.message}")
+            }
+        }
+
+        while (isActive) {
+            delay(10000L)
+            fetchAndSendMessages()
         }
     }.flowOn(Dispatchers.IO)
 
@@ -232,8 +246,8 @@ class ChatRepositoryImpl(
         }
     }
 
-    override fun observeUnreadCount(userId: String): Flow<Int> = flow {
-        while (true) {
+    override fun observeUnreadCount(userId: String): Flow<Int> = channelFlow {
+        suspend fun computeAndSend() {
             val localUnread = localMessagesCache.values.sumOf { list ->
                 synchronized(list) {
                     list.count { it.receiverId == userId && !it.isRead && !it.isFromMe }
@@ -249,15 +263,39 @@ class ChatRepositoryImpl(
                             }
                         }
                         .decodeList<RemoteOrderMessageDto>()
-                    emit(maxOf(unread.size, localUnread))
+                    send(maxOf(unread.size, localUnread))
                 } else {
-                    emit(localUnread)
+                    send(localUnread)
                 }
             } catch (e: Exception) {
                 Log.d("ChatRepositoryImpl", "observeUnreadCount fallback local: ${e.message}")
-                emit(localUnread)
+                send(localUnread)
             }
-            delay(2500L)
+        }
+
+        computeAndSend()
+
+        if (realtime != null && isValidUUID(userId)) {
+            try {
+                val unreadChannel = realtime.channel("unread_$userId")
+                val changeFlow = unreadChannel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "order_messages"
+                }
+                unreadChannel.subscribe()
+
+                launch {
+                    changeFlow.collect {
+                        computeAndSend()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ChatRepositoryImpl", "Realtime unread subscription error: ${e.message}")
+            }
+        }
+
+        while (isActive) {
+            delay(15000L)
+            computeAndSend()
         }
     }.flowOn(Dispatchers.IO)
 

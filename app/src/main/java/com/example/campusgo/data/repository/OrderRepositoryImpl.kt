@@ -12,6 +12,12 @@ import com.example.campusgo.domain.repository.OrderRepository
 import com.example.campusgo.domain.usecase.RecalculateOrderUseCase
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.storage.Storage
+import com.example.campusgo.data.local.dao.OrderDao
+import com.example.campusgo.data.local.entity.toEntity
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.PostgresAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -43,124 +49,12 @@ import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-@Serializable
-data class RemoteOrderDto(
-    val id: String,
-    @SerialName("buyer_id") val buyerId: String,
-    @SerialName("seller_id") val sellerId: String? = null,
-    @SerialName("total_price") val totalPrice: Double,
-    @SerialName("delivery_place") val deliveryPlace: String? = null,
-    @SerialName("meeting_point_id") val meetingPointId: String? = null,
-    @SerialName("meeting_point_name") val meetingPointName: String? = null,
-    @SerialName("scheduled_time") val scheduledTime: String? = null,
-    val notes: String? = null,
-    @SerialName("payment_method") val paymentMethod: String? = null,
-    val status: String = "pending",
-    @SerialName("order_code") val orderCode: String? = null,
-    @SerialName("created_at") val createdAt: String? = null,
-    @SerialName("updated_at") val updatedAt: String? = null
-)
-
-@Serializable
-data class RemoteSubOrderDto(
-    val id: String,
-    @SerialName("order_id") val orderId: String,
-    @SerialName("seller_id") val sellerId: String,
-    @SerialName("subtotal_amount") val subtotalAmount: Double,
-    val status: String = "pending",
-    @SerialName("rejection_reason") val rejectionReason: String? = null,
-    @SerialName("payment_method") val paymentMethod: String? = null,
-    @SerialName("is_payment_confirmed") val isPaymentConfirmed: Boolean = false,
-    @SerialName("is_delivery_confirmed") val isDeliveryConfirmed: Boolean = false,
-    @SerialName("delivery_code") val deliveryCode: String? = null,
-    @SerialName("stock_reserved") val stockReserved: Boolean = true,
-    @SerialName("meeting_point_id") val meetingPointId: String? = null,
-    @SerialName("meeting_point_name") val meetingPointName: String? = null,
-    @SerialName("scheduled_time") val scheduledTime: String? = null,
-    @SerialName("buyer_id") val buyerId: String? = null,
-    @SerialName("created_at") val createdAt: String? = null,
-    @SerialName("updated_at") val updatedAt: String? = null
-)
-
-@Serializable
-data class RemoteOrderItemDto(
-    val id: String,
-    @SerialName("order_id") val orderId: String,
-    @SerialName("sub_order_id") val subOrderId: String? = null,
-    @SerialName("product_id") val productId: String,
-    val quantity: Int,
-    @SerialName("price_at_sale") val priceAtSale: Double
-)
-
-@Serializable
-data class ProductBasicDto(
-    val id: String,
-    val name: String,
-    val price: Double? = null,
-    val stock: Int? = null,
-    @SerialName("is_active") val isActive: Boolean? = null
-)
-
-@Serializable
-data class ProfileBasicDto(
-    val id: String,
-    @SerialName("full_name") val fullName: String? = null,
-    val phone: String? = null,
-    @SerialName("business_description") val businessDescription: String? = null,
-    @SerialName("avatar_url") val avatarUrl: String? = null
-)
-
-@Serializable
-data class CheckoutResponseDto(
-    val success: Boolean = false,
-    @SerialName("order_id") val orderId: String? = null,
-    @SerialName("order_code") val orderCode: String? = null,
-    @SerialName("total_amount") val totalAmount: Double? = null,
-    val status: String? = null,
-    @SerialName("is_duplicate") val isDuplicate: Boolean? = null,
-    val message: String? = null
-)
-
-@Serializable
-data class RpcActionResultDto(
-    val success: Boolean = false,
-    val message: String? = null,
-    @SerialName("expired_count") val expiredCount: Int? = null,
-    @SerialName("order_id") val orderId: String? = null,
-    @SerialName("sub_order_id") val subOrderId: String? = null,
-    val status: String? = null
-)
-
-@Serializable
-data class UpdateSuborderStatusResponseDto(
-    val success: Boolean = false,
-    @SerialName("sub_order_id") val subOrderId: String? = null,
-    val status: String? = null,
-    @SerialName("stock_released") val stockReleased: Boolean? = null,
-    @SerialName("rejection_reason") val rejectionReason: String? = null
-)
-
-@Serializable
-data class RemoteReviewDto(
-    val id: String? = null,
-    @SerialName("order_id") val orderId: String,
-    @SerialName("reviewer_id") val reviewerId: String,
-    @SerialName("reviewee_id") val revieweeId: String,
-    val rating: Int,
-    val comment: String? = null,
-    @SerialName("created_at") val createdAt: String? = null
-)
-
-@Serializable
-data class BuyerProfileCheckDto(
-    val id: String,
-    val role: String = ""
-)
-
 class OrderRepositoryImpl(
     private val postgrest: Postgrest? = null,
     private val recalculateOrderUseCase: RecalculateOrderUseCase = RecalculateOrderUseCase(),
-    private val storage: Storage? = null
+    private val storage: Storage? = null,
+    private val orderDao: OrderDao? = null,
+    private val realtime: Realtime? = null
 ) : OrderRepository {
 
     private val _ordersFlow = MutableStateFlow<List<Order>>(emptyList())
@@ -290,6 +184,10 @@ class OrderRepositoryImpl(
                 currentList.add(0, confirmedOrder)
                 _ordersFlow.value = currentList
 
+                try {
+                    orderDao?.insertOrder(confirmedOrder.toEntity())
+                } catch (_: Exception) {}
+
                 Result.success(confirmedOrder)
             } else {
                 val localOrder = order.copy(subOrders = enrichedSubOrders)
@@ -297,6 +195,11 @@ class OrderRepositoryImpl(
                 currentList.removeAll { it.id == localOrder.id }
                 currentList.add(0, localOrder)
                 _ordersFlow.value = currentList
+
+                try {
+                    orderDao?.insertOrder(localOrder.toEntity())
+                } catch (_: Exception) {}
+
                 Result.success(localOrder)
             }
         } catch (e: Exception) {
@@ -333,8 +236,13 @@ class OrderRepositoryImpl(
 
     override suspend fun getOrdersForBuyer(buyerId: String): Result<List<Order>> = withContext(Dispatchers.IO) {
         try {
-            val matching = _ordersFlow.value.filter { it.buyerId == buyerId }
-            Result.success(matching)
+            val localOrders = orderDao?.getOrdersForBuyerSync(buyerId)?.map { it.toDomain() }
+            if (!localOrders.isNullOrEmpty()) {
+                Result.success(localOrders)
+            } else {
+                val matching = _ordersFlow.value.filter { it.buyerId == buyerId }
+                Result.success(matching)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -487,7 +395,12 @@ class OrderRepositoryImpl(
     }
 
     override fun observeOrdersForBuyer(buyerId: String): Flow<List<Order>> = flow {
-        val initialCached = _ordersFlow.value.filter { it.buyerId == buyerId }
+        val localOrders = try {
+            orderDao?.getOrdersForBuyerSync(buyerId)?.map { it.toDomain() } ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val initialCached = if (localOrders.isNotEmpty()) localOrders else _ordersFlow.value.filter { it.buyerId == buyerId }
         emit(initialCached)
         var previousEmitted: List<Order>? = initialCached.takeIf { it.isNotEmpty() }
 
@@ -744,11 +657,17 @@ class OrderRepositoryImpl(
                         if (mappedOrders != previousEmitted) {
                             previousEmitted = mappedOrders
                             _ordersFlow.value = mappedOrders
+                            try {
+                                orderDao?.insertOrders(mappedOrders.map { it.toEntity() })
+                            } catch (_: Exception) {}
                             emit(mappedOrders)
                         }
                     } else if (previousEmitted != null && previousEmitted.isNotEmpty()) {
                         previousEmitted = emptyList()
                         _ordersFlow.value = emptyList()
+                        try {
+                            orderDao?.clearOrdersForBuyer(buyerId)
+                        } catch (_: Exception) {}
                         emit(emptyList())
                     }
                 }
@@ -1063,6 +982,12 @@ class OrderRepositoryImpl(
             }
 
             if (updated != null) {
+                val parentOrder = currentOrders.find { it.id == updated.orderId }
+                if (parentOrder != null) {
+                    try {
+                        orderDao?.insertOrder(parentOrder.toEntity())
+                    } catch (_: Exception) {}
+                }
                 Result.success(updated)
             } else {
                 val fallbackSub = SubOrder(
@@ -1135,6 +1060,13 @@ class OrderRepositoryImpl(
                     sellerSubOrdersCache.putAll(previousSellerCache)
                     return@withContext Result.failure(Exception(response.message ?: "No se pudo cancelar el pedido."))
                 }
+            }
+
+            val affectedOrder = currentOrders.find { it.id == orderId }
+            if (affectedOrder != null) {
+                try {
+                    orderDao?.insertOrder(affectedOrder.toEntity())
+                } catch (_: Exception) {}
             }
 
             Result.success(Unit)
@@ -1650,17 +1582,28 @@ class OrderRepositoryImpl(
     override suspend fun getUserWarnings(userId: String): Result<List<ProfileWarning>> = withContext(Dispatchers.IO) {
         try {
             if (postgrest != null) {
-                val warnings = postgrest.from("profile_warnings").select {
-                    filter {
-                        eq("profile_id", userId)
-                    }
-                    order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                }.decodeList<ProfileWarning>()
+                val warnings = try {
+                    val rawData = postgrest.from("profile_warnings").select {
+                        filter {
+                            eq("profile_id", userId)
+                        }
+                        order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                    }.data
+                    jsonParser.decodeFromString<List<ProfileWarning>>(rawData)
+                } catch (parseEx: Exception) {
+                    postgrest.from("profile_warnings").select {
+                        filter {
+                            eq("profile_id", userId)
+                        }
+                        order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                    }.decodeList<ProfileWarning>()
+                }
+                android.util.Log.d("OrderRepo", "getUserWarnings for $userId: found ${warnings.size} warnings")
                 return@withContext Result.success(warnings)
             }
             Result.success(emptyList())
         } catch (e: Exception) {
-            android.util.Log.e("OrderRepo", "Error al obtener advertencias de usuario: ${e.message}", e)
+            android.util.Log.e("OrderRepo", "Error al obtener advertencias de usuario ($userId): ${e.message}", e)
             Result.failure(e)
         }
     }

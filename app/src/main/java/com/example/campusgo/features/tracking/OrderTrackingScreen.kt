@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDecoration
 import com.example.campusgo.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -86,6 +87,8 @@ import com.example.campusgo.ui.components.CampusGoDialogShape
 import com.example.campusgo.ui.components.CampusGoDialogTonalElevation
 import com.example.campusgo.ui.components.isSubOrderExpired
 import com.example.campusgo.ui.components.campusGoDialogStyle
+import com.example.campusgo.theme.LocalDarkTheme
+import com.example.campusgo.theme.extendedColors
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -224,13 +227,13 @@ fun OrderTrackingScreen(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFFEBEE)),
+                        .background(MaterialTheme.colorScheme.errorContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_warning_custom),
                         contentDescription = null,
-                        tint = Color(0xFFC8102E),
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(30.dp)
                     )
                 }
@@ -239,7 +242,7 @@ fun OrderTrackingScreen(
                 Text(
                     "¿Cancelar este pedido?",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003366),
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
             },
@@ -247,7 +250,7 @@ fun OrderTrackingScreen(
                 Text(
                     "Si cancelas este pedido, se notificará a los puestos y se devolverá el stock reservado inmediatamente a su inventario. Esta acción no se puede deshacer.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             },
@@ -266,8 +269,8 @@ fun OrderTrackingScreen(
                             .weight(1f)
                             .height(44.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF64748B)),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Text("Mantener", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
@@ -276,7 +279,10 @@ fun OrderTrackingScreen(
                         onClick = {
                             uiState.orderToCancel?.let { viewModel.confirmCancelOrder(it.id) }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
                         enabled = !uiState.isCancelling,
                         modifier = Modifier
                             .weight(1f)
@@ -284,7 +290,7 @@ fun OrderTrackingScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         if (uiState.isCancelling) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onError, strokeWidth = 2.dp)
                         } else {
                             Text("Sí, cancelar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
@@ -427,15 +433,13 @@ fun OrderTrackingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 6.dp,
+                            elevation = 4.dp,
                             shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                            spotColor = Color(0x1F16324F),
-                            ambientColor = Color(0x2816324F),
                             clip = false
                         ),
                     shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 0.dp
                 ) {
                     Column {
@@ -444,7 +448,7 @@ fun OrderTrackingScreen(
                                 Text(
                                     text = "Mis Pedidos Campus Go",
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF003366)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             },
                             navigationIcon = {
@@ -452,7 +456,8 @@ fun OrderTrackingScreen(
                                     IconButton(onClick = onNavigateBack) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Volver"
+                                            contentDescription = "Volver",
+                                            tint = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -462,7 +467,7 @@ fun OrderTrackingScreen(
                         PrimaryTabRow(
                             selectedTabIndex = pagerState.currentPage,
                             containerColor = Color.Transparent,
-                            contentColor = Color(0xFF003366)
+                            contentColor = MaterialTheme.colorScheme.primary
                         ) {
                             Tab(
                                 selected = pagerState.currentPage == 0,
@@ -474,7 +479,8 @@ fun OrderTrackingScreen(
                                 text = {
                                     Text(
                                         text = "En Curso (${uiState.activeOrders.size})",
-                                        fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Medium
+                                        fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             )
@@ -488,7 +494,8 @@ fun OrderTrackingScreen(
                                 text = {
                                     Text(
                                         text = "Historial (${uiState.pastOrders.size})",
-                                        fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Medium
+                                        fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             )
@@ -506,7 +513,7 @@ fun OrderTrackingScreen(
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = Color(0xFF003366)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 } else {
                     HorizontalPager(
@@ -617,7 +624,7 @@ fun OrderTrackingScreen(
                                                     .padding(top = 4.dp),
                                                 shape = RoundedCornerShape(14.dp),
                                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                             ) {
                                                 Column(
@@ -630,7 +637,7 @@ fun OrderTrackingScreen(
                                                     Text(
                                                         text = "Mostrando ${uiState.paginatedPastOrders.size} de ${uiState.pastOrders.size} pedidos",
                                                         style = MaterialTheme.typography.labelMedium,
-                                                        color = Color(0xFF64748B),
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         fontWeight = FontWeight.Medium
                                                     )
 
@@ -641,8 +648,8 @@ fun OrderTrackingScreen(
                                                             .height(46.dp),
                                                         shape = RoundedCornerShape(10.dp),
                                                         colors = ButtonDefaults.buttonColors(
-                                                            containerColor = Color(0xFF003366),
-                                                            contentColor = Color.White
+                                                            containerColor = MaterialTheme.colorScheme.primary,
+                                                            contentColor = MaterialTheme.colorScheme.onPrimary
                                                         )
                                                     ) {
                                                         Row(
@@ -652,7 +659,7 @@ fun OrderTrackingScreen(
                                                             Icon(
                                                                 imageVector = Icons.Default.ExpandMore,
                                                                 contentDescription = null,
-                                                                tint = Color.White,
+                                                                tint = MaterialTheme.colorScheme.onPrimary,
                                                                 modifier = Modifier.size(20.dp)
                                                             )
                                                             Spacer(modifier = Modifier.width(6.dp))
@@ -677,7 +684,7 @@ fun OrderTrackingScreen(
                                                 Text(
                                                     text = "Mostrando todos los pedidos del historial (${uiState.pastOrders.size})",
                                                     style = MaterialTheme.typography.bodySmall,
-                                                    color = Color(0xFF64748B),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                             }
@@ -701,7 +708,7 @@ fun OrderTrackingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF0F172A).copy(alpha = 0.35f))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
             )
         }
     }
@@ -739,10 +746,12 @@ fun BuyerOrderCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Cabecera: Título Amigable y Total Coherente
+            val isDark = LocalDarkTheme.current
             val originalSum = if (order.subOrders.isNotEmpty()) order.subOrders.sumOf { it.subtotalAmount } else order.totalAmount
             val cancelledSum = order.subOrders.filter { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO }.sumOf { it.subtotalAmount }
             val hasCancelledSubOrders = cancelledSum > 0.0
             val effectiveToPay = (originalSum - cancelledSum).coerceAtLeast(0.0)
+            val isOrderCancelled = order.status == OrderStatus.CANCELADA || (order.subOrders.isNotEmpty() && order.subOrders.all { it.status == SubOrderStatus.RECHAZADO || it.status == SubOrderStatus.CANCELADO || it.status == SubOrderStatus.NO_ENTREGADO })
 
             val orderFriendlyTitle = when (order.status) {
                 OrderStatus.COMPLETADA -> "Pedido Entregado"
@@ -771,22 +780,39 @@ fun BuyerOrderCard(
                         else -> order.paymentMethod ?: PaymentMethod.EFECTIVO
                     }
                     val (pmBg, pmColor, pmName) = when (effectiveOrderPm) {
-                        PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                        PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                        PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                        else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), effectiveOrderPm?.name ?: "Efectivo")
+                        PaymentMethod.YAPE -> Triple(if (isDark) Color(0xFF7B1FA2).copy(alpha = 0.25f) else Color(0xFFF3E5F5), if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A), "Yape")
+                        PaymentMethod.PLIN -> Triple(if (isDark) Color(0xFF00796B).copy(alpha = 0.25f) else Color(0xFFE0F2F1), if (isDark) Color(0xFF80CBC4) else Color(0xFF00796B), "Plin")
+                        PaymentMethod.EFECTIVO -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Efectivo")
+                        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, effectiveOrderPm?.name ?: "Efectivo")
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = if (hasCancelledSubOrders) "Total a pagar: S/ %.2f".format(effectiveToPay) else "Total: S/ %.2f".format(originalSum),
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF003366),
-                            fontSize = 18.sp
-                        )
+                        if (isOrderCancelled) {
+                            Text(
+                                text = "Total: S/ %.2f".format(originalSum),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textDecoration = TextDecoration.LineThrough,
+                                fontSize = 16.sp
+                            )
+                        } else if (hasCancelledSubOrders) {
+                            Text(
+                                text = "Total a pagar: S/ %.2f".format(effectiveToPay),
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 18.sp
+                            )
+                        } else {
+                            Text(
+                                text = "Total: S/ %.2f".format(originalSum),
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 18.sp
+                            )
+                        }
                         Surface(
                             color = pmBg,
                             shape = RoundedCornerShape(4.dp)
@@ -806,12 +832,19 @@ fun BuyerOrderCard(
                             }
                         }
                     }
-                    if (hasCancelledSubOrders) {
+                    if (isOrderCancelled) {
+                        Text(
+                            text = "Pedido cancelado",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else if (hasCancelledSubOrders) {
                         Text(
                             text = "Total original: S/ %.2f (S/ %.2f cancelado)".format(originalSum, cancelledSum),
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFFE65100)
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -821,7 +854,7 @@ fun BuyerOrderCard(
             // Alerta si la orden fue Parcialmente Aceptada por rechazo de algún puesto
             if (order.status == OrderStatus.PARCIALMENTE_ACEPTADA) {
                 Surface(
-                    color = Color(0xFFFFF3E0),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -833,13 +866,13 @@ fun BuyerOrderCard(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_info_custom),
                             contentDescription = null,
-                            tint = Color(0xFFE65100),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = "Un puesto no pudo atender su parte. El total se recalculó automáticamente y no pagarás por los ítems cancelados.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFE65100)
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                     }
                 }
@@ -897,13 +930,13 @@ fun BuyerOrderCard(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE8F5E9)),
+                                .background(MaterialTheme.extendedColors.successContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = null,
-                                tint = Color(0xFF00A884),
+                                tint = MaterialTheme.extendedColors.success,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -912,7 +945,7 @@ fun BuyerOrderCard(
                         Text(
                             text = "Contactar al Vendedor",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center
                         )
@@ -922,7 +955,7 @@ fun BuyerOrderCard(
                             Text(
                                 text = "Selecciona el puesto con el que deseas chatear:",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
                             activeChatSubOrders.forEach { subOrder ->
@@ -932,8 +965,8 @@ fun BuyerOrderCard(
                                         onOpenChat?.invoke(subOrder)
                                     },
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFF8FAFC),
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -946,18 +979,18 @@ fun BuyerOrderCard(
                                                 text = subOrder.sellerName.ifBlank { "Puesto Comercial" },
                                                 fontWeight = FontWeight.Bold,
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = Color(0xFF003366)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
                                                 text = "${subOrder.items.size} producto(s)",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = Color(0xFF64748B)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_chat_custom),
                                             contentDescription = null,
-                                            tint = Color(0xFF00A884),
+                                            tint = MaterialTheme.extendedColors.success,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -970,9 +1003,9 @@ fun BuyerOrderCard(
                             onClick = { showSellerChatPicker = false },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("Cerrar", fontWeight = FontWeight.Bold)
+                            Text("Cerrar", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                         }
                     },
                     dismissButton = null
@@ -982,7 +1015,7 @@ fun BuyerOrderCard(
             // Advertencia si la orden expiró automáticamente
             if (anyPendingExpired) {
                 Surface(
-                    color = Color(0xFFFFEBEE),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -993,13 +1026,13 @@ fun BuyerOrderCard(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_warning_custom),
                             contentDescription = null,
-                            tint = Color(0xFFC8102E),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Cancelado automáticamente por tiempo de espera agotado (15 min).",
-                            color = Color(0xFFC8102E),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -1038,16 +1071,16 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFE8F5E9).copy(alpha = 0.45f),
-                                contentColor = Color(0xFF00796B)
+                                containerColor = MaterialTheme.extendedColors.successContainer.copy(alpha = 0.45f),
+                                contentColor = MaterialTheme.extendedColors.onSuccessContainer
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF00A884).copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chat_custom),
                                 contentDescription = "Chat",
-                                tint = Color(0xFF00A884),
+                                tint = MaterialTheme.extendedColors.success,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1069,16 +1102,16 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFEFF6FF).copy(alpha = 0.45f),
-                                contentColor = Color(0xFF003366)
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                contentColor = MaterialTheme.colorScheme.primary
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Repetir",
-                                tint = Color(0xFF003366),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1102,21 +1135,21 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (canCancel) Color(0xFFFFEBEE).copy(alpha = 0.45f) else Color(0xFFF1F5F9).copy(alpha = 0.4f),
-                                contentColor = if (canCancel) Color(0xFFC8102E) else Color(0xFF94A3B8),
-                                disabledContainerColor = Color(0xFFF1F5F9).copy(alpha = 0.4f),
-                                disabledContentColor = Color(0xFF94A3B8)
+                                containerColor = if (canCancel) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                contentColor = if (canCancel) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                disabledContentColor = MaterialTheme.colorScheme.outline
                             ),
                             border = BorderStroke(
                                 1.dp,
-                                if (canCancel) Color(0xFFC8102E).copy(alpha = 0.5f) else Color(0xFFCBD5E1).copy(alpha = 0.6f)
+                                if (canCancel) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
                             ),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cancelar",
-                                tint = if (canCancel) Color(0xFFC8102E) else Color(0xFF94A3B8),
+                                tint = if (canCancel) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1138,16 +1171,16 @@ fun BuyerOrderCard(
                                 .height(38.dp),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFF1F5F9).copy(alpha = 0.5f),
-                                contentColor = Color(0xFF003366)
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                contentColor = MaterialTheme.colorScheme.primary
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF003366).copy(alpha = 0.45f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                 contentDescription = "Detalle",
-                                tint = Color(0xFF003366),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1175,9 +1208,11 @@ fun SubOrderTrackingItem(
     onRate: (() -> Unit)? = null,
     onOpenChat: (() -> Unit)? = null
 ) {
+    val isDarkSub = LocalDarkTheme.current
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -1207,10 +1242,10 @@ fun SubOrderTrackingItem(
                         else -> orderPaymentMethod ?: PaymentMethod.EFECTIVO
                     }
                     val (subPmBg, subPmColor, subPmName) = when (subPm) {
-                        PaymentMethod.YAPE -> Triple(Color(0xFFF3E5F5), Color(0xFF6A1B9A), "Yape")
-                        PaymentMethod.PLIN -> Triple(Color(0xFFE0F2F1), Color(0xFF00796B), "Plin")
-                        PaymentMethod.EFECTIVO -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), "Efectivo")
-                        else -> Triple(Color(0xFFF1F5F9), Color(0xFF003366), subPm.name)
+                        PaymentMethod.YAPE -> Triple(if (isDarkSub) Color(0xFF7B1FA2).copy(alpha = 0.25f) else Color(0xFFF3E5F5), if (isDarkSub) Color(0xFFCE93D8) else Color(0xFF6A1B9A), "Yape")
+                        PaymentMethod.PLIN -> Triple(if (isDarkSub) Color(0xFF00796B).copy(alpha = 0.25f) else Color(0xFFE0F2F1), if (isDarkSub) Color(0xFF80CBC4) else Color(0xFF00796B), "Plin")
+                        PaymentMethod.EFECTIVO -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Efectivo")
+                        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, subPm.name)
                     }
                     Surface(
                         color = subPmBg,
@@ -1233,7 +1268,7 @@ fun SubOrderTrackingItem(
                     Text(
                         text = "S/ %.2f".format(subOrder.subtotalAmount),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF003366)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -1259,7 +1294,7 @@ fun SubOrderTrackingItem(
             // Stepper / Estado en vivo del subpedido
             if (subOrder.status == SubOrderStatus.NO_ENTREGADO) {
                 Surface(
-                    color = Color(0xFFFFEBEE),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1268,18 +1303,18 @@ fun SubOrderTrackingItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFC8102E), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                         Text(
                             text = "No entregado (Inasistencia reportada)",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFC8102E),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             } else if (subOrder.status == SubOrderStatus.RECHAZADO || subOrder.status == SubOrderStatus.CANCELADO) {
                 Surface(
-                    color = Color(0xFFFFEBEE),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1288,11 +1323,11 @@ fun SubOrderTrackingItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFC8102E), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                         Text(
                             text = "No disponible: ${subOrder.rejectionReason ?: "Sin insumos"}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFC8102E),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1308,9 +1343,9 @@ fun SubOrderTrackingItem(
                 subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA) {
                 val isReady = subOrder.status == SubOrderStatus.LISTO || subOrder.status == SubOrderStatus.ESPERANDO_ENTREGA
                 Surface(
-                    color = if (isReady) Color(0xFFE0F2F1) else Color(0xFFF1F5F9),
+                    color = if (isReady) MaterialTheme.extendedColors.successContainer else MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, if (isReady) Color(0xFF80CBC4) else Color(0xFFCBD5E1)),
+                    border = BorderStroke(1.dp, if (isReady) MaterialTheme.extendedColors.success.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -1328,7 +1363,7 @@ fun SubOrderTrackingItem(
                             Icon(
                                 imageVector = Icons.Default.VerifiedUser,
                                 contentDescription = null,
-                                tint = if (isReady) Color(0xFF00796B) else Color(0xFF003366),
+                                tint = if (isReady) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Column {
@@ -1336,7 +1371,7 @@ fun SubOrderTrackingItem(
                                     text = "CÓDIGO DE ENTREGA",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                                    color = if (isReady) MaterialTheme.extendedColors.onSuccessContainer else MaterialTheme.colorScheme.primary
                                 )
                                 Text(
                                     text = "Dile este PIN al vendedor al retirar",
@@ -1351,7 +1386,7 @@ fun SubOrderTrackingItem(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 2.sp,
-                            color = if (isReady) Color(0xFF004D40) else Color(0xFF003366)
+                            color = if (isReady) MaterialTheme.extendedColors.onSuccessContainer else MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -1366,7 +1401,7 @@ fun SubOrderTrackingItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 if (ratingGiven != null && ratingGiven > 0) {
                     Surface(
-                        color = Color(0xFFFEF3C7).copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1381,14 +1416,14 @@ fun SubOrderTrackingItem(
                                 text = "Tu calificación:",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF92400E)
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                 for (star in 1..5) {
                                     Icon(
                                         imageVector = Icons.Default.Star,
                                         contentDescription = null,
-                                        tint = if (star <= ratingGiven) Color(0xFFF59E0B) else Color(0xFFCBD5E1),
+                                        tint = if (star <= ratingGiven) Color(0xFFF59E0B) else MaterialTheme.colorScheme.outlineVariant,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -1398,15 +1433,15 @@ fun SubOrderTrackingItem(
                 } else if (onRate != null) {
                     OutlinedButton(
                         onClick = onRate,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
-                        border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.tertiary),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = Color(0xFFF59E0B),
+                            tint = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -1414,7 +1449,7 @@ fun SubOrderTrackingItem(
                             text = "Agregar Calificación",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFFD97706)
+                            color = MaterialTheme.colorScheme.tertiary
                         )
                     }
                 }
@@ -1438,11 +1473,11 @@ fun TrackingStepper(status: SubOrderStatus) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         StepCircle(label = "Enviado", isDone = step1Done, isActive = status == SubOrderStatus.PENDIENTE)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step2Done) Color(0xFF2E7D32) else Color.LightGray)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step2Done) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.outlineVariant)
         StepCircle(label = "Preparando", isDone = step2Done, isActive = status == SubOrderStatus.ACEPTADO || status == SubOrderStatus.EN_PREPARACION)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step3Done) Color(0xFF2E7D32) else Color.LightGray)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step3Done) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.outlineVariant)
         StepCircle(label = "Listo", isDone = step3Done, isActive = status == SubOrderStatus.LISTO || status == SubOrderStatus.ESPERANDO_ENTREGA)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step4Done) Color(0xFF2E7D32) else Color.LightGray)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = if (step4Done) MaterialTheme.extendedColors.success else MaterialTheme.colorScheme.outlineVariant)
         StepCircle(label = "Entregado", isDone = step4Done, isActive = step4Done)
     }
 }
@@ -1456,9 +1491,9 @@ fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
                 .clip(CircleShape)
                 .background(
                     when {
-                        isDone -> Color(0xFF2E7D32)
-                        isActive -> Color(0xFF003366)
-                        else -> Color(0xFFE2E8F0)
+                        isDone -> MaterialTheme.extendedColors.success
+                        isActive -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.outlineVariant
                     }
                 ),
             contentAlignment = Alignment.Center
@@ -1467,7 +1502,7 @@ fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -1477,7 +1512,7 @@ fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
             text = label,
             fontSize = 9.sp,
             fontWeight = if (isActive || isDone) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive || isDone) Color(0xFF003366) else Color.Gray
+            color = if (isActive || isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
         )
     }
 }
@@ -1485,11 +1520,11 @@ fun StepCircle(label: String, isDone: Boolean, isActive: Boolean) {
 @Composable
 fun OrderStatusBadge(status: OrderStatus) {
     val (bgColor, textColor, label) = when (status) {
-        OrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
-        OrderStatus.EN_PROCESO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "En Proceso")
-        OrderStatus.PARCIALMENTE_ACEPTADA -> Triple(Color(0xFFFFF8E1), Color(0xFFF57F17), "Parcialmente Aceptada")
-        OrderStatus.COMPLETADA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Completada")
-        OrderStatus.CANCELADA -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelada")
+        OrderStatus.PENDIENTE -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "Pendiente")
+        OrderStatus.EN_PROCESO -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "En Proceso")
+        OrderStatus.PARCIALMENTE_ACEPTADA -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "Parcialmente Aceptada")
+        OrderStatus.COMPLETADA -> Triple(MaterialTheme.extendedColors.successContainer, MaterialTheme.extendedColors.onSuccessContainer, "Completada")
+        OrderStatus.CANCELADA -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "Cancelada")
     }
 
     Surface(
@@ -1501,7 +1536,9 @@ fun OrderStatusBadge(status: OrderStatus) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = textColor
+            color = textColor,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -1510,15 +1547,15 @@ fun OrderStatusBadge(status: OrderStatus) {
 @Composable
 fun SubOrderStatusBadge(status: SubOrderStatus) {
     val (backgroundColor, textColor, label) = when (status) {
-        SubOrderStatus.PENDIENTE -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), "Pendiente")
-        SubOrderStatus.ACEPTADO -> Triple(Color(0xFFE3F2FD), Color(0xFF1565C0), "Aceptado")
-        SubOrderStatus.EN_PREPARACION -> Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "En Preparación")
-        SubOrderStatus.LISTO -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Listo")
-        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Esperando")
-        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), "Completado")
-        SubOrderStatus.RECHAZADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Rechazado")
-        SubOrderStatus.CANCELADO -> Triple(Color(0xFFFFEBEE), Color(0xFFC8102E), "Cancelado")
-        SubOrderStatus.NO_ENTREGADO -> Triple(Color(0xFFECEFF1), Color(0xFF455A64), "No entregado")
+        SubOrderStatus.PENDIENTE -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "Pendiente")
+        SubOrderStatus.ACEPTADO -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "Aceptado")
+        SubOrderStatus.EN_PREPARACION -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, "En Preparación")
+        SubOrderStatus.LISTO -> Triple(MaterialTheme.extendedColors.successContainer, MaterialTheme.extendedColors.onSuccessContainer, "Listo")
+        SubOrderStatus.ESPERANDO_ENTREGA -> Triple(MaterialTheme.extendedColors.successContainer, MaterialTheme.extendedColors.onSuccessContainer, "Esperando")
+        SubOrderStatus.PAGO_CONFIRMADO, SubOrderStatus.COMPLETADO -> Triple(MaterialTheme.extendedColors.successContainer, MaterialTheme.extendedColors.onSuccessContainer, "Completado")
+        SubOrderStatus.RECHAZADO -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "Rechazado")
+        SubOrderStatus.CANCELADO -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "Cancelado")
+        SubOrderStatus.NO_ENTREGADO -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "No entregado")
     }
 
     Surface(
@@ -1530,7 +1567,9 @@ fun SubOrderStatusBadge(status: SubOrderStatus) {
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = textColor
+            color = textColor,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

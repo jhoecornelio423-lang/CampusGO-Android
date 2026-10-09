@@ -29,7 +29,8 @@ import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val authRepository: AuthRepository,
-    private val adminRepository: AdminRepository? = null
+    private val adminRepository: AdminRepository? = null,
+    private val productRepository: com.example.campusgo.domain.repository.ProductRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -39,6 +40,25 @@ class AuthViewModel(
 
     init {
         loadApprovedMeetingPoints()
+        loadCategories()
+    }
+
+    private fun loadCategories() {
+        viewModelScope.launch {
+            try {
+                productRepository?.getCategories()?.onSuccess { cats ->
+                    val names = cats.map { it.name.trim() }.filter { it.isNotBlank() }
+                    if (names.isNotEmpty()) {
+                        _uiState.update { current ->
+                            current.copy(
+                                availableCategories = names,
+                                storeCategory = if (names.contains(current.storeCategory)) current.storeCategory else names.first()
+                            )
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun loadApprovedMeetingPoints() {
@@ -287,36 +307,29 @@ class AuthViewModel(
                             }
                         }
                 } else {
-                    val msg = "No se pudo extraer el token de Google. Tipo recibido: ${(credential as? CustomCredential)?.type ?: credential.javaClass.simpleName}"
-                    Log.e("CampusGoGoogleAuth", msg)
+                    Log.e("CampusGoGoogleAuth", "No se pudo extraer el token de Google. Tipo recibido: ${(credential as? CustomCredential)?.type ?: credential.javaClass.simpleName}")
                     _uiState.update {
-                        it.copy(isLoading = false, errorMessage = msg)
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "No se pudo completar el inicio de sesión con Google. Por favor, inténtalo de nuevo."
+                        )
                     }
                 }
             } catch (e: GetCredentialCancellationException) {
-                Log.w("CampusGoGoogleAuth", "Cancelación recibida de CredentialManager: ${e.message}", e)
-                val msg = e.message.orEmpty()
-                if (msg.contains("activity is cancelled", ignoreCase = true) || msg.contains("16", ignoreCase = true) || msg.contains("10", ignoreCase = true)) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = "Google rechazó la conexión (${e.message ?: "Cancelado por el sistema"}). Verifica en Google Cloud Console que tu cuenta de correo esté agregada en 'Usuarios de prueba' (Pantalla de consentimiento OAuth) y que el SHA-1 del APK coincida."
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = "Inicio de sesión con Google cancelado."
-                        )
-                    }
-                }
-            } catch (e: NoCredentialException) {
-                Log.e("CampusGoGoogleAuth", "NoCredentialException: ${e.message}", e)
+                Log.d("CampusGoGoogleAuth", "El usuario canceló la selección de cuenta de Google: ${e.message}")
+                // Si el usuario cancela o cierra la hoja de selección, no mostramos error alarmante
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "No se encontraron credenciales de Google en este dispositivo. Asegúrate de tener una cuenta de Google vinculada en los ajustes de tu teléfono."
+                        errorMessage = null
+                    )
+                }
+            } catch (e: NoCredentialException) {
+                Log.w("CampusGoGoogleAuth", "NoCredentialException: ${e.message}", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "No se encontró una cuenta de Google activa en este dispositivo. Puedes ingresar con tu correo y contraseña."
                     )
                 }
             } catch (e: GetCredentialException) {
@@ -324,7 +337,7 @@ class AuthViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Error al conectar con Google: ${e.message ?: "Inténtalo de nuevo."}"
+                        errorMessage = "No se pudo conectar con el servicio de Google. Por favor, inténtalo de nuevo o ingresa con tu correo y contraseña."
                     )
                 }
             } catch (e: Exception) {
@@ -332,7 +345,7 @@ class AuthViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "No se pudo iniciar sesión con Google: ${e.message}"
+                        errorMessage = "No se pudo iniciar sesión con Google. Por favor, inténtalo más tarde o ingresa con tu correo y contraseña."
                     )
                 }
             }
@@ -734,7 +747,15 @@ class AuthViewModel(
                 "Tu cuenta está en revisión. El administrador aún debe aprobar tu solicitud para que puedas acceder."
             }
             (exception is IllegalArgumentException || exception is IllegalStateException) && !exception.message.isNullOrBlank() -> {
-                exception.message!!
+                val raw = exception.message!!
+                val containsTechLeak = listOf("supabase", "postgres", "sql", "http", "column", "table", "schema", "json", "endpoint", "url", "curl", "oauth", "jwt", "token", "exception", "nullpointer")
+                    .any { raw.contains(it, ignoreCase = true) }
+                if (containsTechLeak) {
+                    if (isLoginMode) "Error al iniciar sesión. Por favor, verifica tus datos e inténtalo de nuevo."
+                    else "No se pudo completar el registro. Por favor, verifica tus datos e inténtalo de nuevo."
+                } else {
+                    raw
+                }
             }
             else -> {
                 if (isLoginMode) {

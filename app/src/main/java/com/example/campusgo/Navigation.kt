@@ -49,10 +49,11 @@ import androidx.compose.ui.unit.sp
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.model.UserRole
 import com.example.campusgo.domain.repository.AuthRepository
-import com.example.campusgo.features.admin.AdminHomeScreen
-import com.example.campusgo.features.auth.AuthRoute
-import com.example.campusgo.features.buyer.BuyerHomeScreen
-import com.example.campusgo.features.seller.SellerDashboardScreen
+import com.example.campusgo.features.account.SuspendedAccountScreen
+import com.example.campusgo.navigation.AdminNavGraph
+import com.example.campusgo.navigation.AuthNavGraph
+import com.example.campusgo.navigation.BuyerNavGraph
+import com.example.campusgo.navigation.SellerNavGraph
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -117,7 +118,7 @@ fun MainNavigation(
                 }
             }
         } else if (!isAuthenticated || currentProfile == null) {
-            AuthRoute(
+            AuthNavGraph(
                 onAuthSuccess = { /* State triggers automatic recomposition */ },
                 modifier = Modifier.fillMaxSize()
             )
@@ -140,7 +141,7 @@ fun MainNavigation(
             } else {
                 when (profile.role) {
                     UserRole.COMPRADOR -> {
-                        BuyerHomeScreen(
+                        BuyerNavGraph(
                             profile = profile,
                             onSignOut = onSignOut,
                             pendingSubOrderId = pendingSubOrderId,
@@ -151,7 +152,7 @@ fun MainNavigation(
                         )
                     }
                     UserRole.EMPRENDEDOR -> {
-                        SellerDashboardScreen(
+                        SellerNavGraph(
                             profile = profile,
                             onSignOut = onSignOut,
                             pendingSubOrderId = pendingSubOrderId,
@@ -162,7 +163,7 @@ fun MainNavigation(
                         )
                     }
                     UserRole.ADMIN -> {
-                        AdminHomeScreen(
+                        AdminNavGraph(
                             profile = profile,
                             onSignOut = onSignOut,
                             pendingRoute = pendingRoute,
@@ -177,152 +178,6 @@ fun MainNavigation(
                             modifier = Modifier.safeDrawingPadding()
                         )
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SuspendedAccountScreen(
-    profile: UserProfile,
-    onSignOut: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val uriHandler = LocalUriHandler.current
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8FAFC)),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            // Icono de advertencia / suspensión
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFEE2E2)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Lock,
-                    contentDescription = "Acceso Suspendido",
-                    tint = Color(0xFFDC2626),
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "Cuenta Suspendida",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
-                    ),
-                    color = Color(0xFF1E293B),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "Tu acceso a CampusGO ha sido suspendido temporalmente por la administración debido a infracciones o reportes acumulados.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF64748B),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 20.sp
-                )
-            }
-
-            // Resumen de la cuenta afectada
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                shadowElevation = 2.dp,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Datos de la Cuenta",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
-                    )
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Usuario:", fontSize = 13.sp, color = Color(0xFF64748B))
-                        Text(profile.fullName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Sede:", fontSize = 13.sp, color = Color(0xFF64748B))
-                        Text(profile.campus, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Estado:", fontSize = 13.sp, color = Color(0xFF64748B))
-                        Text("Suspendido", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
-                    }
-                }
-            }
-
-            // Botones de acción (Contacto con soporte y Cerrar Sesión)
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = {
-                        try {
-                            uriHandler.openUri("mailto:soporte@kodexti.com?subject=Consulta%20Cuenta%20Suspendida%20CampusGO%20-%20${profile.fullName}")
-                        } catch (_: Exception) {}
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16324F))
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Email,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Contactar a Soporte", fontWeight = FontWeight.Bold)
-                }
-
-                OutlinedButton(
-                    onClick = onSignOut,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626))
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Cerrar Sesión", fontWeight = FontWeight.Bold)
                 }
             }
         }

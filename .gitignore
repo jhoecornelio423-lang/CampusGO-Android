@@ -19,6 +19,7 @@ app/release/
 .kotlin/
 credenciales.txt
 credenciales_vps.txt
+credenciales-GoogleCloud.txt
 vps_acceso.txt
 full_auth_repo_backup.txt
 emulator_screen.png

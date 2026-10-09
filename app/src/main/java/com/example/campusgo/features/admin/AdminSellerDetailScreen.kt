@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import com.example.campusgo.domain.model.ProfileWarning
 import com.example.campusgo.domain.model.SellerDashboardStats
 import com.example.campusgo.domain.model.UserProfile
 import com.example.campusgo.domain.model.UserRole
+import com.example.campusgo.theme.ThemeManager
 import com.example.campusgo.ui.components.EnlargedPhotoViewerDialog
 import com.example.campusgo.ui.components.PaymentMethodLogoByName
 import com.example.campusgo.ui.components.StoreStatusBadge
@@ -66,6 +68,7 @@ fun AdminSellerDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val isDarkMode by ThemeManager.isDarkMode.collectAsState()
     val isSuspended = seller.role == UserRole.SUSPENDED
 
     var showEnlargedPhoto by remember { mutableStateOf(false) }
@@ -91,7 +94,7 @@ fun AdminSellerDetailScreen(
                         Text(
                             text = "Seguimiento de Puesto",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
@@ -106,7 +109,7 @@ fun AdminSellerDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Regresar al listado",
-                            tint = Color(0xFF003366)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -205,7 +208,7 @@ fun AdminSellerDetailScreen(
                                 text = seller.displayStoreName,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = if (isSuspended) Color(0xFFC8102E) else Color(0xFF003366)
+                                color = if (isSuspended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -217,16 +220,16 @@ fun AdminSellerDetailScreen(
 
                         // Calificación
                         Surface(
-                            color = Color(0xFFFFF8E1),
+                            color = if (isDarkMode) Color(0xFF3E2D07) else Color(0xFFFFF8E1),
                             shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFD54F))
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFFB45309) else Color(0xFFFFD54F))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "?",
+                                    text = "★",
                                     color = Color(0xFFFFA000),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
@@ -236,7 +239,7 @@ fun AdminSellerDetailScreen(
                                     text = "%.1f".format(seller.ratingAverage),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Color(0xFF5D4037)
+                                    color = if (isDarkMode) Color(0xFFFDE68A) else Color(0xFF5D4037)
                                 )
                             }
                         }
@@ -334,7 +337,7 @@ fun AdminSellerDetailScreen(
                         text = "Rendimiento y Ventas del Puesto",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall,
-                        color = Color(0xFF003366)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Row(
@@ -344,13 +347,13 @@ fun AdminSellerDetailScreen(
                         DetailMetricMiniCard(
                             title = "Ventas Totales",
                             value = "S/ %.2f".format(sellerStats?.totalEarnings ?: 0.0),
-                            color = Color(0xFF003366),
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f)
                         )
                         DetailMetricMiniCard(
                             title = "Pedidos Entregados",
                             value = "${sellerStats?.completedCount ?: 0}",
-                            color = Color(0xFF00A884),
+                            color = if (isDarkMode) Color(0xFF34D399) else Color(0xFF00A884),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -362,13 +365,13 @@ fun AdminSellerDetailScreen(
                         DetailMetricMiniCard(
                             title = "Ticket Promedio",
                             value = "S/ %.2f".format(sellerStats?.averageTicket ?: 0.0),
-                            color = Color(0xFF1976D2),
+                            color = if (isDarkMode) Color(0xFF60A5FA) else Color(0xFF1976D2),
                             modifier = Modifier.weight(1f)
                         )
                         DetailMetricMiniCard(
                             title = "Cancelados / Fallidos",
                             value = "${sellerStats?.cancelledCount ?: 0}",
-                            color = if ((sellerStats?.cancelledCount ?: 0) > 0) Color(0xFFE65100) else Color.Gray,
+                            color = if ((sellerStats?.cancelledCount ?: 0) > 0) MaterialTheme.colorScheme.error else Color.Gray,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -382,7 +385,8 @@ fun AdminSellerDetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -392,7 +396,7 @@ fun AdminSellerDetailScreen(
                             text = "Información del Emprendedor y Punto de Venta",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF003366)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -402,7 +406,7 @@ fun AdminSellerDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = Color(0xFF003366),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -418,7 +422,7 @@ fun AdminSellerDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Badge,
                                     contentDescription = null,
-                                    tint = Color(0xFF003366),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -434,7 +438,7 @@ fun AdminSellerDetailScreen(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_location_custom),
                                 contentDescription = null,
-                                tint = Color(0xFF003366),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -453,7 +457,7 @@ fun AdminSellerDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = null,
-                                tint = Color(0xFF003366),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -479,7 +483,7 @@ fun AdminSellerDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.Phone,
                                         contentDescription = null,
-                                        tint = Color(0xFF003366),
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -583,17 +587,18 @@ fun AdminSellerDetailScreen(
                             text = "Catálogo de Productos (${products.size})",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF003366)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         if (isLoadingProducts) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
                     if (products.isEmpty() && !isLoadingProducts) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -628,7 +633,8 @@ fun AdminSellerDetailScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     ) {
                         Row(
                             modifier = Modifier
@@ -789,7 +795,8 @@ private fun DetailMetricMiniCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
         shape = RoundedCornerShape(12.dp),
         modifier = modifier
     ) {

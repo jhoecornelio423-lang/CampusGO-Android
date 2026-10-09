@@ -59,7 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.campusgo.ui.components.SetDarkScreenStatusBar
+import com.example.campusgo.theme.extendedColors
 
 @Composable
 fun OtpVerificationView(
@@ -71,7 +71,6 @@ fun OtpVerificationView(
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    SetDarkScreenStatusBar()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -80,7 +79,7 @@ fun OtpVerificationView(
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Color(0xFFF8FAFC)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -101,7 +100,7 @@ fun OtpVerificationView(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Volver",
-                        tint = Color(0xFF16324F)
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -115,12 +114,12 @@ fun OtpVerificationView(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE6F4EA))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
             ) {
                 Icon(
                     imageVector = Icons.Outlined.MarkEmailRead,
                     contentDescription = null,
-                    tint = Color(0xFF00A884),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(42.dp)
                 )
             }
@@ -133,7 +132,7 @@ fun OtpVerificationView(
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 ),
-                color = Color(0xFF16324F),
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
 
@@ -142,7 +141,7 @@ fun OtpVerificationView(
             Text(
                 text = "Ingresa el código de verificación que enviamos a:",
                 fontSize = 13.5.sp,
-                color = Color(0xFF64748B),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
@@ -150,7 +149,7 @@ fun OtpVerificationView(
 
             // Chip con el correo del usuario
             Surface(
-                color = Color(0xFFE2E8F0),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Row(
@@ -161,14 +160,14 @@ fun OtpVerificationView(
                     Icon(
                         imageVector = Icons.Outlined.Email,
                         contentDescription = null,
-                        tint = Color(0xFF16324F),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = uiState.email,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF16324F)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -182,9 +181,9 @@ fun OtpVerificationView(
                 exit = fadeOut()
             ) {
                 Surface(
-                    color = Color(0xFFF0FDF4),
+                    color = MaterialTheme.extendedColors.successContainer,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.extendedColors.success.copy(alpha = 0.3f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -196,14 +195,14 @@ fun OtpVerificationView(
                         Icon(
                             imageVector = Icons.Outlined.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF00A884),
+                            tint = MaterialTheme.extendedColors.success,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.infoMessage.orEmpty(),
                             fontSize = 12.5.sp,
-                            color = Color(0xFF166534),
+                            color = MaterialTheme.extendedColors.onSuccessContainer,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -217,9 +216,9 @@ fun OtpVerificationView(
                 exit = fadeOut()
             ) {
                 Surface(
-                    color = Color(0xFFFEF2F2),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -231,14 +230,14 @@ fun OtpVerificationView(
                         Icon(
                             imageVector = Icons.Default.Error,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = uiState.errorMessage.orEmpty(),
                             fontSize = 12.5.sp,
-                            color = Color(0xFF991B1B),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
@@ -248,7 +247,7 @@ fun OtpVerificationView(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cerrar",
-                                tint = Color(0xFF991B1B),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -274,10 +273,10 @@ fun OtpVerificationView(
                 enabled = uiState.canVerifyOtp,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00A884),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFCBD5E1),
-                    disabledContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -285,7 +284,7 @@ fun OtpVerificationView(
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(22.dp)
                     )
@@ -309,13 +308,13 @@ fun OtpVerificationView(
                     Icon(
                         imageVector = Icons.Outlined.AccessTime,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = "Puedes reenviar el código en ${uiState.countdownSeconds}s",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -327,13 +326,13 @@ fun OtpVerificationView(
                     Text(
                         text = "¿No te llegó el código? ",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "Reenviar código",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00A884),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable(onClick = onResend)
                     )
                 }
@@ -344,7 +343,7 @@ fun OtpVerificationView(
             Text(
                 text = "💡 Revisa también tu carpeta de SPAM o No Deseados",
                 fontSize = 12.sp,
-                color = Color(0xFF94A3B8),
+                color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center
             )
 
@@ -354,7 +353,7 @@ fun OtpVerificationView(
                 Text(
                     text = "Volver y cambiar correo",
                     fontSize = 13.5.sp,
-                    color = Color(0xFF16324F),
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -402,17 +401,17 @@ fun OtpInputRow(
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 when {
-                                    isCurrent -> Color.White
-                                    isFilled -> Color(0xFFF0FDF4)
-                                    else -> Color(0xFFF1F5F9)
+                                    isCurrent -> MaterialTheme.colorScheme.surfaceVariant
+                                    isFilled -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                                 }
                             )
                             .border(
                                 width = if (isCurrent) 2.dp else 1.dp,
                                 color = when {
-                                    isCurrent -> Color(0xFF00A884)
-                                    isFilled -> Color(0xFF00A884)
-                                    else -> Color(0xFFCBD5E1)
+                                    isCurrent -> MaterialTheme.colorScheme.primary
+                                    isFilled -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outlineVariant
                                 },
                                 shape = RoundedCornerShape(12.dp)
                             )
@@ -421,7 +420,7 @@ fun OtpInputRow(
                             text = char,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16324F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

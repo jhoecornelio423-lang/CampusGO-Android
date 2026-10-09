@@ -1,8 +1,9 @@
-﻿package com.example.campusgo.core.di
+package com.example.campusgo.core.di
 
 import com.example.campusgo.features.admin.AdminViewModel
 import com.example.campusgo.features.auth.AuthViewModel
 import com.example.campusgo.features.cart.CartViewModel
+import com.example.campusgo.features.buyer.BuyerHomeViewModel
 import com.example.campusgo.features.chat.OrderChatViewModel
 import com.example.campusgo.features.seller.SellerDashboardViewModel
 import com.example.campusgo.features.tracking.OrderTrackingViewModel
@@ -16,4 +17,5 @@ val uiModule = module {
     viewModelOf(::OrderTrackingViewModel)
     viewModelOf(::AdminViewModel)
     viewModelOf(::OrderChatViewModel)
+    viewModelOf(::BuyerHomeViewModel)
 }

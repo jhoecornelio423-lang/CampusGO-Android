@@ -71,6 +71,13 @@ import com.example.campusgo.ui.components.StrikeBadge
 import com.example.campusgo.ui.components.CampusGoBusinessAvatar
 import com.example.campusgo.ui.components.CampusGoBusinessBanner
 import com.example.campusgo.ui.components.compressImageUri
+import com.example.campusgo.ui.components.designsystem.CampusBadge
+import com.example.campusgo.ui.components.designsystem.CampusBadgeVariant
+import com.example.campusgo.ui.components.designsystem.CampusButton
+import com.example.campusgo.ui.components.designsystem.CampusCard
+import com.example.campusgo.ui.components.designsystem.CampusOutlinedButton
+import com.example.campusgo.ui.components.designsystem.CampusTextField
+import com.example.campusgo.theme.extendedColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +86,7 @@ fun SellerStoreProfileScreen(
     sellerProfile: UserProfile?,
     warnings: List<ProfileWarning> = emptyList(),
     availableMeetingPoints: List<CampusMeetingPoint> = emptyList(),
+    availableCategories: List<com.example.campusgo.domain.model.Category> = emptyList(),
     isSaving: Boolean,
     isUploading: Boolean = false,
     onNavigateBack: () -> Unit,
@@ -155,9 +163,16 @@ fun SellerStoreProfileScreen(
         mutableStateOf(activeProfile.businessDescription.orEmpty())
     }
     val initialCategory = activeProfile.businessCategory.orEmpty()
-    val isCategoryPredefined = AuthUiState.STORE_CATEGORIES.any { it.equals(initialCategory, ignoreCase = true) && !it.equals("Otros", ignoreCase = true) }
-    var selectedCategoryOption by remember(activeProfile.id, activeProfile.businessCategory) {
-        mutableStateOf(if (isCategoryPredefined) initialCategory else if (initialCategory.isNotBlank()) "Otros" else "Comidas y Menús")
+    val categoryOptions = remember(availableCategories) {
+        if (availableCategories.isNotEmpty()) {
+            availableCategories.map { it.name.trim() }.filter { !it.equals("Otros", ignoreCase = true) } + "Otros"
+        } else {
+            AuthUiState.STORE_CATEGORIES
+        }
+    }
+    val isCategoryPredefined = categoryOptions.any { it.equals(initialCategory, ignoreCase = true) && !it.equals("Otros", ignoreCase = true) }
+    var selectedCategoryOption by remember(activeProfile.id, activeProfile.businessCategory, categoryOptions) {
+        mutableStateOf(if (isCategoryPredefined) initialCategory else if (initialCategory.isNotBlank()) "Otros" else categoryOptions.firstOrNull() ?: "Comidas y Menús")
     }
     var customCategoryText by remember(activeProfile.id, activeProfile.businessCategory) {
         mutableStateOf(if (!isCategoryPredefined) initialCategory else "")
@@ -302,8 +317,8 @@ fun SellerStoreProfileScreen(
                             FilledTonalButton(
                                 onClick = { isEditMode = true },
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = Color(0xFFE3F2FD),
-                                    contentColor = Color(0xFF0284C7)
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
@@ -517,56 +532,31 @@ fun SellerStoreProfileScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Surface(
-                                        color = if (isDark) Color(0xFF004D3D).copy(alpha = 0.45f) else Color(0xFFE6F6F3),
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = if (isDark) BorderStroke(0.75.dp, Color(0xFF34D399).copy(alpha = 0.35f)) else null
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
+                                    CampusBadge(
+                                        text = "Emprendedor Autorizado",
+                                        variant = CampusBadgeVariant.Success,
+                                        leadingIcon = {
                                             Icon(
                                                 painter = painterResource(id = R.drawable.ic_authorized_seller_custom),
                                                 contentDescription = null,
-                                                tint = if (isDark) Color(0xFF34D399) else Color(0xFF0D5C4C),
+                                                tint = MaterialTheme.extendedColors.onSuccessContainer,
                                                 modifier = Modifier.size(13.dp)
                                             )
-                                            Text(
-                                                text = "Emprendedor Autorizado",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = if (isDark) Color(0xFF34D399) else Color(0xFF0D5C4C),
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 11.sp
-                                            )
                                         }
-                                    }
+                                    )
 
-                                    Surface(
-                                        color = if (isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFEF3C7),
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = if (isDark) BorderStroke(0.75.dp, Color(0xFFFBBF24).copy(alpha = 0.35f)) else null
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
+                                    CampusBadge(
+                                        text = "%.1f".format(activeProfile.ratingAverage),
+                                        variant = CampusBadgeVariant.Warning,
+                                        leadingIcon = {
                                             Icon(
                                                 imageVector = Icons.Default.Star,
                                                 contentDescription = null,
-                                                tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                                                tint = MaterialTheme.extendedColors.onWarningContainer,
                                                 modifier = Modifier.size(13.dp)
                                             )
-                                            Text(
-                                                text = "%.1f".format(activeProfile.ratingAverage),
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 11.5.sp,
-                                                color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
-                                            )
                                         }
-                                    }
+                                    )
                                 }
 
                                 Spacer(modifier = Modifier.height(2.dp))
@@ -694,56 +684,22 @@ fun SellerStoreProfileScreen(
                 if (!isEditMode) {
                     // MODO LECTURA
                     if (businessStatus == "SATURADO") {
-                        Surface(
-                            color = Color(0xFFFEF3C7),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                            modifier = Modifier.fillMaxWidth()
+                        CampusCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = MaterialTheme.extendedColors.warningContainer
                         ) {
                             Text(
                                 text = "Modo Saturado activo: Tus clientes ven un aviso de alta demanda.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFB45309),
-                                modifier = Modifier.padding(14.dp)
-                            )
-                        }
-                    } else if (businessStatus == "PAUSADO") {
-                        Surface(
-                            color = Color(0xFFFFFBEB),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Modo Pausado: Las compras están deshabilitadas temporalmente.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFD97706),
-                                modifier = Modifier.padding(14.dp)
-                            )
-                        }
-                    } else if (businessStatus == "CERRADO") {
-                        Surface(
-                            color = Color(0xFFFFEBEE),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Puesto Cerrado: No visible para pedidos en catálogo.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFC8102E),
+                                color = MaterialTheme.extendedColors.onWarningContainer,
                                 modifier = Modifier.padding(14.dp)
                             )
                         }
                     }
 
                     // Información del Puesto (Limpio y sin redundancias)
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        shadowElevation = 1.5.dp
+                    CampusCard(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier
@@ -776,13 +732,9 @@ fun SellerStoreProfileScreen(
                         }
                     }
 
-                    // Puntos de Entrega Habilitados (Modo Lectura - Blanco Nítido)
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        shadowElevation = 1.5.dp
+                    // Puntos de Entrega Habilitados (Modo Lectura)
+                    CampusCard(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier
@@ -822,97 +774,76 @@ fun SellerStoreProfileScreen(
 
                             if (displayedMeetingPoints.isEmpty()) {
                                 Surface(
-                                    color = if (isDark) Color(0xFF450A0A).copy(alpha = 0.5f) else Color(0xFFFEF2F2),
+                                    color = MaterialTheme.colorScheme.errorContainer,
                                     shape = RoundedCornerShape(10.dp),
-                                    border = BorderStroke(1.dp, if (isDark) Color(0xFF991B1B).copy(alpha = 0.5f) else Color(0xFFFECACA)),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = "No has seleccionado puntos de entrega. Tus compradores no podrán programar entregas hasta que habilites al menos un punto.",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B),
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
                                         modifier = Modifier.padding(12.dp)
                                     )
                                 }
                             } else {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     displayedMeetingPoints.forEach { pt ->
                                         val label = pt.name
                                         val isExt = pt.zoneType.equals("EXTERIOR", ignoreCase = true)
                                         val details = listOfNotNull(pt.pavilion, pt.description).filter { it.isNotBlank() }.joinToString(" • ")
 
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                            shape = RoundedCornerShape(12.dp),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                            modifier = Modifier.fillMaxWidth()
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                modifier = Modifier.weight(1f),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
-                                                Row(
-                                                    modifier = Modifier.weight(1f),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = if (isExt) MaterialTheme.extendedColors.successContainer else MaterialTheme.extendedColors.infoContainer,
+                                                    modifier = Modifier.size(28.dp)
                                                 ) {
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = if (isDark) {
-                                                            if (isExt) Color(0xFF004D3D).copy(alpha = 0.4f) else Color(0xFF31104B).copy(alpha = 0.4f)
-                                                        } else {
-                                                            if (isExt) Color(0xFFE8F5E9) else Color(0xFFEDE7F6)
-                                                        },
-                                                        modifier = Modifier.size(32.dp)
-                                                    ) {
-                                                        Box(contentAlignment = Alignment.Center) {
-                                                            Icon(
-                                                                painter = painterResource(id = R.drawable.ic_location_custom),
-                                                                contentDescription = null,
-                                                                tint = if (isDark) {
-                                                                    if (isExt) Color(0xFF34D399) else Color(0xFFC084FC)
-                                                                } else {
-                                                                    if (isExt) Color(0xFF2E7D32) else Color(0xFF512DA8)
-                                                                },
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                    Column {
-                                                        Text(
-                                                            text = label,
-                                                            fontSize = 13.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onSurface
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.ic_location_custom),
+                                                            contentDescription = null,
+                                                            tint = if (isExt) MaterialTheme.extendedColors.onSuccessContainer else MaterialTheme.extendedColors.onInfoContainer,
+                                                            modifier = Modifier.size(14.dp)
                                                         )
-                                                        if (details.isNotBlank()) {
-                                                            Text(
-                                                                text = details,
-                                                                fontSize = 11.5.sp,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                            )
-                                                        }
                                                     }
                                                 }
-                                                Surface(
-                                                    color = if (isExt) Color(0xFF00A884).copy(alpha = 0.15f) else Color(0xFF3B82F6).copy(alpha = 0.15f),
-                                                    shape = RoundedCornerShape(6.dp)
-                                                ) {
+                                                Column {
                                                     Text(
-                                                        text = if (isExt) "Exterior" else "Interior",
-                                                        fontSize = 10.5.sp,
+                                                        text = label,
+                                                        fontSize = 12.5.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = if (isExt) Color(0xFF10B981) else Color(0xFF60A5FA),
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                        color = MaterialTheme.colorScheme.onSurface
                                                     )
+                                                    if (details.isNotBlank()) {
+                                                        Text(
+                                                            text = details,
+                                                            fontSize = 11.sp,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
                                                 }
                                             }
+                                            CampusBadge(
+                                                text = if (isExt) "Exterior" else "Interior",
+                                                variant = if (isExt) CampusBadgeVariant.Success else CampusBadgeVariant.Info
+                                            )
                                         }
                                     }
                                 }
@@ -920,12 +851,8 @@ fun SellerStoreProfileScreen(
                         }
                     }
 
-                    // Sección: MÁS INFORMACIÓN (Términos, Privacidad, Ayuda y Strikes)
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        shadowElevation = 1.5.dp,
+                    // Sección: PREFERENCIAS Y AJUSTES
+                    CampusCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1003,8 +930,8 @@ fun SellerStoreProfileScreen(
                             // 3. Botón de Ayuda
                             ProfileInfoNavigationRow(
                                 iconPainter = painterResource(id = R.drawable.ic_help_headset_custom),
-                                iconTint = Color(0xFFD97706),
-                                iconBg = Color(0xFFFEF3C7),
+                                iconTint = MaterialTheme.extendedColors.warning,
+                                iconBg = MaterialTheme.extendedColors.warningContainer,
                                 title = "Ayuda",
                                 subtitle = "Preguntas frecuentes y soporte al vendedor",
                                 onClick = { selectedInfoType = ProfileInfoType.HELP }
@@ -1015,9 +942,9 @@ fun SellerStoreProfileScreen(
                             // 4. Sistema de Strikes / Avisos y Moderación
                             val strikeCount = warnings.size
                             val (strikeIconBg, strikeIconTint) = when {
-                                strikeCount >= 5 -> Color(0xFFFEE2E2) to Color(0xFFDC2626)
-                                strikeCount in 1..4 -> Color(0xFFFFF3E0) to Color(0xFFE65100)
-                                else -> Color(0xFFE6F7F3) to Color(0xFF00A884)
+                                strikeCount >= 5 -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.error
+                                strikeCount in 1..4 -> MaterialTheme.extendedColors.warningContainer to MaterialTheme.extendedColors.warning
+                                else -> MaterialTheme.extendedColors.successContainer to MaterialTheme.extendedColors.success
                             }
                             ProfileInfoNavigationRow(
                                 icon = if (strikeCount >= 5) Icons.Default.Dangerous else if (strikeCount in 1..4) Icons.Default.WarningAmber else Icons.Default.Shield,
@@ -1036,8 +963,8 @@ fun SellerStoreProfileScreen(
                             // 5. Botón de Reportar Incidencia / Soporte
                             ProfileInfoNavigationRow(
                                 iconPainter = painterResource(id = R.drawable.ic_report_triangle_custom),
-                                iconTint = Color(0xFFDC2626),
-                                iconBg = Color(0xFFFEE2E2),
+                                iconTint = MaterialTheme.colorScheme.error,
+                                iconBg = MaterialTheme.colorScheme.errorContainer,
                                 title = "Reportar incidencia",
                                 subtitle = "Notificar problemas con compradores, pedidos o soporte técnico",
                                 onClick = { showReportDialog = true }
@@ -1181,7 +1108,7 @@ fun SellerStoreProfileScreen(
                                     expanded = isCategoryDropdownExpanded,
                                     onDismissRequest = { isCategoryDropdownExpanded = false }
                                 ) {
-                                    AuthUiState.STORE_CATEGORIES.forEach { option ->
+                                    categoryOptions.forEach { option ->
                                         DropdownMenuItem(
                                             text = { Text(option) },
                                             onClick = {
@@ -1576,16 +1503,18 @@ fun SellerStoreProfileScreen(
                         )
                         isEditMode = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003366)),
-                    shape = RoundedCornerShape(14.dp),
-                    enabled = !isSaving && !isUploadingBanner && !isUploadingAvatar,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .height(48.dp)
+                        .padding(horizontal = 20.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = !isSaving && !isUploadingBanner && !isUploadingAvatar,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Guardando...")
                     } else {
@@ -1597,21 +1526,18 @@ fun SellerStoreProfileScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                OutlinedButton(
+                CampusOutlinedButton(
+                    text = "Cancelar Edición",
                     onClick = { resetFields() },
-                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .height(44.dp)
-                ) {
-                    Text("Cancelar Edición", fontWeight = FontWeight.SemiBold)
-                }
+                )
             } else {
                 OutlinedButton(
                     onClick = onSignOut,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1621,7 +1547,7 @@ fun SellerStoreProfileScreen(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_logout_custom),
                         contentDescription = null,
-                        tint = Color(0xFFDC2626),
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1633,7 +1559,7 @@ fun SellerStoreProfileScreen(
             Text(
                 text = "CampusGO - version 0.6.2-beta",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF94A3B8),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.5.sp,
                 textAlign = TextAlign.Center,

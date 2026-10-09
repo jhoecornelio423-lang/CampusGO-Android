@@ -1,4 +1,4 @@
-﻿package com.example.campusgo.domain.repository
+package com.example.campusgo.domain.repository
 
 import com.example.campusgo.domain.model.BuyerOrderStats
 import com.example.campusgo.domain.model.CampusDetailedMetrics
@@ -20,8 +20,18 @@ interface AdminRepository {
 
     fun observeSellerApplications(): Flow<List<SellerApplication>>
     suspend fun refreshSellerApplications()
-    suspend fun approveSellerApplication(applicationId: String, adminId: String? = null): Result<Unit>
+    suspend fun approveSellerApplication(
+        applicationId: String,
+        adminId: String? = null,
+        category: String? = null,
+        addToGlobalCategories: Boolean = false
+    ): Result<Unit>
     suspend fun rejectSellerApplication(applicationId: String, reason: String): Result<Unit>
+
+    fun observeCategories(): Flow<List<com.example.campusgo.domain.model.Category>>
+    suspend fun refreshCategories()
+    suspend fun createCategory(name: String, icon: String? = null): Result<com.example.campusgo.domain.model.Category>
+    suspend fun deleteCategory(id: String): Result<Unit>
 
     fun observeSellers(): Flow<List<UserProfile>>
     suspend fun refreshSellers()
